@@ -196,7 +196,6 @@ function App() {
             {activeTab === 'calls' && (
               <CallList
                 calls={calls}
-                selectedCall={selectedCall}
                 onCallSelect={handleCallSelect}
               />
             )}

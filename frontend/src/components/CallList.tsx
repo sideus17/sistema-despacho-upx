@@ -1,13 +1,15 @@
+import { useState } from 'react';
 import { EmergencyCall, CallPriority, CallStatus } from '../types';
 import { getTimeAgo, finishDispatch } from '../services/api';
 
 interface CallListProps {
   calls: EmergencyCall[];
-  selectedCall?: EmergencyCall | null;
   onCallSelect: (call: EmergencyCall) => void;
 }
 
-export default function CallList({ calls, selectedCall, onCallSelect }: CallListProps) {
+export default function CallList({ calls, onCallSelect }: CallListProps) {
+  const [expandedCallId, setExpandedCallId] = useState<string | null>(null);
+
   const getPriorityColor = (priority: CallPriority): string => {
     switch (priority) {
       case CallPriority.EMERGENCIA:
@@ -63,67 +65,93 @@ export default function CallList({ calls, selectedCall, onCallSelect }: CallList
       </h2>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        {activeCalls.map(call => (
-          <div
-            key={call.id}
-            onClick={() => onCallSelect(call)}
-            style={{
-              padding: '16px',
-              backgroundColor: selectedCall?.id === call.id ? '#eff6ff' : 'white',
-              border: selectedCall?.id === call.id ? '2px solid #3b82f6' : '1px solid #e5e7eb',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-              boxShadow: selectedCall?.id === call.id ? '0 4px 6px rgba(59, 130, 246, 0.1)' : '0 1px 3px rgba(0,0,0,0.1)'
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '20px' }}>{getPriorityBadge(call.priority)}</span>
-                <span style={{ fontSize: '14px', fontWeight: 'bold', color: getPriorityColor(call.priority), textTransform: 'uppercase' }}>
-                  {call.priority}
-                </span>
+        {activeCalls.map(call => {
+          const isExpanded = expandedCallId === call.id;
+          const isEmAtendimento = call.status === CallStatus.EM_ATENDIMENTO;
+
+          return (
+            <div
+              key={call.id}
+              onClick={() => setExpandedCallId(isExpanded ? null : call.id)} // Expande ou fecha o card
+              style={{
+                padding: '16px',
+                // Fundo fica laranja claro se estiver em atendimento. Se não, azulzinho se selecionado, senão branco.
+                backgroundColor: isEmAtendimento ? '#fff7ed' : (isExpanded ? '#eff6ff' : 'white'),
+                // Borda segue a mesma lógica
+                border: isExpanded ? '2px solid #3b82f6' : (isEmAtendimento ? '1px solid #fdba74' : '1px solid #e5e7eb'),
+                borderRadius: '8px',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                boxShadow: isExpanded ? '0 4px 6px rgba(59, 130, 246, 0.1)' : '0 1px 3px rgba(0,0,0,0.1)'
+              }}
+            >
+              {/* Header */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '20px' }}>{getPriorityBadge(call.priority)}</span>
+                  <span style={{ fontSize: '14px', fontWeight: 'bold', color: getPriorityColor(call.priority), textTransform: 'uppercase' }}>
+                    {call.priority}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+                  <span style={{ fontSize: '12px', color: '#6b7280' }}>{getTimeAgo(call.timestamp)}</span>
+                  {/* Badge visual para indicar que o chamado já está rodando */}
+                  {isEmAtendimento && (
+                    <span style={{ fontSize: '10px', backgroundColor: '#f97316', color: 'white', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' }}>
+                      EM ATENDIMENTO
+                    </span>
+                  )}
+                </div>
               </div>
-              <span style={{ fontSize: '12px', color: '#6b7280' }}>{getTimeAgo(call.timestamp)}</span>
-            </div>
 
-            <div style={{ marginBottom: '8px' }}>
-              <p style={{ margin: '0', fontSize: '14px', fontWeight: '600', color: '#1f2937' }}>📍 {call.address}</p>
-            </div>
-
-            <div style={{ marginBottom: '8px' }}>
-              <p style={{ margin: '0', fontSize: '13px', color: '#4b5563', lineHeight: '1.5' }}>{call.description}</p>
-            </div>
-
-            <div style={{ display: 'flex', gap: '12px', fontSize: '12px', color: '#6b7280', paddingTop: '8px', borderTop: '1px solid #e5e7eb' }}>
-              {call.patientInfo.age && <span>👤 {call.patientInfo.age} anos</span>}
-              {call.patientInfo.gender && <span>{call.patientInfo.gender === 'M' ? '♂️' : '♀️'} {call.patientInfo.gender}</span>}
-            </div>
-
-            {/* Action Buttons */}
-            {selectedCall?.id === call.id && (
-              <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                
-                {call.status === CallStatus.PENDENTE && (
-                  <button
-                    style={{ width: '100%', padding: '8px', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '6px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}
-                  >
-                    Analisar Despacho
-                  </button>
-                )}
-
-                {call.status === CallStatus.EM_ATENDIMENTO && (
-                  <button
-                    onClick={() => handleFinish(call.id, call.ambulanceId!)}
-                    style={{ width: '100%', padding: '8px', backgroundColor: '#059669', color: 'white', border: 'none', borderRadius: '6px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}
-                  >
-                    Finalizar Atendimento
-                  </button>
-                )}
+              {/* Address */}
+              <div style={{ marginBottom: '8px' }}>
+                <p style={{ margin: '0', fontSize: '14px', fontWeight: '600', color: '#1f2937' }}>📍 {call.address}</p>
               </div>
-            )}
-          </div>
-        ))}
+
+              {/* Description */}
+              <div style={{ marginBottom: '8px' }}>
+                <p style={{ margin: '0', fontSize: '13px', color: '#4b5563', lineHeight: '1.5' }}>{call.description}</p>
+              </div>
+
+              {/* Patient Info */}
+              <div style={{ display: 'flex', gap: '12px', fontSize: '12px', color: '#6b7280', paddingTop: '8px', borderTop: '1px solid #e5e7eb' }}>
+                {call.patientInfo.age && <span>👤 {call.patientInfo.age} anos</span>}
+                {call.patientInfo.gender && <span>{call.patientInfo.gender === 'M' ? '♂️' : '♀️'} {call.patientInfo.gender}</span>}
+              </div>
+
+              {/* Action Buttons Container */}
+              {isExpanded && (
+                <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  
+                  {call.status === CallStatus.PENDENTE && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation(); // Evita que o clique no botão feche o card inteiro
+                        onCallSelect(call); // Aciona a mudança para a aba de Análise
+                      }}
+                      style={{ width: '100%', padding: '8px', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '6px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}
+                    >
+                      Analisar Despacho
+                    </button>
+                  )}
+
+                  {call.status === CallStatus.EM_ATENDIMENTO && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation(); // Evita que o clique no botão feche o card inteiro
+                        handleFinish(call.id, call.ambulanceId!);
+                      }}
+                      style={{ width: '100%', padding: '8px', backgroundColor: '#059669', color: 'white', border: 'none', borderRadius: '6px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}
+                    >
+                      Finalizar Atendimento
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
