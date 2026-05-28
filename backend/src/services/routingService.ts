@@ -14,7 +14,7 @@ export async function calculateRoute(from: Coordinates, to: Coordinates): Promis
     const { data: weatherData } = await supabase.from('weather_events').select('*');
     const allWeatherEvents = weatherData || [];
 
-    // Call OSRM API
+    // 2. Primeira tentativa: Rota mais rápida (direta)
     const url = `${OSRM_SERVER}/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}`;
     const params = {
       overview: 'full',
@@ -30,27 +30,80 @@ export async function calculateRoute(from: Coordinates, to: Coordinates): Promis
 
     const route = response.data.routes[0];
 
-    // Extract geometry (coordinates)
-    const geometry: Coordinates[] = route.geometry.coordinates.map((coord: number[]) => ({
+    // Extrai a geometria inicial
+    let geometry: Coordinates[] = route.geometry.coordinates.map((coord: number[]) => ({
       lng: coord[0],
       lat: coord[1]
     }));
 
-    // Extract instructions from steps
-    const instructions: RouteInstruction[] = [];
-    if (route.legs && route.legs[0] && route.legs[0].steps) {
-      for (const step of route.legs[0].steps) {
-        instructions.push({
-          text: step.maneuver?.instruction || step.name || 'Continue',
-          distance: step.distance,
-          duration: step.duration
-        });
+    // Verifica eventos climáticos ao longo desta rota
+    let weatherEvents = checkWeatherEventsOnRoute(geometry, allWeatherEvents);
+    let riskLevel = calculateRouteRiskLevel(weatherEvents);
+
+    // 3. O PULO DO GATO: Lógica de Desvio Inteligente (Detour)
+    if (riskLevel === RiskLevel.CRITICO || riskLevel === RiskLevel.ALTO) {
+      console.log(`[ALERTA] Rota intercepta área de risco ${riskLevel}. Calculando desvio...`);
+      
+      // Pega o evento que está bloqueando a rota
+      const blockingEvent = weatherEvents.find(e => e.riskLevel === RiskLevel.CRITICO || e.riskLevel === RiskLevel.ALTO);
+      
+      if (blockingEvent) {
+        // Cria um waypoint (ponto de passagem) forçando a rota a "dar a volta" 
+        // Adicionamos aprox. 1.5km (0.015 graus) de distância do epicentro do evento
+        const detourWaypoint = {
+          lat: blockingEvent.location.lat + 0.015,
+          lng: blockingEvent.location.lng - 0.015
+        };
+
+        // Chama o OSRM novamente, forçando ele a passar pelo ponto de desvio
+        const detourUrl = `${OSRM_SERVER}/route/v1/driving/${from.lng},${from.lat};${detourWaypoint.lng},${detourWaypoint.lat};${to.lng},${to.lat}`;
+        
+        try {
+          const detourResponse = await axios.get(detourUrl, { params, timeout: 5000 });
+          
+          if (detourResponse.data.code === 'Ok' && detourResponse.data.routes.length > 0) {
+            const newRoute = detourResponse.data.routes[0];
+            
+            // Atualiza os dados com a nova rota desviada
+            geometry = newRoute.geometry.coordinates.map((coord: number[]) => ({
+              lng: coord[0], lat: coord[1]
+            }));
+            
+            route.distance = newRoute.distance;
+            route.duration = newRoute.duration;
+            route.legs = newRoute.legs;
+            
+            // Informa ao frontend que um desvio foi ativado!
+            riskLevel = RiskLevel.MEDIO; // O risco diminui porque desviamos do epicentro
+            weatherEvents = [{
+              ...blockingEvent,
+              riskLevel: RiskLevel.MEDIO,
+              description: `[DESVIO ATIVADO] Rota alterada para evitar: ${blockingEvent.description}`
+            }];
+            
+            console.log('[SUCESSO] Rota alternativa traçada com sucesso!');
+          }
+        } catch (detourError) {
+          console.warn('Falha ao calcular rota de desvio. Mantendo rota original.', detourError);
+        }
       }
     }
 
-    // Verifica eventos climáticos ao longo da rota usando os dados do Supabase
-    const weatherEvents = checkWeatherEventsOnRoute(geometry, allWeatherEvents);
-    const riskLevel = calculateRouteRiskLevel(weatherEvents);
+    // Extrai instruções dos steps (funciona para a original ou para a desviada)
+    const instructions: RouteInstruction[] = [];
+    if (route.legs) {
+      for (const leg of route.legs) {
+        if (leg.steps) {
+          for (const step of leg.steps) {
+            instructions.push({
+              text: step.maneuver?.instruction || step.name || 'Continue',
+              distance: step.distance,
+              duration: step.duration
+            });
+          }
+        }
+      }
+    }
 
     return {
       distance: route.distance,
@@ -62,7 +115,6 @@ export async function calculateRoute(from: Coordinates, to: Coordinates): Promis
     };
 
   } catch (error) {
-    // Fallback: calculate straight-line distance and estimate time
     console.warn('OSRM route calculation failed, using fallback:', error);
     return await calculateFallbackRoute(from, to);
   }
