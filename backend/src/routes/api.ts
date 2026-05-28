@@ -377,6 +377,16 @@ router.post('/dispatch/execute', async (req: Request, res: Response) => {
   }
 });
 
+router.post('/dispatch/finish', async (req: Request, res: Response) => {
+  const { ambulanceId, callId } = req.body;
+
+  await supabase.from('ambulances').update({ status: 'DISPONIVEL' }).eq('id', ambulanceId);
+  
+  await supabase.from('calls').update({ status: 'FINALIZADO' }).eq('id', callId);
+
+  res.json({ success: true, message: 'Ambulância liberada e chamado finalizado.' });
+});
+
 // ============================================
 // ROUTES
 // ============================================

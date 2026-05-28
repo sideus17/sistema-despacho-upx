@@ -145,44 +145,50 @@ export default function Map({
         {bounds.current && <FitBounds bounds={bounds.current} />}
 
         {/* Ambulances */}
-        {ambulances.map(ambulance => (
-          <Marker
-            key={ambulance.id}
-            position={[ambulance.location.lat, ambulance.location.lng]}
-            icon={createAmbulanceIcon(ambulance.status)}
-          >
-            <Popup>
-              <div style={{ minWidth: '200px' }}>
-                <h3 style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: 'bold' }}>
-                  {ambulance.code}
-                </h3>
-                <p style={{ margin: '4px 0', fontSize: '14px' }}>
-                  <strong>Tipo:</strong> {ambulance.type}
-                </p>
-                <p style={{ margin: '4px 0', fontSize: '14px' }}>
-                  <strong>Status:</strong>{' '}
-                  <span style={{
-                    color: ambulance.status === AmbulanceStatus.DISPONIVEL ? '#22c55e' :
-                           ambulance.status === AmbulanceStatus.EM_ATENDIMENTO ? '#f59e0b' : '#ef4444'
-                  }}>
-                    {ambulance.status}
-                  </span>
-                </p>
-                <p style={{ margin: '4px 0', fontSize: '14px' }}>
-                  <strong>Motorista:</strong> {ambulance.crew.driver}
-                </p>
-                <p style={{ margin: '4px 0', fontSize: '14px' }}>
-                  <strong>Médico:</strong> {ambulance.crew.medic}
-                </p>
-                {ambulance.crew.nurse && (
+        {ambulances.map((ambulance, index) => {
+          // Deslocamento minúsculo (~15 metros) para evitar que ícones fiquem 100% sobrepostos na base
+          const offsetLat = (index % 2 === 0 ? 0.00015 : -0.00015) * Math.floor(index / 2 + 1);
+          const offsetLng = (index % 3 === 0 ? 0.00015 : -0.00015) * Math.floor(index / 2 + 1);
+
+          return (
+            <Marker
+              key={ambulance.id}
+              position={[ambulance.location.lat + offsetLat, ambulance.location.lng + offsetLng]}
+              icon={createAmbulanceIcon(ambulance.status)}
+            >
+              <Popup>
+                <div style={{ minWidth: '200px' }}>
+                  <h3 style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: 'bold' }}>
+                    {ambulance.code}
+                  </h3>
                   <p style={{ margin: '4px 0', fontSize: '14px' }}>
-                    <strong>Enfermeiro:</strong> {ambulance.crew.nurse}
+                    <strong>Tipo:</strong> {ambulance.type}
                   </p>
-                )}
-              </div>
-            </Popup>
-          </Marker>
-        ))}
+                  <p style={{ margin: '4px 0', fontSize: '14px' }}>
+                    <strong>Status:</strong>{' '}
+                    <span style={{
+                      color: ambulance.status === 'DISPONIVEL' ? '#22c55e' :
+                             ambulance.status === 'EM_ATENDIMENTO' ? '#f59e0b' : '#ef4444'
+                    }}>
+                      {ambulance.status}
+                    </span>
+                  </p>
+                  <p style={{ margin: '4px 0', fontSize: '14px' }}>
+                    <strong>Motorista:</strong> {ambulance.crew.driver}
+                  </p>
+                  <p style={{ margin: '4px 0', fontSize: '14px' }}>
+                    <strong>Médico:</strong> {ambulance.crew.medic}
+                  </p>
+                  {ambulance.crew.nurse && (
+                    <p style={{ margin: '4px 0', fontSize: '14px' }}>
+                      <strong>Enfermeiro:</strong> {ambulance.crew.nurse}
+                    </p>
+                  )}
+                </div>
+              </Popup>
+            </Marker>
+          );
+        })}
 
         {/* Emergency Calls */}
         {calls.map(call => (

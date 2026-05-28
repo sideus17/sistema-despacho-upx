@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { DispatchRecommendation, Ambulance, AmbulanceType } from '../types';
 import { formatDistance, formatDuration } from '../services/api';
 
@@ -7,22 +6,22 @@ interface DispatchAnalysisProps {
   ambulances: Ambulance[];
   onExecuteDispatch?: (ambulanceId: string) => void;
   loading?: boolean;
+  selectedIndex?: number;
+  onSelectRoute?: (index: number) => void;
 }
 
 export default function DispatchAnalysis({
   recommendation,
   ambulances,
   onExecuteDispatch,
-  loading = false
+  loading = false,
+  selectedIndex = 0,
+  onSelectRoute
 }: DispatchAnalysisProps) {
-  const [selectedAmbulanceId, setSelectedAmbulanceId] = useState<string | null>(null);
-
+  
   if (loading) {
     return (
-      <div style={{
-        padding: '20px',
-        textAlign: 'center'
-      }}>
+      <div style={{ padding: '20px', textAlign: 'center' }}>
         <div style={{
           display: 'inline-block',
           width: '40px',
@@ -41,11 +40,7 @@ export default function DispatchAnalysis({
 
   if (!recommendation) {
     return (
-      <div style={{
-        padding: '20px',
-        textAlign: 'center',
-        color: '#6b7280'
-      }}>
+      <div style={{ padding: '20px', textAlign: 'center', color: '#6b7280' }}>
         <p style={{ fontSize: '16px', margin: '0' }}>
           📊 Selecione um chamado para ver a análise de despacho
         </p>
@@ -59,14 +54,10 @@ export default function DispatchAnalysis({
 
   const getTypeIcon = (type: AmbulanceType): string => {
     switch (type) {
-      case AmbulanceType.USA:
-        return '🚑';
-      case AmbulanceType.USB:
-        return '🚐';
-      case AmbulanceType.MOTOLANCIA:
-        return '🏍️';
-      default:
-        return '🚑';
+      case AmbulanceType.USA: return '🚑';
+      case AmbulanceType.USB: return '🚐';
+      case AmbulanceType.MOTOLANCIA: return '🏍️';
+      default: return '🚑';
     }
   };
 
@@ -86,27 +77,12 @@ export default function DispatchAnalysis({
 
   return (
     <div style={{ padding: '16px' }}>
-      <h2 style={{
-        margin: '0 0 16px 0',
-        fontSize: '20px',
-        fontWeight: 'bold',
-        color: '#1f2937'
-      }}>
+      <h2 style={{ margin: '0 0 16px 0', fontSize: '20px', fontWeight: 'bold', color: '#1f2937' }}>
         Análise de Despacho
       </h2>
 
-      <div style={{
-        marginBottom: '16px',
-        padding: '12px',
-        backgroundColor: '#eff6ff',
-        borderRadius: '8px',
-        border: '1px solid #bfdbfe'
-      }}>
-        <p style={{
-          margin: '0',
-          fontSize: '14px',
-          color: '#1e40af'
-        }}>
+      <div style={{ marginBottom: '16px', padding: '12px', backgroundColor: '#eff6ff', borderRadius: '8px', border: '1px solid #bfdbfe' }}>
+        <p style={{ margin: '0', fontSize: '14px', color: '#1e40af' }}>
           💡 <strong>Algoritmo:</strong> Score ponderado considerando distância (40%), disponibilidade (30%), tipo (20%) e clima (10%)
         </p>
       </div>
@@ -116,7 +92,7 @@ export default function DispatchAnalysis({
           const ambulance = getAmbulanceInfo(rec.ambulanceId);
           if (!ambulance) return null;
 
-          const isSelected = selectedAmbulanceId === rec.ambulanceId;
+          const isSelected = selectedIndex === index;
           const isBest = index === 0;
 
           return (
@@ -132,7 +108,9 @@ export default function DispatchAnalysis({
                 position: 'relative',
                 boxShadow: isSelected ? '0 4px 6px rgba(59, 130, 246, 0.1)' : '0 1px 3px rgba(0,0,0,0.1)'
               }}
-              onClick={() => setSelectedAmbulanceId(rec.ambulanceId)}
+              onClick={() => {
+                if (onSelectRoute) onSelectRoute(index);
+              }}
               onMouseEnter={(e) => {
                 if (!isSelected) {
                   e.currentTarget.style.boxShadow = '0 4px 6px rgba(0,0,0,0.15)';
@@ -149,108 +127,49 @@ export default function DispatchAnalysis({
               {/* Best Badge */}
               {isBest && (
                 <div style={{
-                  position: 'absolute',
-                  top: '-10px',
-                  right: '16px',
-                  backgroundColor: '#22c55e',
-                  color: 'white',
-                  padding: '4px 12px',
-                  borderRadius: '12px',
-                  fontSize: '12px',
-                  fontWeight: 'bold'
+                  position: 'absolute', top: '-10px', right: '16px', backgroundColor: '#22c55e', color: 'white',
+                  padding: '4px 12px', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold'
                 }}>
                   ⭐ MELHOR OPÇÃO
                 </div>
               )}
 
               {/* Header */}
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: '12px'
-              }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '24px' }}>
-                    {getTypeIcon(ambulance.type)}
-                  </span>
+                  <span style={{ fontSize: '24px' }}>{getTypeIcon(ambulance.type)}</span>
                   <div>
-                    <h3 style={{
-                      margin: '0',
-                      fontSize: '16px',
-                      fontWeight: 'bold',
-                      color: '#1f2937'
-                    }}>
-                      {ambulance.code}
-                    </h3>
-                    <p style={{
-                      margin: '0',
-                      fontSize: '12px',
-                      color: '#6b7280'
-                    }}>
-                      {ambulance.type}
-                    </p>
+                    <h3 style={{ margin: '0', fontSize: '16px', fontWeight: 'bold', color: '#1f2937' }}>{ambulance.code}</h3>
+                    <p style={{ margin: '0', fontSize: '12px', color: '#6b7280' }}>{ambulance.type}</p>
                   </div>
                 </div>
 
                 {/* Total Score */}
-                <div style={{
-                  textAlign: 'right'
-                }}>
-                  <div style={{
-                    fontSize: '24px',
-                    fontWeight: 'bold',
-                    color: getScoreColor(rec.totalScore)
-                  }}>
-                    {rec.totalScore}
-                  </div>
-                  <div style={{
-                    fontSize: '11px',
-                    color: '#6b7280'
-                  }}>
-                    {getScoreLabel(rec.totalScore)}
-                  </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: '24px', fontWeight: 'bold', color: getScoreColor(rec.totalScore) }}>{rec.totalScore}</div>
+                  <div style={{ fontSize: '11px', color: '#6b7280' }}>{getScoreLabel(rec.totalScore)}</div>
                 </div>
               </div>
 
               {/* Score Breakdown */}
               <div style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
-                gap: '8px',
-                marginBottom: '12px',
-                padding: '12px',
-                backgroundColor: '#f9fafb',
-                borderRadius: '6px'
+                display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '12px',
+                padding: '12px', backgroundColor: '#f9fafb', borderRadius: '6px'
               }}>
                 <div>
-                  <div style={{ fontSize: '11px', color: '#6b7280', marginBottom: '2px' }}>
-                    Distância
-                  </div>
-                  <div style={{ fontSize: '14px', fontWeight: '600', color: '#1f2937' }}>
-                    {rec.distanceScore}/100
-                  </div>
+                  <div style={{ fontSize: '11px', color: '#6b7280', marginBottom: '2px' }}>Distância</div>
+                  <div style={{ fontSize: '14px', fontWeight: '600', color: '#1f2937' }}>{rec.distanceScore}/100</div>
                 </div>
                 <div>
-                  <div style={{ fontSize: '11px', color: '#6b7280', marginBottom: '2px' }}>
-                    Disponibilidade
-                  </div>
-                  <div style={{ fontSize: '14px', fontWeight: '600', color: '#1f2937' }}>
-                    {rec.availabilityScore}/100
-                  </div>
+                  <div style={{ fontSize: '11px', color: '#6b7280', marginBottom: '2px' }}>Disponibilidade</div>
+                  <div style={{ fontSize: '14px', fontWeight: '600', color: '#1f2937' }}>{rec.availabilityScore}/100</div>
                 </div>
                 <div>
-                  <div style={{ fontSize: '11px', color: '#6b7280', marginBottom: '2px' }}>
-                    Tipo
-                  </div>
-                  <div style={{ fontSize: '14px', fontWeight: '600', color: '#1f2937' }}>
-                    {rec.typeScore}/100
-                  </div>
+                  <div style={{ fontSize: '11px', color: '#6b7280', marginBottom: '2px' }}>Tipo</div>
+                  <div style={{ fontSize: '14px', fontWeight: '600', color: '#1f2937' }}>{rec.typeScore}/100</div>
                 </div>
                 <div>
-                  <div style={{ fontSize: '11px', color: '#6b7280', marginBottom: '2px' }}>
-                    Clima
-                  </div>
+                  <div style={{ fontSize: '11px', color: '#6b7280', marginBottom: '2px' }}>Clima</div>
                   <div style={{ fontSize: '14px', fontWeight: '600', color: rec.weatherPenalty < 0 ? '#ef4444' : '#1f2937' }}>
                     {rec.weatherPenalty}
                   </div>
@@ -259,58 +178,25 @@ export default function DispatchAnalysis({
 
               {/* Route Info */}
               {rec.route && (
-                <div style={{
-                  marginBottom: '12px',
-                  padding: '10px',
-                  backgroundColor: '#f0f9ff',
-                  borderRadius: '6px',
-                  border: '1px solid #bae6fd'
-                }}>
+                <div style={{ marginBottom: '12px', padding: '10px', backgroundColor: '#f0f9ff', borderRadius: '6px', border: '1px solid #bae6fd' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                    <span style={{ fontSize: '13px', color: '#0c4a6e' }}>
-                      📏 Distância: <strong>{formatDistance(rec.route.distance)}</strong>
-                    </span>
-                    <span style={{ fontSize: '13px', color: '#0c4a6e' }}>
-                      ⏱️ Tempo: <strong>{formatDuration(rec.route.duration)}</strong>
-                    </span>
+                    <span style={{ fontSize: '13px', color: '#0c4a6e' }}>📏 Distância: <strong>{formatDistance(rec.route.distance)}</strong></span>
+                    <span style={{ fontSize: '13px', color: '#0c4a6e' }}>⏱️ Tempo: <strong>{formatDuration(rec.route.duration)}</strong></span>
                   </div>
-                  <div style={{ fontSize: '12px', color: '#075985' }}>
-                    🚦 Risco da rota: <strong>{rec.route.riskLevel}</strong>
-                  </div>
+                  <div style={{ fontSize: '12px', color: '#075985' }}>🚦 Risco da rota: <strong>{rec.route.riskLevel}</strong></div>
                 </div>
               )}
               
               {/* Info quando rota não está disponível */}
               {!rec.route && (
-                <div style={{
-                  marginBottom: '12px',
-                  padding: '10px',
-                  backgroundColor: '#fef3c7',
-                  borderRadius: '6px',
-                  border: '1px solid #fde047',
-                  fontSize: '12px',
-                  color: '#92400e'
-                }}>
+                <div style={{ marginBottom: '12px', padding: '10px', backgroundColor: '#fef3c7', borderRadius: '6px', border: '1px solid #fde047', fontSize: '12px', color: '#92400e' }}>
                   💡 Rota detalhada será calculada ao executar o despacho
                 </div>
               )}
 
               {/* Explanation */}
-              <div style={{
-                padding: '10px',
-                backgroundColor: '#fefce8',
-                borderRadius: '6px',
-                border: '1px solid #fde047',
-                marginBottom: '12px'
-              }}>
-                <p style={{
-                  margin: '0',
-                  fontSize: '13px',
-                  color: '#713f12',
-                  lineHeight: '1.5'
-                }}>
-                  {rec.explanation}
-                </p>
+              <div style={{ padding: '10px', backgroundColor: '#fefce8', borderRadius: '6px', border: '1px solid #fde047', marginBottom: '12px' }}>
+                <p style={{ margin: '0', fontSize: '13px', color: '#713f12', lineHeight: '1.5' }}>{rec.explanation}</p>
               </div>
 
               {/* Execute Button */}
@@ -321,23 +207,11 @@ export default function DispatchAnalysis({
                     onExecuteDispatch(rec.ambulanceId);
                   }}
                   style={{
-                    width: '100%',
-                    padding: '10px',
-                    backgroundColor: '#22c55e',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '6px',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    transition: 'background-color 0.2s'
+                    width: '100%', padding: '10px', backgroundColor: '#22c55e', color: 'white', border: 'none',
+                    borderRadius: '6px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', transition: 'background-color 0.2s'
                   }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = '#16a34a';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = '#22c55e';
-                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#16a34a'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#22c55e'; }}
                 >
                   ✅ Executar Despacho
                 </button>
@@ -349,5 +223,3 @@ export default function DispatchAnalysis({
     </div>
   );
 }
-
-

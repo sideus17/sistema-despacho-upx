@@ -30,7 +30,7 @@ function App() {
   const [bases, setBases] = useState<Base[]>([]);
   const [weatherEvents, setWeatherEvents] = useState<WeatherEvent[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
-  
+  const [selectedRouteIndex, setSelectedRouteIndex] = useState<number>(0);
   const [selectedCall, setSelectedCall] = useState<EmergencyCall | null>(null);
   const [recommendation, setRecommendation] = useState<DispatchRecommendation | null>(null);
   const [loading, setLoading] = useState(false);
@@ -69,6 +69,7 @@ function App() {
   const handleCallSelect = async (call: EmergencyCall) => {
     setSelectedCall(call);
     setActiveTab('analysis');
+    setSelectedRouteIndex(0);
     setLoading(true);
     setRecommendation(null);
 
@@ -155,7 +156,7 @@ function App() {
             bases={bases}
             weatherEvents={weatherEvents}
             selectedCall={selectedCall}
-            routeGeometry={recommendation?.recommendations[0]?.route?.geometry}
+            routeGeometry={recommendation?.recommendations[selectedRouteIndex]?.route?.geometry}
             onCallSelect={handleCallSelect}
           />
         </div>
@@ -210,6 +211,8 @@ function App() {
                 ambulances={ambulances}
                 onExecuteDispatch={handleExecuteDispatch}
                 loading={loading}
+                selectedIndex={selectedRouteIndex}
+                onSelectRoute={(index) => setSelectedRouteIndex(index)}
               />
             )}
 

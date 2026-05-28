@@ -230,4 +230,12 @@ export function getTimeAgo(timestamp: string): string {
   return `${diffDays} dias atrás`;
 }
 
+export async function finishDispatch(callId: string, ambulanceId: string): Promise<any> {
+  const response = await api.post<ApiResponse<any>>('/dispatch/finish', {
+    callId,
+    ambulanceId
+  });
+  return response.data.data;
+}
+
 
