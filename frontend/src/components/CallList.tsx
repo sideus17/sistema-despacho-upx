@@ -51,6 +51,9 @@ export default function CallList({ calls, ambulances, onCallSelect }: CallListPr
     );
   }
 
+  console.log('Chamados:', activeCalls);
+  console.log('Ambulâncias disponíveis:', ambulances);
+
   return (
     <div style={{ padding: '16px' }}>
       <h2 style={{ margin: '0 0 16px 0', fontSize: '20px', fontWeight: 'bold', color: '#1f2937' }}>
@@ -61,9 +64,7 @@ export default function CallList({ calls, ambulances, onCallSelect }: CallListPr
         {activeCalls.map(call => {
           const isExpanded = expandedCallId === call.id;
           const isEmAtendimento = call.status === CallStatus.EM_ATENDIMENTO;
-
-          const ambId = (call as any).ambulanceId || (call as any).ambulance_id;
-                    
+          const ambId = call.ambulance_id;      
           const assignedAmbulance = (isEmAtendimento && ambId) ? ambulances.find(a => a.id === ambId) : null;
 
           return (
@@ -143,7 +144,7 @@ export default function CallList({ calls, ambulances, onCallSelect }: CallListPr
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleFinish(call.id, (call.ambulanceId || call.ambulance_id)!);
+                        handleFinish(call.id, ambId!);
                       }}
                       style={{ width: '100%', padding: '8px', backgroundColor: '#059669', color: 'white', border: 'none', borderRadius: '6px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}
                     >

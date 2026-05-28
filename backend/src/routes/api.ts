@@ -106,7 +106,7 @@ router.patch('/ambulances/:id/location', async (req: Request, res: Response) => 
 // ============================================
 
 router.get('/calls', async (req: Request, res: Response) => {
-  const { data, error } = await supabase.from('calls').select('*');
+  const { data, error } = await supabase.from('calls').select('*, ambulance_id');
 
   if (error) {
     return res.status(500).json({ success: false, error: error.message, timestamp: new Date().toISOString() });
@@ -114,6 +114,7 @@ router.get('/calls', async (req: Request, res: Response) => {
 
   const formattedCalls = data.map(call => ({
     id: call.id,
+    ambulance_id: call.ambulance_id,
     location: { lat: call.lat, lng: call.lng },
     address: call.address,
     priority: call.priority,
@@ -356,7 +357,13 @@ router.post('/dispatch/execute', async (req: Request, res: Response) => {
     );
 
     // Atualiza os status no banco para EM_ATENDIMENTO
-    await supabase.from('calls').update({ status: CallStatus.EM_ATENDIMENTO }).eq('id', callId);
+    await supabase
+      .from('calls')
+      .update({ 
+        status: CallStatus.EM_ATENDIMENTO,
+        ambulance_id: ambulanceId
+      })
+      .eq('id', callId);
     await supabase.from('ambulances').update({ status: AmbulanceStatus.EM_ATENDIMENTO }).eq('id', ambulanceId);
 
     // Calcula a estimativa de chegada
@@ -377,27 +384,16 @@ router.post('/dispatch/execute', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/dispatch/finish', async (req, res) => {
+router.post('/dispatch/finish', async (req: Request, res: Response) => {
   const { callId, ambulanceId } = req.body;
-
   try {
-    const { error: callError } = await supabase
-      .from('calls')
-      .update({ status: 'FINALIZADO' })
-      .eq('id', callId);
-
-    if (callError) throw callError;
-
-    const { error: ambError } = await supabase
-      .from('ambulances')
-      .update({ status: 'DISPONIVEL' })
-      .eq('id', ambulanceId);
-
-    if (ambError) throw ambError;
-
-    res.json({ success: true, message: 'Atendimento finalizado com sucesso' });
+    // Finaliza o chamado
+    await supabase.from('calls').update({ status: 'FINALIZADO', ambulance_id: null }).eq('id', callId);
+    // Libera a ambulância
+    await supabase.from('ambulances').update({ status: AmbulanceStatus.DISPONIVEL }).eq('id', ambulanceId);
+    res.json({ success: true });
   } catch (error) {
-    res.status(500).json({ error: 'Erro ao finalizar atendimento' });
+    res.status(500).json({ error: 'Erro ao finalizar' });
   }
 });
 

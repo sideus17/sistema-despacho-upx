@@ -64,7 +64,7 @@ export interface EmergencyCall {
   address: string;
   priority: CallPriority;
   status: CallStatus;
-  ambulanceId?: string;
+  ambulance_id?: string;
   description: string;
   patientInfo: {
     age?: number;
