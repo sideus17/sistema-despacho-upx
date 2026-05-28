@@ -11,7 +11,7 @@ import {
   Coordinates
 } from '../types';
 
-const API_BASE_URL = 'http://localhost:3000/api';
+const API_BASE_URL = 'https://sistema-despacho-upx.onrender.com/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
