@@ -61,9 +61,10 @@ export default function CallList({ calls, ambulances, onCallSelect }: CallListPr
         {activeCalls.map(call => {
           const isExpanded = expandedCallId === call.id;
           const isEmAtendimento = call.status === CallStatus.EM_ATENDIMENTO;
-          
-          // Busca qual é a ambulância deste chamado
-          const assignedAmbulance = isEmAtendimento ? ambulances.find(a => a.id === call.ambulanceId) : null;
+
+          const ambId = (call as any).ambulanceId || (call as any).ambulance_id;
+                    
+          const assignedAmbulance = (isEmAtendimento && ambId) ? ambulances.find(a => a.id === ambId) : null;
 
           return (
             <div
@@ -142,7 +143,7 @@ export default function CallList({ calls, ambulances, onCallSelect }: CallListPr
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleFinish(call.id, call.ambulanceId!);
+                        handleFinish(call.id, (call.ambulanceId || call.ambulance_id)!);
                       }}
                       style={{ width: '100%', padding: '8px', backgroundColor: '#059669', color: 'white', border: 'none', borderRadius: '6px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}
                     >
