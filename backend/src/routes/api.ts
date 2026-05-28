@@ -377,14 +377,28 @@ router.post('/dispatch/execute', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/dispatch/finish', async (req: Request, res: Response) => {
-  const { ambulanceId, callId } = req.body;
+router.post('/dispatch/finish', async (req, res) => {
+  const { callId, ambulanceId } = req.body;
 
-  await supabase.from('ambulances').update({ status: 'DISPONIVEL' }).eq('id', ambulanceId);
-  
-  await supabase.from('calls').update({ status: 'FINALIZADO' }).eq('id', callId);
+  try {
+    const { error: callError } = await supabase
+      .from('calls')
+      .update({ status: 'FINALIZADO' })
+      .eq('id', callId);
 
-  res.json({ success: true, message: 'Ambulância liberada e chamado finalizado.' });
+    if (callError) throw callError;
+
+    const { error: ambError } = await supabase
+      .from('ambulances')
+      .update({ status: 'DISPONIVEL' })
+      .eq('id', ambulanceId);
+
+    if (ambError) throw ambError;
+
+    res.json({ success: true, message: 'Atendimento finalizado com sucesso' });
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao finalizar atendimento' });
+  }
 });
 
 // ============================================
