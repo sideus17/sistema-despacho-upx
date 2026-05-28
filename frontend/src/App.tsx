@@ -196,6 +196,7 @@ function App() {
             {activeTab === 'calls' && (
               <CallList
                 calls={calls}
+                ambulances={ambulances}
                 onCallSelect={handleCallSelect}
               />
             )}

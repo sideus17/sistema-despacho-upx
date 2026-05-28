@@ -1,25 +1,22 @@
 import { useState } from 'react';
-import { EmergencyCall, CallPriority, CallStatus } from '../types';
+import { EmergencyCall, CallPriority, CallStatus, Ambulance } from '../types';
 import { getTimeAgo, finishDispatch } from '../services/api';
 
 interface CallListProps {
   calls: EmergencyCall[];
+  ambulances: Ambulance[];
   onCallSelect: (call: EmergencyCall) => void;
 }
 
-export default function CallList({ calls, onCallSelect }: CallListProps) {
+export default function CallList({ calls, ambulances, onCallSelect }: CallListProps) {
   const [expandedCallId, setExpandedCallId] = useState<string | null>(null);
 
   const getPriorityColor = (priority: CallPriority): string => {
     switch (priority) {
-      case CallPriority.EMERGENCIA:
-        return '#dc2626';
-      case CallPriority.URGENTE:
-        return '#f59e0b';
-      case CallPriority.PRIORITARIO:
-        return '#3b82f6';
-      default:
-        return '#6b7280';
+      case CallPriority.EMERGENCIA: return '#dc2626';
+      case CallPriority.URGENTE: return '#f59e0b';
+      case CallPriority.PRIORITARIO: return '#3b82f6';
+      default: return '#6b7280';
     }
   };
 
@@ -35,14 +32,10 @@ export default function CallList({ calls, onCallSelect }: CallListProps) {
 
   const getPriorityBadge = (priority: CallPriority): string => {
     switch (priority) {
-      case CallPriority.EMERGENCIA:
-        return '🚨';
-      case CallPriority.URGENTE:
-        return '⚠️';
-      case CallPriority.PRIORITARIO:
-        return 'ℹ️';
-      default:
-        return '📋';
+      case CallPriority.EMERGENCIA: return '🚨';
+      case CallPriority.URGENTE: return '⚠️';
+      case CallPriority.PRIORITARIO: return 'ℹ️';
+      default: return '📋';
     }
   };
 
@@ -68,16 +61,17 @@ export default function CallList({ calls, onCallSelect }: CallListProps) {
         {activeCalls.map(call => {
           const isExpanded = expandedCallId === call.id;
           const isEmAtendimento = call.status === CallStatus.EM_ATENDIMENTO;
+          
+          // Busca qual é a ambulância deste chamado
+          const assignedAmbulance = isEmAtendimento ? ambulances.find(a => a.id === call.ambulanceId) : null;
 
           return (
             <div
               key={call.id}
-              onClick={() => setExpandedCallId(isExpanded ? null : call.id)} // Expande ou fecha o card
+              onClick={() => setExpandedCallId(isExpanded ? null : call.id)}
               style={{
                 padding: '16px',
-                // Fundo fica laranja claro se estiver em atendimento. Se não, azulzinho se selecionado, senão branco.
                 backgroundColor: isEmAtendimento ? '#fff7ed' : (isExpanded ? '#eff6ff' : 'white'),
-                // Borda segue a mesma lógica
                 border: isExpanded ? '2px solid #3b82f6' : (isEmAtendimento ? '1px solid #fdba74' : '1px solid #e5e7eb'),
                 borderRadius: '8px',
                 cursor: 'pointer',
@@ -93,13 +87,22 @@ export default function CallList({ calls, onCallSelect }: CallListProps) {
                     {call.priority}
                   </span>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
                   <span style={{ fontSize: '12px', color: '#6b7280' }}>{getTimeAgo(call.timestamp)}</span>
+                  
                   {/* Badge visual para indicar que o chamado já está rodando */}
                   {isEmAtendimento && (
-                    <span style={{ fontSize: '10px', backgroundColor: '#f97316', color: 'white', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' }}>
-                      EM ATENDIMENTO
-                    </span>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+                      <span style={{ fontSize: '10px', backgroundColor: '#f97316', color: 'white', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' }}>
+                        EM ATENDIMENTO
+                      </span>
+                      {/* O CÓDIGO DA AMBULÂNCIA APARECE AQUI */}
+                      {assignedAmbulance && (
+                        <span style={{ fontSize: '11px', fontWeight: '700', color: '#c2410c', backgroundColor: '#ffedd5', padding: '2px 6px', borderRadius: '4px', border: '1px solid #fed7aa' }}>
+                          🚑 {assignedAmbulance.code}
+                        </span>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>
@@ -123,12 +126,11 @@ export default function CallList({ calls, onCallSelect }: CallListProps) {
               {/* Action Buttons Container */}
               {isExpanded && (
                 <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  
                   {call.status === CallStatus.PENDENTE && (
                     <button
                       onClick={(e) => {
-                        e.stopPropagation(); // Evita que o clique no botão feche o card inteiro
-                        onCallSelect(call); // Aciona a mudança para a aba de Análise
+                        e.stopPropagation();
+                        onCallSelect(call);
                       }}
                       style={{ width: '100%', padding: '8px', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '6px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}
                     >
@@ -139,7 +141,7 @@ export default function CallList({ calls, onCallSelect }: CallListProps) {
                   {call.status === CallStatus.EM_ATENDIMENTO && (
                     <button
                       onClick={(e) => {
-                        e.stopPropagation(); // Evita que o clique no botão feche o card inteiro
+                        e.stopPropagation();
                         handleFinish(call.id, call.ambulanceId!);
                       }}
                       style={{ width: '100%', padding: '8px', backgroundColor: '#059669', color: 'white', border: 'none', borderRadius: '6px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}
