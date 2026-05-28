@@ -138,7 +138,7 @@ router.get('/calls/pending', async (req: Request, res: Response) => {
   const { data, error } = await supabase
     .from('calls')
     .select('*')
-    .eq('status', CallStatus.PENDENTE);
+    .in('status', ['PENDENTE', 'EM_ATENDIMENTO'])
 
   if (error) {
     return res.status(500).json({ success: false, error: error.message, timestamp: new Date().toISOString() });
