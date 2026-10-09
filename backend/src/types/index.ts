@@ -20,7 +20,7 @@ export enum CallPriority {
 export enum CallStatus {
   PENDENTE = 'PENDENTE',
   EM_ATENDIMENTO = 'EM_ATENDIMENTO',
-  CONCLUIDO = 'CONCLUIDO',
+  FINALIZADO = 'FINALIZADO',
   CANCELADO = 'CANCELADO'
 }
 
@@ -36,6 +36,11 @@ export enum RiskLevel {
   MEDIO = 'MEDIO',
   ALTO = 'ALTO',
   CRITICO = 'CRITICO'
+}
+
+export enum UserRole {
+  MOTORISTA = 'MOTORISTA',
+  OPERADOR = 'OPERADOR'
 }
 
 // Interfaces
@@ -56,6 +61,8 @@ export interface Ambulance {
     medic: string;
     nurse?: string;
   };
+  driver: { id: string; name: string } | null; // motorista em turno (login no app)
+  locationUpdatedAt: string | null;
 }
 
 export interface EmergencyCall {

@@ -31,11 +31,13 @@ export async function analyzeDispatch(callId: string): Promise<DispatchRecommend
 
   const callLocation: Coordinates = { lat: callData.lat, lng: callData.lng };
 
-  // 2. Buscar todas as ambulâncias que podem atender (Disponíveis ou já em atendimento)
+  // 2. Buscar as ambulâncias que podem atender (Disponíveis ou já em atendimento),
+  //    só as que têm motorista em turno para receber o chamado no app
   const { data: ambsData, error: ambsError } = await supabase
     .from('ambulances')
     .select('*')
-    .in('status', [AmbulanceStatus.DISPONIVEL, AmbulanceStatus.EM_ATENDIMENTO]);
+    .in('status', [AmbulanceStatus.DISPONIVEL, AmbulanceStatus.EM_ATENDIMENTO])
+    .not('driver_id', 'is', null);
 
   if (ambsError || !ambsData) {
     throw new Error('Erro ao buscar ambulâncias no banco de dados.');
