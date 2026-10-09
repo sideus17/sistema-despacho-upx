@@ -20,7 +20,7 @@ export enum CallPriority {
 export enum CallStatus {
   PENDENTE = 'PENDENTE',
   EM_ATENDIMENTO = 'EM_ATENDIMENTO',
-  CONCLUIDO = 'CONCLUIDO',
+  FINALIZADO = 'FINALIZADO',
   CANCELADO = 'CANCELADO'
 }
 
@@ -36,6 +36,17 @@ export enum RiskLevel {
   MEDIO = 'MEDIO',
   ALTO = 'ALTO',
   CRITICO = 'CRITICO'
+}
+
+export enum UserRole {
+  MOTORISTA = 'MOTORISTA',
+  OPERADOR = 'OPERADOR'
+}
+
+export interface Me {
+  id: string;
+  fullName: string;
+  role: UserRole;
 }
 
 // Interfaces
@@ -56,6 +67,8 @@ export interface Ambulance {
     medic: string;
     nurse?: string;
   };
+  driver: { id: string; name: string } | null;
+  locationUpdatedAt: string | null;
 }
 
 export interface EmergencyCall {
@@ -98,15 +111,20 @@ export interface RouteInfo {
   distance: number;
   duration: number;
   geometry: Coordinates[];
-  instructions: RouteInstruction[];
+  steps: RouteStep[];
+  waypoints: Coordinates[];
   riskLevel: RiskLevel;
   weatherEvents: WeatherEvent[];
 }
 
-export interface RouteInstruction {
-  text: string;
+export interface RouteStep {
+  type: string;
+  modifier?: string;
+  name: string;
+  location: Coordinates;
   distance: number;
   duration: number;
+  exit?: number;
 }
 
 export interface DispatchScore {
