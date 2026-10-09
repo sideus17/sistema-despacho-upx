@@ -1,9 +1,12 @@
-import { useState, useEffect } from 'react';
-import Map from './components/Map';
+import { useState, useCallback, lazy, Suspense } from 'react';
 import CallList from './components/CallList';
 import DispatchAnalysis from './components/DispatchAnalysis';
 import WeatherAlerts from './components/WeatherAlerts';
 import NewCallForm from './components/NewCallForm';
+import Fleet from './components/Fleet';
+import { useToast } from './components/Toast';
+import { useAuth } from './auth/AuthContext';
+import { usePolling } from './hooks/usePolling';
 import {
   Ambulance,
   EmergencyCall,
@@ -19,9 +22,18 @@ import {
   getWeatherEvents,
   analyzeDispatch,
   executeDispatch,
-  getStats
+  finishDispatch,
+  calculateRoute,
+  getStats,
+  getErrorMessage
 } from './services/api';
+import { AddIcon, AmbulanceIcon, AnalyticsIcon, CallIcon, HeadsetIcon, WarningIcon } from './ui/icons';
 import './styles/index.css';
+
+// O mapa (MapLibre) é o maior pacote do app: carrega à parte, sem atrasar a primeira tela
+const Map = lazy(() => import('./components/Map'));
+
+type Connection = 'connecting' | 'online' | 'error';
 
 function App() {
   // State
@@ -34,18 +46,13 @@ function App() {
   const [selectedCall, setSelectedCall] = useState<EmergencyCall | null>(null);
   const [recommendation, setRecommendation] = useState<DispatchRecommendation | null>(null);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'calls' | 'new-call' | 'analysis' | 'weather'>('calls');
+  const [routeLoadingId, setRouteLoadingId] = useState<string | null>(null);
+  const [connection, setConnection] = useState<Connection>('connecting');
+  const [activeTab, setActiveTab] = useState<'calls' | 'new-call' | 'analysis' | 'fleet' | 'weather'>('calls');
+  const toast = useToast();
+  const { me, signOut } = useAuth();
 
-  // Load initial data
-  useEffect(() => {
-    loadData();
-    
-    // Refresh data every 30 seconds
-    const interval = setInterval(loadData, 30000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       const [ambData, callData, baseData, weatherData, statsData] = await Promise.all([
         getAmbulances(),
@@ -60,13 +67,28 @@ function App() {
       setBases(baseData);
       setWeatherEvents(weatherData);
       setStats(statsData);
+      setConnection('online');
+      return true;
     } catch (error) {
       console.error('Error loading data:', error);
+      setConnection('error');
+      return false;
+    }
+  }, []);
+
+  // Atualiza a cada 30s; se falhar (ex.: servidor acordando), tenta de novo em 10s
+  usePolling(loadData, 30000, 10000);
+
+  // Seleciona o chamado no mapa sem abrir a análise
+  const handleFocusCall = (call: EmergencyCall) => {
+    setSelectedCall(call);
+    if (recommendation?.callId !== call.id) {
+      setRecommendation(null);
+      setSelectedRouteIndex(0);
     }
   };
 
-  // Handle call selection
-  const handleCallSelect = async (call: EmergencyCall) => {
+  const handleAnalyze = async (call: EmergencyCall) => {
     setSelectedCall(call);
     setActiveTab('analysis');
     setSelectedRouteIndex(0);
@@ -78,43 +100,70 @@ function App() {
       setRecommendation(result);
     } catch (error) {
       console.error('Error analyzing dispatch:', error);
-      alert('Erro ao analisar despacho. Tente novamente.');
+      toast(getErrorMessage(error, 'Erro ao analisar despacho. Tente novamente.'), 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCallCreated = async (call: EmergencyCall) => {
-    await loadData();
-    setSelectedCall(call);
-    setActiveTab('calls');
+  const handleCallCreated = (call: EmergencyCall) => {
+    loadData();
+    handleAnalyze(call);
+  };
+
+  // Calcula sob demanda a rota da opção selecionada (o backend só traz a da melhor)
+  const handleSelectRoute = async (index: number) => {
+    setSelectedRouteIndex(index);
+
+    const rec = recommendation?.recommendations[index];
+    const ambulance = ambulances.find(a => a.id === rec?.ambulanceId);
+    if (!rec || rec.route || !ambulance || !selectedCall) return;
+
+    setRouteLoadingId(rec.ambulanceId);
+    try {
+      const route = await calculateRoute(ambulance.location, selectedCall.location);
+      setRecommendation(current => current && current.callId === recommendation?.callId
+        ? {
+            ...current,
+            recommendations: current.recommendations.map(r => r.ambulanceId === rec.ambulanceId ? { ...r, route } : r)
+          }
+        : current
+      );
+    } catch (error) {
+      toast(getErrorMessage(error, 'Não foi possível calcular a rota.'), 'error');
+    } finally {
+      setRouteLoadingId(null);
+    }
   };
 
   // Handle dispatch execution
   const handleExecuteDispatch = async (ambulanceId: string) => {
     if (!selectedCall) return;
-
-    const confirmed = window.confirm(
-      'Confirma o despacho desta ambulância para o chamado selecionado?'
-    );
-
-    if (!confirmed) return;
+    const ambulance = ambulances.find(a => a.id === ambulanceId);
 
     try {
       await executeDispatch(selectedCall.id, ambulanceId);
-      alert('Despacho executado com sucesso!');
-      
-      // Reload data
-      await loadData();
-      
-      // Clear selection
-      setSelectedCall(null);
+      toast(`${ambulance?.code ?? 'Ambulância'} despachada para ${selectedCall.address}`, 'success');
       setRecommendation(null);
       setActiveTab('calls');
     } catch (error) {
       console.error('Error executing dispatch:', error);
-      alert('Erro ao executar despacho. Tente novamente.');
+      toast(getErrorMessage(error, 'Erro ao executar despacho. Tente novamente.'), 'error');
     }
+
+    await loadData();
+  };
+
+  const handleFinish = async (call: EmergencyCall) => {
+    try {
+      await finishDispatch(call.id);
+      toast('Atendimento finalizado. Viatura liberada.', 'success');
+      if (selectedCall?.id === call.id) setSelectedCall(null);
+    } catch (error) {
+      toast(getErrorMessage(error, 'Erro ao finalizar atendimento.'), 'error');
+    }
+
+    await loadData();
   };
 
   return (
@@ -123,10 +172,10 @@ function App() {
       <header className="header">
         <div className="header-content">
           <div className="header-title">
-            <h1>🚑 SAMU - Sistema de Despacho Inteligente</h1>
+            <h1><img src="/ambulance.svg" alt="" className="header-logo" /> SAMU - Sistema de Despacho Inteligente</h1>
             <p>Sorocaba/SP - Sistema Acadêmico</p>
           </div>
-          
+
           {stats && (
             <div className="header-stats">
               <div className="stat">
@@ -135,7 +184,7 @@ function App() {
               </div>
               <div className="stat">
                 <span className="stat-value">{stats.pendingCalls}</span>
-                <span className="stat-label">Chamados</span>
+                <span className="stat-label">Pendentes</span>
               </div>
               <div className="stat">
                 <span className="stat-value">{stats.activeWeatherEvents}</span>
@@ -143,22 +192,44 @@ function App() {
               </div>
             </div>
           )}
+
+          <div className="header-user">
+            <span><HeadsetIcon /> {me.fullName}</span>
+            <button onClick={signOut}>Sair</button>
+          </div>
         </div>
       </header>
+
+      {connection !== 'online' && (
+        <div className={`connection-banner ${connection}`} role="status">
+          {connection === 'connecting' ? (
+            <span>Conectando ao servidor… o primeiro acesso pode levar até 1 minuto.</span>
+          ) : (
+            <>
+              <span>
+                {stats ? 'Falha ao atualizar os dados.' : 'Não foi possível conectar ao servidor.'} Tentando novamente…
+              </span>
+              <button onClick={loadData}>Tentar agora</button>
+            </>
+          )}
+        </div>
+      )}
 
       {/* Main Content */}
       <div className="main-content">
         {/* Map */}
         <div className="map-container">
-          <Map
-            ambulances={ambulances}
-            calls={calls}
-            bases={bases}
-            weatherEvents={weatherEvents}
-            selectedCall={selectedCall}
-            routeGeometry={recommendation?.recommendations[selectedRouteIndex]?.route?.geometry}
-            onCallSelect={handleCallSelect}
-          />
+          <Suspense fallback={<div className="map-loading" />}>
+            <Map
+              ambulances={ambulances}
+              calls={calls}
+              bases={bases}
+              weatherEvents={weatherEvents}
+              selectedCall={selectedCall}
+              routeGeometry={recommendation?.recommendations[selectedRouteIndex]?.route?.geometry}
+              onCallSelect={handleAnalyze}
+            />
+          </Suspense>
         </div>
 
         {/* Sidebar */}
@@ -169,25 +240,33 @@ function App() {
               className={`tab ${activeTab === 'calls' ? 'active' : ''}`}
               onClick={() => setActiveTab('calls')}
             >
-              📞 Chamados ({calls.length})
+              <CallIcon /> Chamados
+              {calls.length > 0 && <span className="tab-badge">{calls.length}</span>}
             </button>
             <button
               className={`tab ${activeTab === 'new-call' ? 'active' : ''}`}
               onClick={() => setActiveTab('new-call')}
             >
-              ➕ Novo
+              <AddIcon /> Novo
             </button>
             <button
               className={`tab ${activeTab === 'analysis' ? 'active' : ''}`}
               onClick={() => setActiveTab('analysis')}
             >
-              📊 Análise
+              <AnalyticsIcon /> Análise
+            </button>
+            <button
+              className={`tab ${activeTab === 'fleet' ? 'active' : ''}`}
+              onClick={() => setActiveTab('fleet')}
+            >
+              <AmbulanceIcon /> Frota
             </button>
             <button
               className={`tab ${activeTab === 'weather' ? 'active' : ''}`}
               onClick={() => setActiveTab('weather')}
             >
-              ⚠️ Alertas ({weatherEvents.length})
+              <WarningIcon /> Alertas
+              {weatherEvents.length > 0 && <span className="tab-badge">{weatherEvents.length}</span>}
             </button>
           </div>
 
@@ -197,7 +276,10 @@ function App() {
               <CallList
                 calls={calls}
                 ambulances={ambulances}
-                onCallSelect={handleCallSelect}
+                selectedCallId={selectedCall?.id}
+                onFocus={handleFocusCall}
+                onDispatch={handleAnalyze}
+                onFinish={handleFinish}
               />
             )}
 
@@ -207,13 +289,21 @@ function App() {
 
             {activeTab === 'analysis' && (
               <DispatchAnalysis
+                call={selectedCall}
                 recommendation={recommendation}
                 ambulances={ambulances}
                 onExecuteDispatch={handleExecuteDispatch}
+                onBack={() => setActiveTab('calls')}
+                onRetry={() => selectedCall && handleAnalyze(selectedCall)}
                 loading={loading}
                 selectedIndex={selectedRouteIndex}
-                onSelectRoute={(index) => setSelectedRouteIndex(index)}
+                routeLoadingId={routeLoadingId}
+                onSelectRoute={handleSelectRoute}
               />
+            )}
+
+            {activeTab === 'fleet' && (
+              <Fleet ambulances={ambulances} />
             )}
 
             {activeTab === 'weather' && (
@@ -226,8 +316,7 @@ function App() {
       {/* Footer */}
       <footer className="footer">
         <p>
-          Sistema Acadêmico - Usina de Projetos Experimentais | 
-          Dados mockados para demonstração | 
+          Sistema Acadêmico - Usina de Projetos Experimentais |
           Algoritmo: Score ponderado (Distância 40%, Disponibilidade 30%, Tipo 20%, Clima 10%)
         </p>
       </footer>
@@ -236,5 +325,3 @@ function App() {
 }
 
 export default App;
-
-

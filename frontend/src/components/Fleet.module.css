@@ -1,0 +1,86 @@
+.container {
+  padding: 16px;
+}
+
+.summary {
+  margin-bottom: 14px;
+  color: var(--color-text-muted);
+  font-size: 14px;
+}
+
+.summary strong {
+  color: var(--color-text);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  list-style: none;
+}
+
+.item {
+  padding: 12px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}
+
+.itemOff {
+  background: var(--color-surface-muted);
+  opacity: 0.75;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.code {
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.code small {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.pill {
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.pill_DISPONIVEL {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.pill_EM_ATENDIMENTO {
+  background: #ffedd5;
+  color: #c2410c;
+}
+
+.pill_INDISPONIVEL,
+.pill_SEM_MOTORISTA {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.driver {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.meta {
+  margin-top: 2px;
+  color: var(--color-text-muted);
+  font-size: 12px;
+}

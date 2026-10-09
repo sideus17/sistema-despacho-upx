@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { CallPriority, EmergencyCall } from '../types';
-import { createCall } from '../services/api';
+import { createCall, getErrorMessage } from '../services/api';
+import { useToast } from './Toast';
 
 interface NewCallFormProps {
   onCallCreated: (call: EmergencyCall) => void;
@@ -13,12 +14,13 @@ export default function NewCallForm({ onCallCreated }: NewCallFormProps) {
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<CallPriority>(CallPriority.URGENTE);
   const [loading, setLoading] = useState(false);
+  const toast = useToast();
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
     if (!address.trim() || !description.trim()) {
-      alert('Preencha a localização e a descrição do chamado.');
+      toast('Preencha a localização e a descrição do chamado.', 'error');
       return;
     }
 
@@ -33,7 +35,7 @@ export default function NewCallForm({ onCallCreated }: NewCallFormProps) {
         priority
       });
 
-      alert('Chamado criado com sucesso!');
+      toast('Chamado criado. Analisando despacho…', 'success');
 
       setAge('');
       setGender('M');
@@ -43,7 +45,7 @@ export default function NewCallForm({ onCallCreated }: NewCallFormProps) {
 
       onCallCreated(newCall);
     } catch (error: any) {
-      alert(error.response?.data?.error || error.message || 'Erro ao criar chamado.');
+      toast(getErrorMessage(error, 'Erro ao criar chamado.'), 'error');
     } finally {
       setLoading(false);
     }
@@ -74,6 +76,7 @@ export default function NewCallForm({ onCallCreated }: NewCallFormProps) {
           <label style={labelStyle}>Idade</label>
           <input
             type="number"
+            inputMode="numeric"
             min="0"
             value={age}
             onChange={(e) => setAge(e.target.value)}
@@ -169,7 +172,7 @@ const inputStyle: React.CSSProperties = {
   padding: '10px',
   border: '1px solid #d1d5db',
   borderRadius: '8px',
-  fontSize: '14px',
+  fontSize: '16px', // abaixo de 16px o iOS dá zoom ao focar o campo
   outline: 'none',
   backgroundColor: 'white',
   boxSizing: 'border-box'
