@@ -1,0 +1,96 @@
+.wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.placeholder {
+  width: 100%;
+  height: 100%;
+}
+
+.themeSwitch {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+}
+
+.popup h3 {
+  margin: 0 0 8px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.popup p {
+  margin: 4px 0;
+  font-size: 14px;
+}
+
+.legend {
+  position: absolute;
+  right: 12px;
+  bottom: 32px;
+  z-index: 2;
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  font-size: 12px;
+  overflow: hidden;
+}
+
+.legendToggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  width: 100%;
+  min-height: 36px;
+  padding: 0 10px 0 14px;
+  border: none;
+  background: none;
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.legendItems {
+  list-style: none;
+  padding: 0 14px 12px;
+}
+
+.legendItems li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0;
+}
+
+/* Os próprios marcadores do mapa, em tamanho reduzido */
+.legendIcon {
+  position: relative;
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+}
+
+.legendIcon > * {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.62);
+}
+
+.legendPin > * {
+  transform: translate(-50%, -50%) scale(0.48);
+  transform-origin: 50% 50%;
+}
+
+.legendIcon > .legendRoute {
+  width: 20px;
+  height: 5px;
+  border-radius: 3px;
+  transform: translate(-50%, -50%);
+}

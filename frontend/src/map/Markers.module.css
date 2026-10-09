@@ -1,0 +1,116 @@
+/* Marcadores do mapa (central, prévia da equipe e navegação) */
+.ambulance,
+.base,
+.weather {
+  display: grid;
+  place-items: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+}
+
+.ambulance {
+  width: 32px;
+  height: 32px;
+  border: 3px solid white;
+  border-radius: 50%;
+  color: white;
+}
+
+.ambulance svg {
+  width: 22px;
+  height: 22px;
+}
+
+.base {
+  width: 32px;
+  height: 32px;
+  border: 2px solid var(--color-danger);
+  border-radius: 9px;
+  background: white;
+  color: var(--color-danger);
+}
+
+.base svg {
+  width: 22px;
+  height: 22px;
+}
+
+.weather {
+  width: 30px;
+  height: 30px;
+  border: 3px solid white;
+  border-radius: 50%;
+  color: white;
+}
+
+.weather svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Chamado: pino com a ponta exatamente no local (âncora embaixo) */
+.call {
+  position: relative;
+  width: 36px;
+  height: 46px;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.35));
+  cursor: pointer;
+  transform-origin: 50% 100%;
+  transition: transform 0.15s ease;
+}
+
+.callSelected {
+  transform: scale(1.2);
+}
+
+.callPin {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.callIcon {
+  position: absolute;
+  top: 7px;
+  left: 50%;
+  color: white;
+  font-size: 18px;
+  line-height: 0;
+  transform: translateX(-50%);
+}
+
+.callIcon svg {
+  vertical-align: 0;
+}
+
+/* Chamado pendente pulsa para chamar atenção */
+.pulse {
+  position: absolute;
+  top: 31px;
+  left: 50%;
+  width: 28px;
+  height: 28px;
+  margin-left: -14px;
+  border-radius: 50%;
+  background: var(--marker-color);
+  animation: markerPulse 1.8s ease-out infinite;
+}
+
+@keyframes markerPulse {
+  from {
+    opacity: 0.55;
+    transform: scale(0.4);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.8);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse {
+    animation: none;
+    opacity: 0;
+  }
+}
