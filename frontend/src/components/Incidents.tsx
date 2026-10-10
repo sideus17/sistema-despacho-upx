@@ -1,6 +1,6 @@
-import { CSSProperties, useState } from 'react';
-import { Coordinates, Incident, IncidentEffect, IncidentSource, IncidentType } from '../types';
-import { CreateIncidentRequest, getTimeAgo } from '../services/api';
+import { CSSProperties, useEffect, useState } from 'react';
+import { Coordinates, Incident, IncidentEffect, IncidentSource, IncidentType, OfficialSourceStatus } from '../types';
+import { CreateIncidentRequest, getOfficialStatus, getTimeAgo } from '../services/api';
 import {
   CENTRAL_DEFAULTS,
   CENTRAL_TYPES,
@@ -32,6 +32,46 @@ const EFFECTS = [IncidentEffect.BLOQUEIO, IncidentEffect.RISCO, IncidentEffect.A
 const CONFIRMABLE = new Set([IncidentType.ALAGAMENTO, IncidentType.VIA_BLOQUEADA]);
 
 const formatRadius = (meters: number) => (meters >= 1000 ? `${meters / 1000} km` : `${meters} m`);
+const OFFICIAL_STATUS_INTERVAL = 60_000;
+const clockTime = (iso: string) => new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+// Quando o servidor leu cada fonte oficial e se deu erro
+function OfficialSources() {
+  const [sources, setSources] = useState<OfficialSourceStatus[] | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = () => getOfficialStatus()
+      .then(status => { if (!cancelled) setSources(status.enabled ? status.sources : []); })
+      .catch(() => { /* sem status: a lista continua funcionando */ });
+    load();
+    const timer = window.setInterval(load, OFFICIAL_STATUS_INTERVAL);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, []);
+
+  if (!sources) return null;
+  return (
+    <section className={styles.sources} aria-label="Fontes oficiais">
+      <h3>Fontes oficiais</h3>
+      {sources.length === 0 && <p>Desligadas neste servidor.</p>}
+      {sources.map(source => (
+        <p key={source.id} className={source.lastError ? styles.sourceError : undefined}>
+          <strong>{source.name}</strong>
+          {!source.enabled
+            ? ' — sem credenciais configuradas'
+            : source.lastError
+              ? ` — sem resposta${source.lastSuccess ? ` desde ${clockTime(source.lastSuccess)}` : ''}; nova tentativa em até 15 min`
+              : source.lastSuccess
+                ? ` — lida às ${clockTime(source.lastSuccess)}: ${source.summary}`
+                : ' — lendo…'}
+        </p>
+      ))}
+    </section>
+  );
+}
 
 interface IncidentsProps {
   incidents: Incident[];
@@ -288,6 +328,8 @@ export default function Incidents({ incidents, draft, onDraftChange, onCreate, o
           })}
         </ul>
       )}
+
+      <OfficialSources />
     </div>
   );
 }

@@ -115,6 +115,7 @@ app.listen(PORT, () => {
   console.log('   - GET  /api/bases');
   console.log('   - GET  /api/incidents');
   console.log('   - POST /api/incidents');
+  console.log('   - GET  /api/official/status');
   console.log('   - POST /api/dispatch/analyze');
   console.log('   - POST /api/dispatch/execute');
   console.log('   - POST /api/routes/calculate');

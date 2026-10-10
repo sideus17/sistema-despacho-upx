@@ -12,6 +12,7 @@ import {
   registerPassage,
   voteIncident
 } from '../services/incidentService';
+import { officialStatus, triggerOfficialRefresh } from '../services/official/refresh';
 import { requireAuth, requireRole } from '../middleware/auth';
 import {
   AmbulanceStatus,
@@ -414,6 +415,8 @@ router.get('/bases', async (req: Request, res: Response) => {
 
 router.get('/incidents', async (req: Request, res: Response) => {
   try {
+    // Sistema em uso: aproveita para atualizar CEMADEN e Defesa Civil (em segundo plano)
+    triggerOfficialRefresh();
     const incidents = await listActiveIncidents(req.user!.id);
     res.json({ success: true, data: incidents, timestamp: new Date().toISOString() });
   } catch (error) {
@@ -438,6 +441,11 @@ router.post('/incidents/:id/close', requireRole(UserRole.OPERADOR), async (req: 
   } catch (error) {
     failIncident(res, error, 'Erro ao encerrar a ocorrência.');
   }
+});
+
+// Quando cada fonte oficial foi lida pela última vez e se deu erro
+router.get('/official/status', requireRole(UserRole.OPERADOR), (req: Request, res: Response) => {
+  res.json({ success: true, data: officialStatus(), timestamp: new Date().toISOString() });
 });
 
 // "Ainda está lá?" das equipes; a central usa só o SIM, para confirmar o bloqueio de um relato

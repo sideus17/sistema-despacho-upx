@@ -15,6 +15,7 @@ import {
   Coordinates
 } from '../types';
 import { useMapStyle } from '../map/useMapStyle';
+import { DATA_ATTRIBUTION } from '../map/attribution';
 import { MAP_BACKGROUND, ROUTE_COLORS } from '../map/mapStyle';
 import { useMapTheme } from '../map/useMapTheme';
 import { ThemeSwitch } from '../map/ThemeSwitch';
@@ -267,7 +268,7 @@ export default function Map({
           dragRotate={false}
           pitchWithRotate={false}
           touchPitch={false}
-          attributionControl={{ compact: true }}
+          attributionControl={{ compact: true, customAttribution: DATA_ATTRIBUTION }}
           cursor={draft ? 'crosshair' : undefined}
           onClick={event => {
             if (draft && onPickLocation) onPickLocation({ lat: event.lngLat.lat, lng: event.lngLat.lng });

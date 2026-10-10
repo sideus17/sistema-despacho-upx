@@ -4,6 +4,7 @@ import { circleEntryAlong, cumulativeDistances, distanceMeters, exclusionRing, n
 import { EngineRoute, osrmRoute } from './osrm';
 import { maxExcludePerimeter, valhallaRoute } from './valhalla';
 import { routeAvoiding } from './avoidance';
+import { triggerOfficialRefresh } from './official/refresh';
 
 // Mesma rota pedida de novo (análise, despacho, prévia da equipe) sai do cache
 const CACHE_TTL = 10 * 60_000;
@@ -19,6 +20,7 @@ const cache = new Map<string, { expires: number; route: Promise<RouteInfo> }>();
  * Valhalla (desvia de áreas) → OSRM (sem desvio) → linha reta.
  */
 export async function calculateRoute(from: Coordinates, to: Coordinates): Promise<RouteInfo> {
+  triggerOfficialRefresh();
   const { incidents, warning } = await incidentsNear(from, to);
 
   // Mesmos pontos (~10 m) e mesmas ocorrências no caminho: mesma rota

@@ -12,6 +12,7 @@ import { useNavigation } from './useNavigation';
 import { formatNavDistance, maneuverIcon, maneuverText, spokenInstruction } from './instructions';
 import { googleMapsUrl } from './mapsLink';
 import { useMapStyle } from '../../map/useMapStyle';
+import { DATA_ATTRIBUTION } from '../../map/attribution';
 import { setThemePreference, useMapTheme } from '../../map/useMapTheme';
 import { nextThemePreference, THEME_OPTIONS } from '../../map/ThemeSwitch';
 import { MapTheme, ROUTE_COLORS } from '../../map/mapStyle';
@@ -147,7 +148,7 @@ export default function NavigationView({
       zoom: 17,
       pitch: 50,
       bearing: nav.routeBearing,
-      attributionControl: { compact: true }
+      attributionControl: { compact: true, customAttribution: DATA_ATTRIBUTION }
     });
     mapRef.current = map;
 

@@ -391,7 +391,8 @@ function App() {
       <footer className="footer">
         <p>
           Sistema Acadêmico - Usina de Projetos Experimentais |
-          Algoritmo: Score ponderado (Distância 40%, Disponibilidade 30%, Tipo 20%, Ocorrências 10%)
+          Algoritmo: Score ponderado (Distância 40%, Disponibilidade 30%, Tipo 20%, Ocorrências 10%) |
+          Rotas: Valhalla · Alertas: CEMADEN/MCTI, Defesa Civil, SGB/CPRM
         </p>
       </footer>
     </div>

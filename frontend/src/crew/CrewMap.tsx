@@ -3,6 +3,7 @@ import { Map as MapGL, Marker, NavigationControl, MapRef } from '@vis.gl/react-m
 import '../map/maplibre';
 import { Ambulance, EmergencyCall, Coordinates, Incident } from '../types';
 import { useMapStyle } from '../map/useMapStyle';
+import { DATA_ATTRIBUTION } from '../map/attribution';
 import { MAP_BACKGROUND } from '../map/mapStyle';
 import { useMapTheme } from '../map/useMapTheme';
 import { RouteLayer } from '../map/RouteLayer';
@@ -50,7 +51,7 @@ export default function CrewMap({ ambulance, call, route, incidents = [] }: Crew
       dragRotate={false}
       pitchWithRotate={false}
       touchPitch={false}
-      attributionControl={{ compact: true }}
+      attributionControl={{ compact: true, customAttribution: DATA_ATTRIBUTION }}
       onLoad={event => {
         event.target.touchZoomRotate.disableRotation();
         setLoaded(true);

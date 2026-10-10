@@ -7,6 +7,7 @@ import {
   Incident,
   IncidentEffect,
   IncidentType,
+  OfficialSourceStatus,
   DispatchRecommendation,
   RouteInfo,
   Stats,
@@ -189,6 +190,12 @@ export async function closeIncident(id: string): Promise<void> {
 
 export async function voteIncident(id: string, vote: 'SIM' | 'NAO'): Promise<{ incident: Incident | null; closed: boolean }> {
   const response = await api.post<ApiResponse<{ incident: Incident | null; closed: boolean }>>(`/incidents/${id}/vote`, { vote });
+  return response.data.data!;
+}
+
+// Última leitura do CEMADEN e da Defesa Civil (feita pelo servidor quando o sistema está em uso)
+export async function getOfficialStatus(): Promise<{ enabled: boolean; sources: OfficialSourceStatus[] }> {
+  const response = await api.get<ApiResponse<{ enabled: boolean; sources: OfficialSourceStatus[] }>>('/official/status');
   return response.data.data!;
 }
 

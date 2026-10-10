@@ -192,6 +192,16 @@ export interface ApiResponse<T> {
   timestamp: string;
 }
 
+export interface OfficialSourceStatus {
+  id: 'cemaden' | 'defesaCivil';
+  name: string;
+  enabled: boolean;
+  lastAttempt: string | null;
+  lastSuccess: string | null;
+  lastError: string | null;
+  summary: string | null;
+}
+
 export interface Stats {
   totalAmbulances: number;
   availableAmbulances: number;
