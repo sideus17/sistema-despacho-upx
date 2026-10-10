@@ -50,10 +50,17 @@ export function sortIncidents(incidents: Incident[]): Incident[] {
   );
 }
 
+type Described = Pick<Incident, 'type' | 'source' | 'ambulance'>;
+
 // "Equipe USB-01", "Central", "CEMADEN"...
-export function sourceLabel(incident: Incident): string {
+export function sourceLabel(incident: Pick<Incident, 'source' | 'ambulance'>): string {
   if (incident.source === IncidentSource.EQUIPE && incident.ambulance) return `Equipe ${incident.ambulance.code}`;
   return SOURCE_LABEL[incident.source] ?? incident.source;
+}
+
+// "Alagamento (Equipe USB-01)"
+export function incidentName(incident: Described): string {
+  return `${INCIDENT_LABEL[incident.type] ?? incident.type} (${sourceLabel(incident)})`;
 }
 
 function clock(iso: string): string {

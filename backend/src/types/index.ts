@@ -54,13 +54,6 @@ export enum IncidentVote {
   PASSOU = 'PASSOU' // viatura passou pelo local normalmente
 }
 
-export enum RiskLevel {
-  BAIXO = 'BAIXO',
-  MEDIO = 'MEDIO',
-  ALTO = 'ALTO',
-  CRITICO = 'CRITICO'
-}
-
 export enum UserRole {
   MOTORISTA = 'MOTORISTA',
   OPERADOR = 'OPERADOR'
@@ -130,25 +123,30 @@ export interface Incident {
   myVote: IncidentVote | null;
 }
 
-export interface WeatherEvent {
+// Ocorrência no caminho de uma rota (ou evitada por ela)
+export interface RouteIncident {
   id: string;
   type: IncidentType;
+  source: IncidentSource;
+  effect: IncidentEffect;
   location: Coordinates;
-  radius: number; // meters
-  riskLevel: RiskLevel;
-  description: string;
-  startTime: string;
-  estimatedEndTime?: string;
+  radius: number; // metros
+  ambulance: { id: string; code: string } | null; // viatura que relatou
+  distanceAlong?: number; // metros do início da rota até a área (só nas que a rota atravessa)
 }
+
+export type RouteEngine = 'valhalla' | 'osrm' | 'linha-reta';
 
 export interface RouteInfo {
   distance: number; // meters
   duration: number; // seconds
   geometry: Coordinates[];
   steps: RouteStep[];
-  waypoints: Coordinates[]; // pontos de passagem forçados (ex.: desvio de área de risco)
-  riskLevel: RiskLevel;
-  weatherEvents: WeatherEvent[];
+  waypoints: Coordinates[]; // pontos da própria rota perto dos desvios (o link do Google Maps passa por eles)
+  engine: RouteEngine;
+  incidentsOnRoute: RouteIncident[]; // a rota atravessa (aviso, risco aceito ou bloqueio sem alternativa)
+  avoided: RouteIncident[]; // a rota desviou
+  warnings: string[];
 }
 
 // Manobra no formato do OSRM; o texto em português é montado no app

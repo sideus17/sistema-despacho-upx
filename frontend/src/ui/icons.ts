@@ -25,7 +25,6 @@ export { default as LocationIcon } from '~icons/material-symbols/location-on-rou
 export { default as DistanceIcon } from '~icons/material-symbols/straighten-rounded';
 export { default as TimerIcon } from '~icons/material-symbols/timer-rounded';
 export { default as ScheduleIcon } from '~icons/material-symbols/schedule-rounded';
-export { default as TrafficIcon } from '~icons/material-symbols/traffic-rounded';
 export { default as DetourIcon } from '~icons/material-symbols/alt-route-rounded';
 export { default as StarIcon } from '~icons/material-symbols/star-rounded';
 export { default as CheckCircleIcon } from '~icons/material-symbols/check-circle-rounded';

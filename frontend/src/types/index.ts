@@ -56,13 +56,6 @@ export enum IncidentVote {
   PASSOU = 'PASSOU'
 }
 
-export enum RiskLevel {
-  BAIXO = 'BAIXO',
-  MEDIO = 'MEDIO',
-  ALTO = 'ALTO',
-  CRITICO = 'CRITICO'
-}
-
 export enum UserRole {
   MOTORISTA = 'MOTORISTA',
   OPERADOR = 'OPERADOR'
@@ -139,25 +132,30 @@ export interface Incident {
   myVote: IncidentVote | null;
 }
 
-export interface WeatherEvent {
+// Ocorrência no caminho de uma rota (ou evitada por ela)
+export interface RouteIncident {
   id: string;
   type: IncidentType;
+  source: IncidentSource;
+  effect: IncidentEffect;
   location: Coordinates;
   radius: number;
-  riskLevel: RiskLevel;
-  description: string;
-  startTime: string;
-  estimatedEndTime?: string;
+  ambulance: { id: string; code: string } | null;
+  distanceAlong?: number; // metros do início da rota até a área (só nas que a rota atravessa)
 }
+
+export type RouteEngine = 'valhalla' | 'osrm' | 'linha-reta';
 
 export interface RouteInfo {
   distance: number;
   duration: number;
   geometry: Coordinates[];
   steps: RouteStep[];
-  waypoints: Coordinates[];
-  riskLevel: RiskLevel;
-  weatherEvents: WeatherEvent[];
+  waypoints: Coordinates[]; // pontos da rota perto dos desvios (o link do Google Maps passa por eles)
+  engine: RouteEngine;
+  incidentsOnRoute: RouteIncident[];
+  avoided: RouteIncident[];
+  warnings: string[];
 }
 
 export interface RouteStep {

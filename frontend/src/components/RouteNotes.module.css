@@ -1,0 +1,33 @@
+.notes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.detour,
+.warning,
+.notice {
+  padding: 8px 10px;
+  border: 1px solid;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.detour {
+  border-color: #86efac;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.warning {
+  border-color: #fde047;
+  background: #fefce8;
+  color: #713f12;
+}
+
+.notice {
+  border-color: #c4b5fd;
+  background: #f5f3ff;
+  color: #4c1d95;
+}

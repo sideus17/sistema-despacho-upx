@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
-import { Ambulance, AmbulanceStatus, AmbulanceType, CallStatus, EmergencyCall, RiskLevel, RouteInfo } from '../types';
+import { Ambulance, AmbulanceStatus, AmbulanceType, CallStatus, EmergencyCall, RouteInfo } from '../types';
 import {
   getAmbulances,
   getPendingCalls,
@@ -18,7 +18,8 @@ import { useToast } from '../components/Toast';
 import { PRIORITY_META, formatGender } from '../utils/calls';
 import { PriorityLabel } from '../ui/PriorityLabel';
 import { AmbulanceTypeIcon } from '../ui/AmbulanceTypeIcon';
-import { BellIcon, CheckCircleIcon, DetourIcon, DistanceIcon, NavigateIcon, TimerIcon, WarningIcon } from '../ui/icons';
+import { BellIcon, CheckCircleIcon, DistanceIcon, NavigateIcon, TimerIcon } from '../ui/icons';
+import RouteNotes from '../components/RouteNotes';
 import { useAuth } from '../auth/AuthContext';
 import InstallBanner from './InstallBanner';
 import { googleMapsUrl } from './navigation/mapsLink';
@@ -309,8 +310,6 @@ export default function CrewApp() {
 
   const meta = activeCall ? PRIORITY_META[activeCall.priority] : undefined;
   const gender = activeCall ? formatGender(activeCall.patientInfo.gender) : null;
-  const detour = route?.weatherEvents.find(e => e.description.startsWith('[DESVIO ATIVADO]'));
-  const risky = route && (route.riskLevel === RiskLevel.ALTO || route.riskLevel === RiskLevel.CRITICO);
 
   if (navigating && activeCall && route) {
     return (
@@ -381,11 +380,7 @@ export default function CrewApp() {
                 <span><TimerIcon /> <strong>{formatDuration(route.duration)}</strong></span>
               </div>
             )}
-            {detour ? (
-              <p className={styles.warning}><DetourIcon /> Rota desviada para evitar área de risco. {detour.description.replace('[DESVIO ATIVADO] ', '')}</p>
-            ) : risky && (
-              <p className={styles.warning}><WarningIcon /> A rota passa por área de risco {route?.riskLevel}.</p>
-            )}
+            {route && <RouteNotes route={route} />}
           </main>
 
           <nav className={styles.actionBar}>

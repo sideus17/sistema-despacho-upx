@@ -4,7 +4,8 @@ import { formatDistance, formatDuration, getTimeAgo } from '../services/api';
 import { PRIORITY_META } from '../utils/calls';
 import { PriorityLabel } from '../ui/PriorityLabel';
 import { AmbulanceTypeIcon } from '../ui/AmbulanceTypeIcon';
-import { AnalyticsIcon, BackIcon, CheckCircleIcon, DistanceIcon, LocationIcon, PersonIcon, StarIcon, TimerIcon, TrafficIcon } from '../ui/icons';
+import RouteNotes from './RouteNotes';
+import { AnalyticsIcon, BackIcon, CheckCircleIcon, DistanceIcon, LocationIcon, PersonIcon, StarIcon, TimerIcon } from '../ui/icons';
 import styles from './DispatchAnalysis.module.css';
 
 interface DispatchAnalysisProps {
@@ -149,11 +150,13 @@ export default function DispatchAnalysis({
                   </dl>
 
                   {rec.route ? (
-                    <div className={styles.route}>
-                      <span><DistanceIcon /> <strong>{formatDistance(rec.route.distance)}</strong></span>
-                      <span><TimerIcon /> <strong>{formatDuration(rec.route.duration)}</strong></span>
-                      <span><TrafficIcon /> Risco: <strong>{rec.route.riskLevel}</strong></span>
-                    </div>
+                    <>
+                      <div className={styles.route}>
+                        <span><DistanceIcon /> <strong>{formatDistance(rec.route.distance)}</strong></span>
+                        <span><TimerIcon /> <strong>{formatDuration(rec.route.duration)}</strong></span>
+                      </div>
+                      <div className={styles.routeNotes}><RouteNotes route={rec.route} /></div>
+                    </>
                   ) : (
                     <div className={styles.routePending}>
                       {routeLoadingId === rec.ambulanceId ? 'Calculando rota…' : 'Toque para ver a rota no mapa'}
