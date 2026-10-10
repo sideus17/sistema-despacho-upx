@@ -1,7 +1,7 @@
 import { useState, useCallback, lazy, Suspense } from 'react';
 import CallList from './components/CallList';
 import DispatchAnalysis from './components/DispatchAnalysis';
-import WeatherAlerts from './components/WeatherAlerts';
+import Incidents, { IncidentDraft } from './components/Incidents';
 import NewCallForm from './components/NewCallForm';
 import Fleet from './components/Fleet';
 import { useToast } from './components/Toast';
@@ -11,7 +11,8 @@ import {
   Ambulance,
   EmergencyCall,
   Base,
-  WeatherEvent,
+  Coordinates,
+  Incident,
   DispatchRecommendation,
   Stats
 } from './types';
@@ -19,7 +20,11 @@ import {
   getAmbulances,
   getPendingCalls,
   getBases,
-  getWeatherEvents,
+  getIncidents,
+  createIncident,
+  closeIncident,
+  voteIncident,
+  CreateIncidentRequest,
   analyzeDispatch,
   executeDispatch,
   finishDispatch,
@@ -27,6 +32,7 @@ import {
   getStats,
   getErrorMessage
 } from './services/api';
+import { INCIDENT_LABEL } from './map/incidents';
 import { AddIcon, AmbulanceIcon, AnalyticsIcon, CallIcon, HeadsetIcon, WarningIcon } from './ui/icons';
 import './styles/index.css';
 
@@ -34,13 +40,16 @@ import './styles/index.css';
 const Map = lazy(() => import('./components/Map'));
 
 type Connection = 'connecting' | 'online' | 'error';
+type Tab = 'calls' | 'new-call' | 'analysis' | 'fleet' | 'incidents';
 
 function App() {
   // State
   const [ambulances, setAmbulances] = useState<Ambulance[]>([]);
   const [calls, setCalls] = useState<EmergencyCall[]>([]);
   const [bases, setBases] = useState<Base[]>([]);
-  const [weatherEvents, setWeatherEvents] = useState<WeatherEvent[]>([]);
+  const [incidents, setIncidents] = useState<Incident[]>([]);
+  const [incidentDraft, setIncidentDraft] = useState<IncidentDraft | null>(null);
+  const [focusIncident, setFocusIncident] = useState<{ id: string; at: number } | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
   const [selectedRouteIndex, setSelectedRouteIndex] = useState<number>(0);
   const [selectedCall, setSelectedCall] = useState<EmergencyCall | null>(null);
@@ -48,24 +57,24 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [routeLoadingId, setRouteLoadingId] = useState<string | null>(null);
   const [connection, setConnection] = useState<Connection>('connecting');
-  const [activeTab, setActiveTab] = useState<'calls' | 'new-call' | 'analysis' | 'fleet' | 'weather'>('calls');
+  const [activeTab, setActiveTabState] = useState<Tab>('calls');
   const toast = useToast();
   const { me, signOut } = useAuth();
 
   const loadData = useCallback(async () => {
     try {
-      const [ambData, callData, baseData, weatherData, statsData] = await Promise.all([
+      const [ambData, callData, baseData, incidentData, statsData] = await Promise.all([
         getAmbulances(),
         getPendingCalls(),
         getBases(),
-        getWeatherEvents(),
+        getIncidents(),
         getStats()
       ]);
 
       setAmbulances(ambData);
       setCalls(callData);
       setBases(baseData);
-      setWeatherEvents(weatherData);
+      setIncidents(incidentData);
       setStats(statsData);
       setConnection('online');
       return true;
@@ -78,6 +87,59 @@ function App() {
 
   // Atualiza a cada 30s; se falhar (ex.: servidor acordando), tenta de novo em 10s
   usePolling(loadData, 30000, 10000);
+
+  // Sair da aba de ocorrências desiste da marcação em andamento
+  const setActiveTab = (tab: Tab) => {
+    if (tab !== 'incidents') setIncidentDraft(null);
+    setActiveTabState(tab);
+  };
+
+  const refreshIncidents = useCallback(async () => {
+    try {
+      const [incidentData, statsData] = await Promise.all([getIncidents(), getStats()]);
+      setIncidents(incidentData);
+      setStats(statsData);
+    } catch {
+      // O polling tenta de novo
+    }
+  }, []);
+
+  const handlePickLocation = (location: Coordinates) => {
+    setIncidentDraft(current => (current ? { ...current, location } : current));
+  };
+
+  const handleCreateIncident = async (request: CreateIncidentRequest) => {
+    try {
+      await createIncident(request);
+      toast(`${INCIDENT_LABEL[request.type]} marcado no mapa`, 'success');
+      await refreshIncidents();
+      return true;
+    } catch (error) {
+      toast(getErrorMessage(error, 'Não foi possível criar a ocorrência.'), 'error');
+      return false;
+    }
+  };
+
+  const handleCloseIncident = async (incident: Incident) => {
+    try {
+      await closeIncident(incident.id);
+      toast(`${INCIDENT_LABEL[incident.type]} encerrado`, 'success');
+    } catch (error) {
+      toast(getErrorMessage(error, 'Não foi possível encerrar a ocorrência.'), 'error');
+    }
+    await refreshIncidents();
+  };
+
+  // Relato de equipe confirmado pela central passa a bloquear a via
+  const handleConfirmIncident = async (incident: Incident) => {
+    try {
+      await voteIncident(incident.id, 'SIM');
+      toast(`${INCIDENT_LABEL[incident.type]} confirmado: a rota passa a desviar`, 'success');
+    } catch (error) {
+      toast(getErrorMessage(error, 'Não foi possível confirmar a ocorrência.'), 'error');
+    }
+    await refreshIncidents();
+  };
 
   // Seleciona o chamado no mapa sem abrir a análise
   const handleFocusCall = (call: EmergencyCall) => {
@@ -187,8 +249,8 @@ function App() {
                 <span className="stat-label">Pendentes</span>
               </div>
               <div className="stat">
-                <span className="stat-value">{stats.activeWeatherEvents}</span>
-                <span className="stat-label">Alertas</span>
+                <span className="stat-value">{stats.activeIncidents}</span>
+                <span className="stat-label">Ocorrências</span>
               </div>
             </div>
           )}
@@ -224,10 +286,14 @@ function App() {
               ambulances={ambulances}
               calls={calls}
               bases={bases}
-              weatherEvents={weatherEvents}
+              incidents={incidents}
               selectedCall={selectedCall}
               routeGeometry={recommendation?.recommendations[selectedRouteIndex]?.route?.geometry}
               onCallSelect={handleAnalyze}
+              draft={incidentDraft}
+              onPickLocation={handlePickLocation}
+              onCloseIncident={handleCloseIncident}
+              focusIncident={focusIncident}
             />
           </Suspense>
         </div>
@@ -262,11 +328,11 @@ function App() {
               <AmbulanceIcon /> Frota
             </button>
             <button
-              className={`tab ${activeTab === 'weather' ? 'active' : ''}`}
-              onClick={() => setActiveTab('weather')}
+              className={`tab ${activeTab === 'incidents' ? 'active' : ''}`}
+              onClick={() => setActiveTab('incidents')}
             >
-              <WarningIcon /> Alertas
-              {weatherEvents.length > 0 && <span className="tab-badge">{weatherEvents.length}</span>}
+              <WarningIcon /> Ocorrências
+              {incidents.length > 0 && <span className="tab-badge">{incidents.length}</span>}
             </button>
           </div>
 
@@ -306,8 +372,16 @@ function App() {
               <Fleet ambulances={ambulances} />
             )}
 
-            {activeTab === 'weather' && (
-              <WeatherAlerts events={weatherEvents} />
+            {activeTab === 'incidents' && (
+              <Incidents
+                incidents={incidents}
+                draft={incidentDraft}
+                onDraftChange={setIncidentDraft}
+                onCreate={handleCreateIncident}
+                onClose={handleCloseIncident}
+                onConfirm={handleConfirmIncident}
+                onFocus={incident => setFocusIncident({ id: incident.id, at: Date.now() })}
+              />
             )}
           </div>
         </div>
@@ -317,7 +391,7 @@ function App() {
       <footer className="footer">
         <p>
           Sistema Acadêmico - Usina de Projetos Experimentais |
-          Algoritmo: Score ponderado (Distância 40%, Disponibilidade 30%, Tipo 20%, Clima 10%)
+          Algoritmo: Score ponderado (Distância 40%, Disponibilidade 30%, Tipo 20%, Ocorrências 10%)
         </p>
       </footer>
     </div>

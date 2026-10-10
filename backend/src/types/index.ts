@@ -24,11 +24,34 @@ export enum CallStatus {
   CANCELADO = 'CANCELADO'
 }
 
-export enum WeatherEventType {
+export enum IncidentType {
   ALAGAMENTO = 'ALAGAMENTO',
   QUEDA_ARVORE = 'QUEDA_ARVORE',
+  VIA_BLOQUEADA = 'VIA_BLOQUEADA',
+  ACIDENTE = 'ACIDENTE',
   VENTOS_FORTES = 'VENTOS_FORTES',
-  ACIDENTE = 'ACIDENTE'
+  CHUVA_FORTE = 'CHUVA_FORTE',
+  ALERTA_OFICIAL = 'ALERTA_OFICIAL'
+}
+
+export enum IncidentSource {
+  CENTRAL = 'CENTRAL',
+  EQUIPE = 'EQUIPE',
+  CEMADEN = 'CEMADEN',
+  DEFESA_CIVIL = 'DEFESA_CIVIL'
+}
+
+// O que a ocorrência faz com a rota
+export enum IncidentEffect {
+  BLOQUEIO = 'BLOQUEIO', // a rota desvia
+  RISCO = 'RISCO', // a rota evita se houver alternativa razoável
+  AVISO = 'AVISO' // só informa
+}
+
+export enum IncidentVote {
+  SIM = 'SIM', // ainda está lá
+  NAO = 'NAO', // não está mais lá
+  PASSOU = 'PASSOU' // viatura passou pelo local normalmente
 }
 
 export enum RiskLevel {
@@ -89,9 +112,27 @@ export interface Base {
   capacity: number;
 }
 
+export interface Incident {
+  id: string;
+  type: IncidentType;
+  source: IncidentSource;
+  effect: IncidentEffect;
+  location: Coordinates;
+  radius: number; // metros
+  description: string | null;
+  createdAt: string;
+  expiresAt: string | null; // null: até a central encerrar
+  lastConfirmedAt: string | null;
+  createdBy: { id: string; name: string } | null;
+  ambulance: { id: string; code: string } | null; // viatura que relatou
+  geometry: unknown | null; // polígono GeoJSON, só para exibir
+  votes: { yes: number; no: number }; // "não está lá" contados desde a última confirmação
+  myVote: IncidentVote | null;
+}
+
 export interface WeatherEvent {
   id: string;
-  type: WeatherEventType;
+  type: IncidentType;
   location: Coordinates;
   radius: number; // meters
   riskLevel: RiskLevel;
@@ -127,7 +168,7 @@ export interface DispatchScore {
   distanceScore: number;
   availabilityScore: number;
   typeScore: number;
-  weatherPenalty: number;
+  incidentPenalty: number;
   route?: RouteInfo;
   explanation: string;
 }
@@ -157,7 +198,7 @@ export interface Stats {
   totalAmbulances: number;
   availableAmbulances: number;
   pendingCalls: number;
-  activeWeatherEvents: number;
+  activeIncidents: number;
   averageResponseTime?: number;
 }
 

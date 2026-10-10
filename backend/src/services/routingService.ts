@@ -1,6 +1,7 @@
 import axios from 'axios';
-import { Coordinates, RouteInfo, RouteStep, RiskLevel } from '../types';
-import { supabase } from '../config/supabase';
+import { Coordinates, Incident, IncidentEffect, RouteInfo, RouteStep, RiskLevel, WeatherEvent } from '../types';
+import { listActiveIncidents } from './incidentService';
+import { distanceMeters } from './geo';
 
 // OSRM public server (free)
 const OSRM_SERVER = 'https://router.project-osrm.org';
@@ -10,9 +11,8 @@ const OSRM_SERVER = 'https://router.project-osrm.org';
  */
 export async function calculateRoute(from: Coordinates, to: Coordinates): Promise<RouteInfo> {
   try {
-    // 1. Busca os eventos climáticos no Supabase primeiro
-    const { data: weatherData } = await supabase.from('weather_events').select('*');
-    const allWeatherEvents = weatherData || [];
+    // 1. Busca as ocorrências ativas primeiro
+    const allWeatherEvents = await activeRouteEvents();
 
     // 2. Primeira tentativa: Rota mais rápida (direta)
     const url = `${OSRM_SERVER}/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}`;
@@ -133,16 +133,14 @@ export async function calculateRoute(from: Coordinates, to: Coordinates): Promis
  * Fallback route calculation (straight line)
  */
 async function calculateFallbackRoute(from: Coordinates, to: Coordinates): Promise<RouteInfo> {
-  const distance = calculateDistance(from.lat, from.lng, to.lat, to.lng) * 1000; // Convert to meters
+  const distance = distanceMeters(from, to);
   const averageSpeed = 40; // km/h in urban areas
   const duration = (distance / 1000) / averageSpeed * 3600; // seconds
 
   // Simple straight line geometry
   const geometry: Coordinates[] = [from, to];
 
-  // Busca os eventos climáticos no Supabase
-  const { data: weatherData } = await supabase.from('weather_events').select('*');
-  const allWeatherEvents = weatherData || [];
+  const allWeatherEvents = await activeRouteEvents();
 
   // Check for weather events
   const weatherEvents = checkWeatherEventsOnRoute(geometry, allWeatherEvents);
@@ -162,75 +160,66 @@ async function calculateFallbackRoute(from: Coordinates, to: Coordinates): Promi
   };
 }
 
+// Nível de risco equivalente ao efeito da ocorrência na rota
+const EFFECT_RISK: Record<IncidentEffect, RiskLevel> = {
+  [IncidentEffect.BLOQUEIO]: RiskLevel.CRITICO,
+  [IncidentEffect.RISCO]: RiskLevel.ALTO,
+  [IncidentEffect.AVISO]: RiskLevel.MEDIO
+};
+
+const INCIDENT_LABEL: Record<string, string> = {
+  ALAGAMENTO: 'Alagamento',
+  QUEDA_ARVORE: 'Árvore caída',
+  VIA_BLOQUEADA: 'Via bloqueada',
+  ACIDENTE: 'Acidente',
+  VENTOS_FORTES: 'Ventos fortes',
+  CHUVA_FORTE: 'Chuva forte',
+  ALERTA_OFICIAL: 'Alerta oficial'
+};
+
+// Ocorrências ativas com área, no formato que a rota devolve ao app
+async function activeRouteEvents(): Promise<WeatherEvent[]> {
+  const incidents = await listActiveIncidents().catch(error => {
+    console.warn('Falha ao buscar ocorrências para a rota:', error);
+    return [] as Incident[];
+  });
+  return incidents
+    .filter(incident => incident.radius > 0)
+    .map(incident => ({
+      id: incident.id,
+      type: incident.type,
+      location: incident.location,
+      radius: incident.radius,
+      riskLevel: EFFECT_RISK[incident.effect],
+      description: incident.description ?? INCIDENT_LABEL[incident.type] ?? incident.type,
+      startTime: incident.createdAt,
+      estimatedEndTime: incident.expiresAt ?? undefined
+    }));
+}
+
 /**
  * Check for weather events along the route using local calculation
  */
-function checkWeatherEventsOnRoute(geometry: Coordinates[], allEvents: any[]): any[] {
-  const events: any[] = [];
-  const checkedEvents = new Set<string>();
+function checkWeatherEventsOnRoute(geometry: Coordinates[], allEvents: WeatherEvent[]): WeatherEvent[] {
+  const found = new Map<string, WeatherEvent>();
 
-  // Sample points along the route (every 10th point or at least start/end)
+  // Sample points along the route (every 10th point), always including the last one
   const sampleInterval = Math.max(1, Math.floor(geometry.length / 10));
-  
-  for (let i = 0; i < geometry.length; i += sampleInterval) {
-    const point = geometry[i];
-    
-    // Filtra localmente os eventos próximos (500 metros)
-    const nearbyEvents = allEvents.filter(e => {
-      const dist = calculateDistance(point.lat, point.lng, e.lat, e.lng) * 1000; // em metros
-      return dist <= (e.radius || 500);
-    });
-    
-    for (const event of nearbyEvents) {
-      if (!checkedEvents.has(event.id)) {
-        events.push({
-          id: event.id,
-          type: event.type,
-          location: { lat: event.lat, lng: event.lng },
-          radius: event.radius,
-          riskLevel: event.risk_level as RiskLevel,
-          description: event.description,
-          startTime: event.start_time,
-          estimatedEndTime: event.estimated_end_time
-        });
-        checkedEvents.add(event.id);
-      }
+  const samples = geometry.filter((_, index) => index % sampleInterval === 0 || index === geometry.length - 1);
+
+  for (const point of samples) {
+    for (const event of allEvents) {
+      if (!found.has(event.id) && distanceMeters(point, event.location) <= event.radius) found.set(event.id, event);
     }
   }
 
-  // Always check last point
-  if (geometry.length > 0) {
-    const lastPoint = geometry[geometry.length - 1];
-    
-    const nearbyEvents = allEvents.filter(e => {
-      const dist = calculateDistance(lastPoint.lat, lastPoint.lng, e.lat, e.lng) * 1000;
-      return dist <= (e.radius || 500);
-    });
-    
-    for (const event of nearbyEvents) {
-      if (!checkedEvents.has(event.id)) {
-        events.push({
-          id: event.id,
-          type: event.type,
-          location: { lat: event.lat, lng: event.lng },
-          radius: event.radius,
-          riskLevel: event.risk_level as RiskLevel,
-          description: event.description,
-          startTime: event.start_time,
-          estimatedEndTime: event.estimated_end_time
-        });
-        checkedEvents.add(event.id);
-      }
-    }
-  }
-
-  return events;
+  return [...found.values()];
 }
 
 /**
  * Calculate overall risk level for the route
  */
-function calculateRouteRiskLevel(weatherEvents: any[]): RiskLevel {
+function calculateRouteRiskLevel(weatherEvents: WeatherEvent[]): RiskLevel {
   if (weatherEvents.length === 0) {
     return RiskLevel.BAIXO;
   }
@@ -248,27 +237,6 @@ function calculateRouteRiskLevel(weatherEvents: any[]): RiskLevel {
   }
 
   return maxRisk;
-}
-
-/**
- * Haversine formula to calculate distance between two coordinates (in km)
- */
-function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6371; // Earth's radius in km
-  const dLat = toRad(lat2 - lat1);
-  const dLng = toRad(lng2 - lng1);
-  
-  const a = 
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-    Math.sin(dLng / 2) * Math.sin(dLng / 2);
-  
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
-
-function toRad(degrees: number): number {
-  return degrees * (Math.PI / 180);
 }
 
 /**

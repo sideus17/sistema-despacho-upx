@@ -64,7 +64,7 @@ app.get('/', (req: Request, res: Response) => {
       ambulances: '/api/ambulances',
       calls: '/api/calls',
       bases: '/api/bases',
-      weather: '/api/weather/events',
+      incidents: '/api/incidents',
       dispatch: '/api/dispatch/analyze',
       routes: '/api/routes/calculate',
       stats: '/api/stats'
@@ -113,7 +113,8 @@ app.listen(PORT, () => {
   console.log('   - GET  /api/ambulances');
   console.log('   - GET  /api/calls');
   console.log('   - GET  /api/bases');
-  console.log('   - GET  /api/weather/events');
+  console.log('   - GET  /api/incidents');
+  console.log('   - POST /api/incidents');
   console.log('   - POST /api/dispatch/analyze');
   console.log('   - POST /api/dispatch/execute');
   console.log('   - POST /api/routes/calculate');

@@ -5,16 +5,19 @@ import {
   AmbulanceStatus,
   AmbulanceType,
   CallPriority,
-  RiskLevel,
-  Coordinates
+  Coordinates,
+  Incident,
+  IncidentEffect
 } from '../types';
 import { calculateRoute } from './routingService';
+import { listActiveIncidents } from './incidentService';
+import { distanceMeters } from './geo';
 
 const WEIGHTS = {
   DISTANCE: 0.4,
   AVAILABILITY: 0.3,
   TYPE: 0.2,
-  WEATHER: 0.1
+  INCIDENTS: 0.1
 };
 
 export async function analyzeDispatch(callId: string): Promise<DispatchRecommendation> {
@@ -43,13 +46,8 @@ export async function analyzeDispatch(callId: string): Promise<DispatchRecommend
     throw new Error('Erro ao buscar ambulâncias no banco de dados.');
   }
 
-  // 3. Buscar eventos climáticos ativos para calcular penalidades de rota
-  const { data: weatherData } = await supabase.from('weather_events').select('*');
-  const weatherEvents = (weatherData || []).map(w => ({
-    id: w.id,
-    location: { lat: w.lat, lng: w.lng },
-    riskLevel: w.risk_level as RiskLevel
-  }));
+  // 3. Buscar as ocorrências ativas para calcular penalidades de rota
+  const incidents = await listActiveIncidents();
 
   // Calcular score para cada ambulância
   const scores: DispatchScore[] = [];
@@ -61,7 +59,7 @@ export async function analyzeDispatch(callId: string): Promise<DispatchRecommend
       callData, 
       ambulanceLocation, 
       callLocation, 
-      weatherEvents
+      incidents
     );
     scores.push(score);
   }
@@ -97,18 +95,18 @@ function calculateDispatchScore(
   call: any, 
   ambLocation: Coordinates,
   callLocation: Coordinates,
-  weatherEvents: any[]
+  incidents: Incident[]
 ): DispatchScore {
   const distanceScore = calculateDistanceScore(ambLocation, callLocation);
   const availabilityScore = calculateAvailabilityScore(ambulance.status);
   const typeScore = calculateTypeScore(ambulance.type, call.priority);
-  const weatherPenalty = calculateWeatherPenalty(ambLocation, callLocation, weatherEvents);
+  const incidentPenalty = calculateIncidentPenalty(ambLocation, callLocation, incidents);
 
   const totalScore = Math.round(
     (distanceScore * WEIGHTS.DISTANCE) +
     (availabilityScore * WEIGHTS.AVAILABILITY) +
     (typeScore * WEIGHTS.TYPE) +
-    (weatherPenalty * WEIGHTS.WEATHER)
+    (incidentPenalty * WEIGHTS.INCIDENTS)
   );
 
   const explanation = generateExplanation(
@@ -117,7 +115,7 @@ function calculateDispatchScore(
     distanceScore,
     availabilityScore,
     typeScore,
-    weatherPenalty,
+    incidentPenalty,
     totalScore
   );
 
@@ -127,14 +125,14 @@ function calculateDispatchScore(
     distanceScore,
     availabilityScore,
     typeScore,
-    weatherPenalty,
+    incidentPenalty,
     route: undefined, // Rota calculada depois apenas para o melhor
     explanation
   };
 }
 
 function calculateDistanceScore(from: Coordinates, to: Coordinates): number {
-  const distance = calculateDistance(from.lat, from.lng, to.lat, to.lng);
+  const distance = distanceMeters(from, to) / 1000;
   const maxDistance = 20;
   const score = Math.max(0, 100 - (distance / maxDistance) * 100);
   return Math.round(score);
@@ -157,29 +155,23 @@ function calculateTypeScore(type: string, priority: string): number {
   return scoreMatrix[priority]?.[type] || 0;
 }
 
-function calculateWeatherPenalty(from: Coordinates, to: Coordinates, events: any[]): number {
-  // Verifica eventos num raio de 1km (~1000m) da ambulância ou do chamado
-  const nearbyEvents = events.filter(e => {
-    const distToAmb = calculateDistance(from.lat, from.lng, e.location.lat, e.location.lng);
-    const distToCall = calculateDistance(to.lat, to.lng, e.location.lat, e.location.lng);
-    return distToAmb <= 1 || distToCall <= 1; // 1 km
+// Ocorrência a até 1 km da viatura ou do chamado (contando da borda da área)
+const INCIDENT_PENALTY_DISTANCE = 1000; // metros
+const EFFECT_PENALTY: Record<IncidentEffect, number> = {
+  [IncidentEffect.BLOQUEIO]: -15,
+  [IncidentEffect.RISCO]: -10,
+  [IncidentEffect.AVISO]: -5
+};
+
+function calculateIncidentPenalty(from: Coordinates, to: Coordinates, incidents: Incident[]): number {
+  const nearby = incidents.filter(incident => {
+    // Alerta sem área (vale para a cidade toda) pesa igual para todas as viaturas
+    if (incident.radius <= 0) return false;
+    const edge = (point: Coordinates) => distanceMeters(point, incident.location) - incident.radius;
+    return edge(from) <= INCIDENT_PENALTY_DISTANCE || edge(to) <= INCIDENT_PENALTY_DISTANCE;
   });
-  
-  if (nearbyEvents.length === 0) return 0;
 
-  const riskOrder = [RiskLevel.BAIXO, RiskLevel.MEDIO, RiskLevel.ALTO, RiskLevel.CRITICO];
-  const worstRisk = nearbyEvents.reduce((worst, event) => {
-    return riskOrder.indexOf(event.riskLevel) > riskOrder.indexOf(worst) ? event.riskLevel : worst;
-  }, RiskLevel.BAIXO);
-
-  const penaltyMap: Record<string, number> = {
-    [RiskLevel.CRITICO]: -15,
-    [RiskLevel.ALTO]: -10,
-    [RiskLevel.MEDIO]: -5,
-    [RiskLevel.BAIXO]: -2
-  };
-
-  return penaltyMap[worstRisk] || 0;
+  return nearby.reduce((worst, incident) => Math.min(worst, EFFECT_PENALTY[incident.effect] ?? 0), 0);
 }
 
 function generateExplanation(
@@ -188,13 +180,13 @@ function generateExplanation(
   distanceScore: number,
   availabilityScore: number,
   typeScore: number,
-  weatherPenalty: number,
+  incidentPenalty: number,
   totalScore: number
 ): string {
   const parts: string[] = [];
   parts.push(`${ambulance.code} (${ambulance.type})`);
 
-  const distance = calculateDistance(ambulance.lat, ambulance.lng, callLocation.lat, callLocation.lng);
+  const distance = distanceMeters({ lat: ambulance.lat, lng: ambulance.lng }, callLocation) / 1000;
   parts.push(`está a ${distance.toFixed(1)}km do chamado`);
 
   if (ambulance.status === AmbulanceStatus.DISPONIVEL) parts.push('e está disponível');
@@ -204,24 +196,8 @@ function generateExplanation(
   else if (typeScore >= 70) parts.push('É adequada para esta emergência');
   else parts.push('Pode atender, mas não é o tipo ideal');
 
-  if (weatherPenalty < 0) parts.push(`Atenção: há eventos climáticos na rota (penalidade: ${weatherPenalty})`);
+  if (incidentPenalty < 0) parts.push(`Atenção: há ocorrências perto da viatura ou do chamado (penalidade: ${incidentPenalty})`);
 
   parts.push(`Score total: ${totalScore}/100`);
   return parts.join('. ') + '.';
-}
-
-function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6371; 
-  const dLat = toRad(lat2 - lat1);
-  const dLng = toRad(lng2 - lng1);
-  const a = 
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-    Math.sin(dLng / 2) * Math.sin(dLng / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
-
-function toRad(degrees: number): number {
-  return degrees * (Math.PI / 180);
 }

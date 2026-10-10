@@ -99,7 +99,7 @@ export default function DispatchAnalysis({
       {!loading && recommendation && (
         <>
           <p className={styles.algorithm}>
-            Score: distância 40% · disponibilidade 30% · tipo 20% · clima 10%
+            Score: distância 40% · disponibilidade 30% · tipo 20% · ocorrências 10%
           </p>
 
           <div className={styles.options}>
@@ -143,8 +143,8 @@ export default function DispatchAnalysis({
                     <div><dt>Disponibilidade</dt><dd>{rec.availabilityScore}/100</dd></div>
                     <div><dt>Tipo</dt><dd>{rec.typeScore}/100</dd></div>
                     <div>
-                      <dt>Clima</dt>
-                      <dd className={rec.weatherPenalty < 0 ? styles.negative : ''}>{rec.weatherPenalty}</dd>
+                      <dt>Ocorrências</dt>
+                      <dd className={rec.incidentPenalty < 0 ? styles.negative : ''}>{rec.incidentPenalty}</dd>
                     </div>
                   </dl>
 
