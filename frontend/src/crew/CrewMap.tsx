@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { Map as MapGL, Marker, NavigationControl, MapRef } from '@vis.gl/react-maplibre';
 import '../map/maplibre';
-import { Ambulance, EmergencyCall, Coordinates } from '../types';
+import { Ambulance, EmergencyCall, Coordinates, Incident } from '../types';
 import { useMapStyle } from '../map/useMapStyle';
 import { MAP_BACKGROUND } from '../map/mapStyle';
 import { useMapTheme } from '../map/useMapTheme';
 import { RouteLayer } from '../map/RouteLayer';
+import { IncidentLayer } from '../map/IncidentLayer';
 import { boundsOf, toLngLat } from '../map/geojson';
 import { AmbulanceMarker, CallMarker } from '../map/Markers';
 
@@ -13,9 +14,10 @@ interface CrewMapProps {
   ambulance: Ambulance;
   call?: EmergencyCall;
   route?: Coordinates[];
+  incidents?: Incident[];
 }
 
-export default function CrewMap({ ambulance, call, route }: CrewMapProps) {
+export default function CrewMap({ ambulance, call, route, incidents = [] }: CrewMapProps) {
   const mapRef = useRef<MapRef>(null);
   const [loaded, setLoaded] = useState(false);
   const { theme } = useMapTheme();
@@ -55,6 +57,8 @@ export default function CrewMap({ ambulance, call, route }: CrewMapProps) {
       }}
     >
       <NavigationControl position="top-left" showCompass={false} />
+
+      <IncidentLayer incidents={incidents} />
 
       {route && route.length > 1 && <RouteLayer line={route} theme={theme} />}
 

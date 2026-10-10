@@ -1,8 +1,9 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
-import { Ambulance, AmbulanceStatus, AmbulanceType, CallStatus, EmergencyCall, RouteInfo } from '../types';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Ambulance, AmbulanceStatus, AmbulanceType, CallStatus, Coordinates, EmergencyCall, Incident, RouteInfo } from '../types';
 import {
   getAmbulances,
   getPendingCalls,
+  getIncidents,
   calculateRoute,
   finishDispatch,
   startShift,
@@ -18,8 +19,10 @@ import { useToast } from '../components/Toast';
 import { PRIORITY_META, formatGender } from '../utils/calls';
 import { PriorityLabel } from '../ui/PriorityLabel';
 import { AmbulanceTypeIcon } from '../ui/AmbulanceTypeIcon';
-import { BellIcon, CheckCircleIcon, DistanceIcon, NavigateIcon, TimerIcon } from '../ui/icons';
+import { BellIcon, CheckCircleIcon, DistanceIcon, NavigateIcon, ReportIcon, TimerIcon } from '../ui/icons';
 import RouteNotes from '../components/RouteNotes';
+import ReportSheet from './incidents/ReportSheet';
+import { clearReports, flushReports, pendingReports } from './incidents/reportQueue';
 import { useAuth } from '../auth/AuthContext';
 import InstallBanner from './InstallBanner';
 import { googleMapsUrl } from './navigation/mapsLink';
@@ -38,6 +41,7 @@ const SNAPSHOT_KEY = 'samu:ultimos-dados';
 interface Snapshot {
   ambulances: Ambulance[];
   calls: EmergencyCall[];
+  incidents?: Incident[];
   savedAt: string;
 }
 
@@ -58,6 +62,19 @@ function saveSnapshot(snapshot: Snapshot | null) {
   } catch {
     // Sem armazenamento: o app só não abre offline
   }
+}
+
+// Posição atual para o relato fora da navegação (na simulação, a da viatura)
+function currentPosition(fallback: Coordinates): Promise<Coordinates | null> {
+  if (SIMULATE) return Promise.resolve(fallback);
+  return new Promise(resolve => {
+    if (!('geolocation' in navigator)) return resolve(null);
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => resolve({ lat: coords.latitude, lng: coords.longitude }),
+      () => resolve(null),
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 15000 }
+    );
+  });
 }
 
 const TYPE_FILTERS: Array<{ value: AmbulanceType | 'ALL'; label: string }> = [
@@ -84,6 +101,9 @@ export default function CrewApp() {
   const [confirmingEnd, setConfirmingEnd] = useState(false);
   const [ambulances, setAmbulances] = useState<Ambulance[]>(snapshot?.ambulances ?? []);
   const [calls, setCalls] = useState<EmergencyCall[]>(snapshot?.calls ?? []);
+  const [incidents, setIncidents] = useState<Incident[]>(snapshot?.incidents ?? []);
+  const [pending, setPending] = useState(pendingReports);
+  const [reporting, setReporting] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(snapshot?.savedAt ?? null);
   const [connection, setConnection] = useState<'connecting' | 'online' | 'error'>('connecting');
   const [online, setOnline] = useState(() => navigator.onLine);
@@ -93,29 +113,49 @@ export default function CrewApp() {
   const [isNewDispatch, setIsNewDispatch] = useState(false);
   const [navigating, setNavigating] = useState(false);
   const lastCallId = useRef<string | null | undefined>(undefined);
+  const incidentsRef = useRef(incidents);
+  incidentsRef.current = incidents;
   const toast = useToast();
+
+  // Relatos feitos sem sinal saem assim que o servidor responde
+  const flushQueue = useCallback(async () => {
+    if (!pendingReports()) return;
+    const sent = await flushReports();
+    setPending(pendingReports());
+    if (sent) toast(sent === 1 ? 'O relato feito sem sinal foi enviado.' : `${sent} relatos feitos sem sinal foram enviados.`, 'success');
+  }, [toast]);
 
   const loadData = useCallback(async () => {
     try {
-      const [ambData, callData] = await Promise.all([getAmbulances(), getPendingCalls()]);
+      const [ambData, callData, incidentData] = await Promise.all([
+        getAmbulances(),
+        getPendingCalls(),
+        // Sem a lista de ocorrências o app continua; fica a última recebida
+        getIncidents().catch(() => incidentsRef.current)
+      ]);
       const now = new Date().toISOString();
       setAmbulances(ambData);
       setCalls(callData);
+      setIncidents(incidentData);
       setSavedAt(now);
       setConnection('online');
-      saveSnapshot({ ambulances: ambData, calls: callData, savedAt: now });
+      saveSnapshot({ ambulances: ambData, calls: callData, incidents: incidentData, savedAt: now });
+      flushQueue();
       return true;
     } catch {
       setConnection('error');
       return false;
     }
-  }, []);
+  }, [flushQueue]);
 
   // A equipe precisa saber rápido de um despacho novo
   usePolling(loadData, 10000, 5000);
 
   useEffect(() => {
-    const goOnline = () => setOnline(true);
+    const goOnline = () => {
+      setOnline(true);
+      flushQueue();
+    };
     const goOffline = () => setOnline(false);
     window.addEventListener('online', goOnline);
     window.addEventListener('offline', goOffline);
@@ -123,7 +163,7 @@ export default function CrewApp() {
       window.removeEventListener('online', goOnline);
       window.removeEventListener('offline', goOffline);
     };
-  }, []);
+  }, [flushQueue]);
 
   // A viatura do motorista é a que está no turno dele
   const ambulance = ambulances.find(a => a.driver?.id === me.id);
@@ -151,12 +191,23 @@ export default function CrewApp() {
     lastCallId.current = currentId;
   }, [activeCall?.id, ambulance, toast]);
 
-  // Rota da viatura até o chamado atual
+  // Chamado ou viatura novos: começa do zero
   useEffect(() => {
     setRoute(null);
     setConfirmingFinish(false);
     setNavigating(false);
-    if (!activeCall || !ambulance) return;
+  }, [activeCall?.id, ambulance?.id]);
+
+  // Ocorrências com área: quando mudam, a prévia da rota é refeita (o servidor responde do cache se nada mudou no caminho)
+  const incidentsKey = useMemo(() => incidents
+    .filter(incident => incident.radius > 0)
+    .map(incident => `${incident.id}:${incident.effect}:${incident.radius}`)
+    .sort()
+    .join('|'), [incidents]);
+
+  // Rota da viatura até o chamado atual (na navegação, quem recalcula é ela)
+  useEffect(() => {
+    if (!activeCall || !ambulance || navigating) return;
 
     let cancelled = false;
     calculateRoute(ambulance.location, activeCall.location)
@@ -164,7 +215,7 @@ export default function CrewApp() {
       .catch(() => { /* sem rota: o mapa mostra só os dois pontos */ });
 
     return () => { cancelled = true; };
-  }, [activeCall?.id, ambulance?.id]);
+  }, [activeCall?.id, ambulance?.id, incidentsKey, navigating]);
 
   const handleStartShift = async (target: Ambulance) => {
     setBusy(true);
@@ -197,6 +248,7 @@ export default function CrewApp() {
   // Sair apaga os dados guardados para uso offline (incluem informações de pacientes)
   const handleSignOut = async () => {
     saveSnapshot(null);
+    clearReports();
     await signOut();
   };
 
@@ -235,6 +287,7 @@ export default function CrewApp() {
     <div className={styles.offline} role="status">
       Sem conexão. Mostrando os dados das{' '}
       {savedAt ? new Date(savedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '—'}.
+      {pending > 0 && ` ${pending === 1 ? '1 relato aguarda' : `${pending} relatos aguardam`} sinal.`}
     </div>
   );
 
@@ -308,6 +361,20 @@ export default function CrewApp() {
     );
   }
 
+  const reportButton = (
+    <button className={styles.reportButton} onClick={() => setReporting(true)}><ReportIcon /> Reportar</button>
+  );
+  const reportSheet = reporting && (
+    <ReportSheet
+      getPosition={() => currentPosition(ambulance.location)}
+      onClose={() => setReporting(false)}
+      onReported={() => {
+        setPending(pendingReports());
+        loadData();
+      }}
+    />
+  );
+
   const meta = activeCall ? PRIORITY_META[activeCall.priority] : undefined;
   const gender = activeCall ? formatGender(activeCall.patientInfo.gender) : null;
 
@@ -318,9 +385,11 @@ export default function CrewApp() {
           ambulance={ambulance}
           call={activeCall}
           initialRoute={route}
+          incidents={incidents}
           simulate={SIMULATE}
           onExit={() => setNavigating(false)}
           onFinish={handleFinish}
+          onIncidentsChange={loadData}
         />
       </Suspense>
     );
@@ -348,6 +417,7 @@ export default function CrewApp() {
 
       {offlineBanner}
       <InstallBanner />
+      {reportSheet}
 
       {activeCall && meta ? (
         <>
@@ -370,8 +440,9 @@ export default function CrewApp() {
 
             <div className={styles.mapWrap}>
               <Suspense fallback={null}>
-                <CrewMap ambulance={ambulance} call={activeCall} route={route?.geometry} />
+                <CrewMap ambulance={ambulance} call={activeCall} route={route?.geometry} incidents={incidents} />
               </Suspense>
+              {reportButton}
             </div>
 
             {route && (
@@ -442,8 +513,9 @@ export default function CrewApp() {
 
             <div className={styles.mapWrap}>
               <Suspense fallback={null}>
-                <CrewMap ambulance={ambulance} />
+                <CrewMap ambulance={ambulance} incidents={incidents} />
               </Suspense>
+              {reportButton}
             </div>
           </main>
 

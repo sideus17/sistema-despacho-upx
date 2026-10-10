@@ -319,8 +319,9 @@ export async function updateAmbulanceStatus(ambulanceId: string, status: Ambulan
   await api.patch(`/ambulances/${ambulanceId}/status`, { status });
 }
 
-export async function updateAmbulanceLocation(ambulanceId: string, location: Coordinates): Promise<void> {
-  await api.patch(`/ambulances/${ambulanceId}/location`, location);
+// A velocidade (m/s) deixa o servidor saber se a viatura passou normalmente por uma ocorrência relatada
+export async function updateAmbulanceLocation(ambulanceId: string, location: Coordinates, speed?: number | null): Promise<void> {
+  await api.patch(`/ambulances/${ambulanceId}/location`, { ...location, speed: speed ?? null });
 }
 
 // Sem sinal, tempo esgotado ou servidor fora do ar: o problema não é a conta do usuário

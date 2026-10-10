@@ -1,17 +1,15 @@
 import { useMemo } from 'react';
 import { Layer, Marker, Source } from '@vis.gl/react-maplibre';
-import type { FillLayerSpecification, LineLayerSpecification } from 'maplibre-gl';
-import { Incident, IncidentEffect } from '../types';
-import { incidentAreas } from './incidents';
+import { Incident } from '../types';
+import {
+  DASHED_OUTLINE_FILTER,
+  INCIDENT_FILL,
+  INCIDENT_OUTLINE,
+  INCIDENT_OUTLINE_DASHED,
+  SOLID_OUTLINE_FILTER,
+  incidentAreas
+} from './incidents';
 import { IncidentMarker } from './Markers';
-
-const FILL: FillLayerSpecification['paint'] = {
-  'fill-color': ['get', 'color'],
-  'fill-opacity': ['match', ['get', 'effect'], IncidentEffect.BLOQUEIO, 0.24, IncidentEffect.RISCO, 0.16, 0.08]
-};
-const OUTLINE: LineLayerSpecification['paint'] = { 'line-color': ['get', 'color'], 'line-width': 2 };
-// Aviso: contorno tracejado, porque não mexe na rota
-const OUTLINE_DASHED: LineLayerSpecification['paint'] = { ...OUTLINE, 'line-dasharray': [2, 2] };
 
 interface IncidentLayerProps {
   incidents: Incident[];
@@ -27,19 +25,19 @@ export function IncidentLayer({ incidents, beforeId, onSelect }: IncidentLayerPr
   return (
     <>
       <Source id="incident-areas" type="geojson" data={areas}>
-        <Layer id="incident-fill" type="fill" paint={FILL} beforeId={beforeId} />
+        <Layer id="incident-fill" type="fill" paint={INCIDENT_FILL} beforeId={beforeId} />
         <Layer
           id="incident-outline"
           type="line"
-          filter={['!=', ['get', 'effect'], IncidentEffect.AVISO]}
-          paint={OUTLINE}
+          filter={SOLID_OUTLINE_FILTER}
+          paint={INCIDENT_OUTLINE}
           beforeId={beforeId}
         />
         <Layer
           id="incident-outline-dashed"
           type="line"
-          filter={['==', ['get', 'effect'], IncidentEffect.AVISO]}
-          paint={OUTLINE_DASHED}
+          filter={DASHED_OUTLINE_FILTER}
+          paint={INCIDENT_OUTLINE_DASHED}
           beforeId={beforeId}
         />
       </Source>

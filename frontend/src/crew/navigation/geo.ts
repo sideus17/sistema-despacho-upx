@@ -93,6 +93,14 @@ export function remainingLine(line: Coordinates[], projection: Projection): Coor
   return [projection.point, ...line.slice(projection.segmentIndex + 1)];
 }
 
+// Onde a linha entra no círculo (metros desde o início), ou null se não passa por ele
+export function circleEntryAlong(line: Coordinates[], cumulative: number[], center: Coordinates, radius: number): number | null {
+  if (line.length < 2) return line.length === 1 && distance(line[0], center) <= radius ? 0 : null;
+  const projection = projectOnLine(line, cumulative, center);
+  if (projection.distanceFromLine > radius) return null;
+  return Math.max(0, projection.distanceAlong - Math.sqrt(radius ** 2 - projection.distanceFromLine ** 2));
+}
+
 // Anel [lng, lat] que aproxima um círculo de raio em metros (o MapLibre não desenha círculos em metros)
 export function circlePolygon(center: Coordinates, radiusMeters: number, steps = 64): [number, number][] {
   const angular = radiusMeters / EARTH_RADIUS;

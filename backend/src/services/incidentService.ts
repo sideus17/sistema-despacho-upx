@@ -397,3 +397,19 @@ export async function closeIncident(user: AuthUser, id: string): Promise<void> {
   const closed = await closeRow(id, user.id, 'CENTRAL');
   if (!closed) throw new IncidentError(404, 'Esta ocorrência já foi encerrada.');
 }
+
+// Viatura passando normalmente pela área de um relato de equipe (modelo Waze): conta como "não está mais lá"
+const PASSING_SPEED = 3; // m/s (~11 km/h): parada ou em marcha lenta não conta
+
+export async function registerPassage(user: AuthUser, ambulanceId: string, position: Coordinates, speed: number | null): Promise<void> {
+  if (speed === null || speed < PASSING_SPEED) return;
+
+  const passed = (await listActiveIncidents(user.id)).filter(incident =>
+    incident.source === IncidentSource.EQUIPE &&
+    !incident.myVote &&
+    incident.ambulance?.id !== ambulanceId &&
+    incident.createdBy?.id !== user.id &&
+    distanceMeters(position, incident.location) <= incident.radius
+  );
+  for (const incident of passed) await voteIncident(user, incident.id, IncidentVote.PASSOU);
+}

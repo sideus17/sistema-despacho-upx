@@ -43,6 +43,7 @@ export { default as HeavyRainIcon } from '~icons/material-symbols/rainy-heavy-ro
 export { default as CarCrashIcon } from '~icons/material-symbols/car-crash-rounded';
 export { default as OfficialAlertIcon } from '~icons/material-symbols/campaign-rounded';
 export { default as AddLocationIcon } from '~icons/material-symbols/add-location-alt-rounded';
+export { default as ReportIcon } from '~icons/material-symbols/report-rounded';
 
 // Marcadores do mapa (Healthicons) e legenda
 export { default as AmbulanceMarkerIcon } from '~icons/healthicons/ambulance';

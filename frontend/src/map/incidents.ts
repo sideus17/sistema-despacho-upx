@@ -1,4 +1,5 @@
 import type { FeatureCollection, MultiPolygon, Polygon } from 'geojson';
+import type { FillLayerSpecification, FilterSpecification, LineLayerSpecification } from 'maplibre-gl';
 import { Incident, IncidentEffect, IncidentSource, IncidentType } from '../types';
 import { circlePolygon } from '../crew/navigation/geo';
 
@@ -87,3 +88,14 @@ export function incidentAreas(incidents: Incident[]): FeatureCollection<Polygon 
       }))
   };
 }
+
+// Pintura das áreas (central, prévia e navegação usam a mesma)
+export const INCIDENT_FILL: FillLayerSpecification['paint'] = {
+  'fill-color': ['get', 'color'],
+  'fill-opacity': ['match', ['get', 'effect'], IncidentEffect.BLOQUEIO, 0.24, IncidentEffect.RISCO, 0.16, 0.08]
+};
+export const INCIDENT_OUTLINE: LineLayerSpecification['paint'] = { 'line-color': ['get', 'color'], 'line-width': 2 };
+// Aviso: contorno tracejado, porque não mexe na rota
+export const INCIDENT_OUTLINE_DASHED: LineLayerSpecification['paint'] = { ...INCIDENT_OUTLINE, 'line-dasharray': [2, 2] };
+export const SOLID_OUTLINE_FILTER: FilterSpecification = ['!=', ['get', 'effect'], IncidentEffect.AVISO];
+export const DASHED_OUTLINE_FILTER: FilterSpecification = ['==', ['get', 'effect'], IncidentEffect.AVISO];

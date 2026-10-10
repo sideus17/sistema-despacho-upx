@@ -9,6 +9,7 @@ import {
   countActiveIncidents,
   createIncident,
   listActiveIncidents,
+  registerPassage,
   voteIncident
 } from '../services/incidentService';
 import { requireAuth, requireRole } from '../middleware/auth';
@@ -214,7 +215,7 @@ router.patch('/ambulances/:id/status', requireRole(UserRole.MOTORISTA), async (r
 
 // GPS enviado pelo app da viatura durante a navegação
 router.patch('/ambulances/:id/location', requireRole(UserRole.MOTORISTA), async (req: Request, res: Response) => {
-  const { lat, lng } = req.body;
+  const { lat, lng, speed } = req.body;
 
   if (typeof lat !== 'number' || typeof lng !== 'number') {
     return res.status(400).json({ success: false, error: 'Invalid coordinates', timestamp: new Date().toISOString() });
@@ -233,6 +234,10 @@ router.patch('/ambulances/:id/location', requireRole(UserRole.MOTORISTA), async 
   if (!data || data.length === 0) return fail(res, 403, 'Esta viatura não está no seu turno.');
 
   res.json({ success: true, data: { message: 'Location updated successfully' }, timestamp: new Date().toISOString() });
+
+  // Depois de responder: passar normalmente por um relato de equipe ajuda a tirá-lo do mapa
+  registerPassage(req.user!, req.params.id, { lat, lng }, typeof speed === 'number' ? speed : null)
+    .catch(error => console.warn('Falha ao registrar passagem por ocorrência:', error));
 });
 
 // ============================================
