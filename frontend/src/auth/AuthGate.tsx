@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { isAuthRetryableFetchError } from '@supabase/supabase-js';
 import { clearStoredSession, supabase } from '../lib/supabase';
-import { getErrorMessage, getMe, isServerUnreachable } from '../services/api';
+import { getErrorMessage, getMe, isServerUnreachable, ProfilePatch, updateMe as saveProfile } from '../services/api';
 import { Me, UserRole } from '../types';
 import { useToast } from '../components/Toast';
+import { onThemeChoice, setThemePreference } from '../theme/theme';
 import App from '../App';
 import CrewApp from '../crew/CrewApp';
 import { AuthContext } from './AuthContext';
@@ -32,7 +33,8 @@ function readCachedProfile(): Me | null {
 
 function cacheProfile(profile: Me | null) {
   try {
-    if (profile) localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+    // CPF e CNH não ficam no aparelho: a página "Minha conta" busca do servidor
+    if (profile) localStorage.setItem(PROFILE_KEY, JSON.stringify({ ...profile, cpf: undefined, cnh: undefined }));
     else localStorage.removeItem(PROFILE_KEY);
   } catch {
     // Sem armazenamento: o app só não abre offline
@@ -76,6 +78,8 @@ export default function AuthGate() {
     try {
       const profile = await getMe();
       cacheProfile(profile);
+      // O tema salvo na conta vale em qualquer aparelho
+      if (profile.theme) setThemePreference(profile.theme, { fromAccount: true });
       applyProfile(profile);
     } catch (error) {
       // Falta de sinal não desloga: na estrada a conexão vai e volta
@@ -132,6 +136,22 @@ export default function AuthGate() {
     }
   }, []);
 
+  const updateMe = useCallback(async (patch: ProfilePatch) => {
+    const profile = await saveProfile(patch);
+    cacheProfile(profile);
+    setMe(profile);
+    return profile;
+  }, []);
+
+  // Tema trocado no menu ou na navegação vai para a conta, sem travar a tela (sem sinal, fica só no aparelho)
+  const signedIn = stage === 'ready' && !!me;
+  useEffect(() => {
+    if (!signedIn) return;
+    return onThemeChoice(theme => {
+      updateMe({ theme }).catch(() => {});
+    });
+  }, [signedIn, updateMe]);
+
   // Na tela "Sem conexão" tenta sozinho: com sinal fraco o navegador nem sempre avisa que voltou
   useEffect(() => {
     if (stage !== 'unavailable') return;
@@ -175,7 +195,7 @@ export default function AuthGate() {
   if (!me) return null;
 
   return (
-    <AuthContext.Provider value={{ me, signOut }}>
+    <AuthContext.Provider value={{ me, signOut, updateMe }}>
       {me.role === UserRole.MOTORISTA ? <CrewApp /> : <App />}
     </AuthContext.Provider>
   );

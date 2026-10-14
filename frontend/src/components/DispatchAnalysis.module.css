@@ -191,7 +191,10 @@
 }
 
 .ambulance .driver {
-  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
   color: var(--color-text);
   font-weight: 600;
 }

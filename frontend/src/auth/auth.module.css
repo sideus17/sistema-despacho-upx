@@ -59,7 +59,9 @@
   font-weight: 600;
 }
 
-.field input {
+.field input,
+.field select {
+  width: 100%;
   min-height: var(--touch-target);
   padding: 0 12px;
   border: 1px solid var(--color-border-strong);
@@ -70,6 +72,7 @@
 }
 
 .field input:focus,
+.field select:focus,
 .code:focus {
   outline: 2px solid var(--color-primary);
   outline-offset: 1px;
@@ -80,6 +83,35 @@
   color: var(--color-text-muted);
   font-size: 12px;
   line-height: 1.4;
+}
+
+/* CNH: grupo com categoria e validade lado a lado */
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+}
+
+.group legend {
+  padding: 0 4px;
+  color: var(--color-text-soft);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: 10px;
+}
+
+.warning {
+  color: var(--color-warning-text);
+  font-size: 12px;
+  font-weight: 600;
 }
 
 /* Escolha da função */

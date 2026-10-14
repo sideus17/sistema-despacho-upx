@@ -14,6 +14,9 @@ import {
   ApiResponse,
   Coordinates,
   Me,
+  Cnh,
+  AvatarIcon,
+  AvatarColor,
   UserRole
 } from '../types';
 import { supabase } from '../lib/supabase';
@@ -54,6 +57,9 @@ export interface SignupRequest {
   email: string;
   password: string;
   role: UserRole;
+  cpf: string;
+  phone: string;
+  cnh?: Cnh; // só motorista
   inviteCode?: string;
 }
 
@@ -64,6 +70,26 @@ export async function signUp(request: SignupRequest): Promise<void> {
 export async function getMe(): Promise<Me> {
   const response = await api.get<ApiResponse<Me>>('/me');
   return response.data.data!;
+}
+
+// Só os campos enviados mudam
+export interface ProfilePatch {
+  fullName?: string;
+  cpf?: string;
+  phone?: string;
+  cnh?: Cnh;
+  avatar?: AvatarIcon | null;
+  avatarColor?: AvatarColor | null;
+  theme?: 'auto' | 'day' | 'night';
+}
+
+export async function updateMe(patch: ProfilePatch): Promise<Me> {
+  const response = await api.patch<ApiResponse<Me>>('/me', patch);
+  return response.data.data!;
+}
+
+export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  await api.post('/me/password', { currentPassword, newPassword });
 }
 
 export async function startShift(ambulanceId: string): Promise<void> {

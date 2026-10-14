@@ -1,4 +1,5 @@
 .avatar {
+  position: relative;
   display: inline-grid;
   flex-shrink: 0;
   width: var(--avatar-size);
@@ -11,4 +12,21 @@
   line-height: 1;
   letter-spacing: 0.02em;
   user-select: none;
+}
+
+/* Figura um pouco menor que o círculo */
+.withIcon svg {
+  width: 72%;
+  height: 72%;
+}
+
+.badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: max(8px, calc(var(--avatar-size) * 0.26));
+  height: max(8px, calc(var(--avatar-size) * 0.26));
+  border: 2px solid white;
+  border-radius: 50%;
+  background: var(--color-danger);
 }

@@ -36,6 +36,7 @@ let preference = readPreference();
 let sun = sunTheme();
 let snapshot = { theme: preference === 'auto' ? sun : preference, preference };
 const listeners = new Set<() => void>();
+const choiceListeners = new Set<(preference: ThemePreference) => void>();
 
 function emit() {
   const theme = preference === 'auto' ? sun : preference;
@@ -44,7 +45,9 @@ function emit() {
   listeners.forEach(listener => listener());
 }
 
-export function setThemePreference(next: ThemePreference) {
+// fromAccount: tema que veio da conta ao entrar (não é salvo de volta)
+export function setThemePreference(next: ThemePreference, { fromAccount = false } = {}) {
+  const changed = next !== preference;
   preference = next;
   try {
     localStorage.setItem(STORAGE_KEY, next);
@@ -53,6 +56,15 @@ export function setThemePreference(next: ThemePreference) {
     // Vale só nesta sessão
   }
   emit();
+  if (changed && !fromAccount) choiceListeners.forEach(listener => listener(next));
+}
+
+// Escolha feita pela pessoa (menu, navegação), para salvar na conta
+export function onThemeChoice(listener: (preference: ThemePreference) => void) {
+  choiceListeners.add(listener);
+  return () => {
+    choiceListeners.delete(listener);
+  };
 }
 
 export function nextThemePreference(current: ThemePreference): ThemePreference {

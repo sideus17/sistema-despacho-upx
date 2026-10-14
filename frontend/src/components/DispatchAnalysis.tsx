@@ -5,7 +5,8 @@ import { PRIORITY_META } from '../utils/calls';
 import { PriorityLabel } from '../ui/PriorityLabel';
 import { AmbulanceTypeIcon } from '../ui/AmbulanceTypeIcon';
 import RouteNotes from './RouteNotes';
-import { AnalyticsIcon, BackIcon, CheckCircleIcon, DistanceIcon, LocationIcon, PersonIcon, StarIcon, TimerIcon } from '../ui/icons';
+import { AnalyticsIcon, BackIcon, CheckCircleIcon, DistanceIcon, LocationIcon, StarIcon, TimerIcon } from '../ui/icons';
+import { Avatar } from '../ui/Avatar';
 import styles from './DispatchAnalysis.module.css';
 
 interface DispatchAnalysisProps {
@@ -130,7 +131,18 @@ export default function DispatchAnalysis({
                       <div>
                         <h3>{ambulance.code}</h3>
                         <p>{ambulance.type}{!isAvailable && ' · ocupada'}</p>
-                        {ambulance.driver && <p className={styles.driver}><PersonIcon /> {ambulance.driver.name}</p>}
+                        {ambulance.driver && (
+                          <p className={styles.driver}>
+                            <Avatar
+                              name={ambulance.driver.name}
+                              seed={ambulance.driver.id}
+                              icon={ambulance.driver.avatar}
+                              color={ambulance.driver.avatarColor}
+                              size={20}
+                            />
+                            {ambulance.driver.name}
+                          </p>
+                        )}
                       </div>
                     </div>
                     <div className={styles.score} style={{ color: getScoreColor(rec.totalScore) }}>

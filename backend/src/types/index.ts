@@ -77,7 +77,8 @@ export interface Ambulance {
     medic: string;
     nurse?: string;
   };
-  driver: { id: string; name: string } | null; // motorista em turno (login no app)
+  // Motorista em turno (login no app); o celular só vai para a central
+  driver: { id: string; name: string; avatar: string | null; avatarColor: string | null; phone?: string } | null;
   locationUpdatedAt: string | null;
 }
 

@@ -1,17 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth } from '../auth/AuthContext';
-import { UserRole } from '../types';
 import { Avatar } from '../ui/Avatar';
-import { CloseIcon, EndShiftIcon, LogoutIcon } from '../ui/icons';
+import { CloseIcon, EndShiftIcon, LogoutIcon, WarningIcon } from '../ui/icons';
+import { useFocusTrap } from '../ui/useFocusTrap';
 import { ThemePicker } from '../theme/ThemePicker';
+import { AccountPage, ROLE_LABEL } from './AccountPage';
 import styles from './AccountMenu.module.css';
-
-const ROLE_LABEL: Record<UserRole, string> = {
-  [UserRole.OPERADOR]: 'Operador da central',
-  [UserRole.MOTORISTA]: 'Motorista'
-};
-
-const FOCUSABLE = 'button:not([disabled]), a[href], summary, input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])';
 
 interface AccountMenuProps {
   onSignOut: () => void | Promise<void>;
@@ -25,11 +20,13 @@ interface AccountMenuProps {
 export function AccountMenu({ onSignOut, blockedReason, shift }: AccountMenuProps) {
   const { me } = useAuth();
   const [open, setOpen] = useState(false);
+  const [pageOpen, setPageOpen] = useState(false);
   const [confirmingEnd, setConfirmingEnd] = useState(false);
   const [busy, setBusy] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const incomplete = (me.missing?.length ?? 0) > 0;
 
   const close = useCallback((returnFocus = true) => {
     setOpen(false);
@@ -37,41 +34,28 @@ export function AccountMenu({ onSignOut, blockedReason, shift }: AccountMenuProp
     if (returnFocus) triggerRef.current?.focus();
   }, []);
 
-  // Fecha ao tocar fora ou com Esc; o Tab circula só dentro do menu
+  // Esc fecha e o Tab circula só dentro do menu
+  useFocusTrap(panelRef, open, close);
+
+  // Tocar fora fecha
   useEffect(() => {
     if (!open) return;
-    panelRef.current?.querySelector<HTMLElement>(FOCUSABLE)?.focus();
-
     const handlePointer = (event: PointerEvent) => {
       if (!wrapperRef.current?.contains(event.target as Node)) close(false);
     };
-    const handleKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        close();
-        return;
-      }
-      if (event.key !== 'Tab' || !panelRef.current) return;
-      const items = Array.from(panelRef.current.querySelectorAll<HTMLElement>(FOCUSABLE));
-      if (items.length === 0) return;
-      const first = items[0];
-      const last = items[items.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-
     document.addEventListener('pointerdown', handlePointer);
-    document.addEventListener('keydown', handleKey);
-    return () => {
-      document.removeEventListener('pointerdown', handlePointer);
-      document.removeEventListener('keydown', handleKey);
-    };
+    return () => document.removeEventListener('pointerdown', handlePointer);
   }, [open, close]);
+
+  const openPage = () => {
+    close(false);
+    setPageOpen(true);
+  };
+
+  const closePage = useCallback(() => {
+    setPageOpen(false);
+    triggerRef.current?.focus();
+  }, []);
 
   const handleEndShift = async () => {
     if (!shift) return;
@@ -93,6 +77,8 @@ export function AccountMenu({ onSignOut, blockedReason, shift }: AccountMenuProp
     }
   };
 
+  const avatar = { name: me.fullName, seed: me.id, icon: me.avatar, color: me.avatarColor };
+
   return (
     <div ref={wrapperRef} className={styles.wrapper}>
       <button
@@ -100,27 +86,34 @@ export function AccountMenu({ onSignOut, blockedReason, shift }: AccountMenuProp
         className={styles.trigger}
         aria-haspopup="dialog"
         aria-expanded={open}
-        aria-label={`Conta de ${me.fullName}`}
+        aria-label={`Conta de ${me.fullName}${incomplete ? ' (cadastro incompleto)' : ''}`}
         title={me.fullName}
         onClick={() => (open ? close() : setOpen(true))}
       >
-        <Avatar name={me.fullName} seed={me.id} size={32} />
+        <Avatar {...avatar} size={32} badge={incomplete} />
       </button>
 
       {open && (
         <div ref={panelRef} className={styles.panel} role="dialog" aria-label="Sua conta">
           <div className={styles.top}>
-            <span className={styles.role}>{ROLE_LABEL[me.role]}</span>
+            <span className={styles.role}>{me.email ?? ROLE_LABEL[me.role]}</span>
             <button className={styles.close} onClick={() => close()} aria-label="Fechar">
               <CloseIcon />
             </button>
           </div>
 
           <div className={styles.identity}>
-            <Avatar name={me.fullName} seed={me.id} size={72} />
+            <Avatar {...avatar} size={72} />
             <p className={styles.greeting}>Olá, {me.fullName.split(' ')[0]}!</p>
-            <p className={styles.fullName}>{me.fullName}</p>
+            <p className={styles.fullName}>{me.fullName} · {ROLE_LABEL[me.role]}</p>
+            <button className={styles.manage} onClick={openPage}>Gerenciar sua conta</button>
           </div>
+
+          {incomplete && (
+            <button className={`${styles.item} ${styles.itemAlert}`} onClick={openPage}>
+              <WarningIcon /> Complete seu cadastro
+            </button>
+          )}
 
           <section className={styles.section} aria-label="Aparência">
             <h3 className={styles.sectionTitle}>Tema</h3>
@@ -162,6 +155,9 @@ export function AccountMenu({ onSignOut, blockedReason, shift }: AccountMenuProp
           </details>
         </div>
       )}
+
+      {/* Fora do topo: a página cobre a tela toda, inclusive no app da equipe */}
+      {pageOpen && createPortal(<AccountPage onClose={closePage} />, document.body)}
     </div>
   );
 }

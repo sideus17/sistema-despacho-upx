@@ -111,6 +111,26 @@
   font-size: 13px;
 }
 
+/* Botão em pílula, como o "Gerenciar sua Conta do Google" */
+.manage {
+  min-height: 40px;
+  margin-top: 10px;
+  padding: 0 20px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 999px;
+  background: none;
+  color: var(--color-primary-text);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .manage:hover {
+    background: var(--tint-blue-bg);
+  }
+}
+
 .section {
   padding: 12px;
   border-radius: 14px;
@@ -165,6 +185,16 @@
   .item:not(:disabled):hover {
     background: var(--color-surface-hover);
   }
+}
+
+.itemAlert {
+  margin-bottom: 8px;
+  background: var(--tint-yellow-bg);
+  color: var(--tint-yellow-text);
+}
+
+.itemAlert :global(.icon) {
+  color: var(--color-warning-text);
 }
 
 .item:disabled {
