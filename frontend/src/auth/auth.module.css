@@ -5,7 +5,7 @@
   min-height: 100vh;
   min-height: 100dvh;
   padding: calc(env(safe-area-inset-top) + 24px) 16px calc(env(safe-area-inset-bottom) + 24px);
-  background: linear-gradient(160deg, var(--color-primary) 0%, var(--color-primary-dark) 45%, var(--color-background) 45%);
+  background: linear-gradient(160deg, var(--color-header-from) 0%, var(--color-header-to) 45%, var(--color-background) 45%);
 }
 
 .card {
@@ -54,7 +54,7 @@
 }
 
 .field > span {
-  color: #374151;
+  color: var(--color-text-soft);
   font-size: 13px;
   font-weight: 600;
 }
@@ -62,7 +62,7 @@
 .field input {
   min-height: var(--touch-target);
   padding: 0 12px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--color-border-strong);
   border-radius: 10px;
   background: var(--color-surface);
   color: var(--color-text);
@@ -92,7 +92,7 @@
 
 .roles legend {
   margin-bottom: 6px;
-  color: #374151;
+  color: var(--color-text-soft);
   font-size: 13px;
   font-weight: 600;
 }
@@ -120,7 +120,7 @@
 
 .roleCardSelected {
   border-color: var(--color-primary);
-  background: #eff6ff;
+  background: var(--tint-blue-bg);
   box-shadow: 0 0 0 1px var(--color-primary);
 }
 
@@ -131,8 +131,8 @@
   height: 44px;
   place-items: center;
   border-radius: 12px;
-  background: #eff6ff;
-  color: var(--color-primary);
+  background: var(--tint-blue-bg);
+  color: var(--color-primary-text);
   font-size: 22px;
 }
 
@@ -184,15 +184,15 @@
 
 .secondary {
   border: 1px solid var(--color-primary);
-  background: #eff6ff;
-  color: var(--color-primary-dark);
+  background: var(--tint-blue-bg);
+  color: var(--color-primary-text);
 }
 
 .link {
   padding: 4px;
   border: none;
   background: none;
-  color: var(--color-primary);
+  color: var(--color-primary-text);
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
@@ -208,8 +208,8 @@
 .error {
   padding: 10px 12px;
   border-radius: 8px;
-  background: #fee2e2;
-  color: #991b1b;
+  background: var(--tint-red-bg-strong);
+  color: var(--tint-red-text);
   font-size: 13px;
   font-weight: 600;
   line-height: 1.4;
@@ -221,7 +221,7 @@
   flex-direction: column;
   gap: 12px;
   margin: 0 0 16px 18px;
-  color: #374151;
+  color: var(--color-text-soft);
   font-size: 14px;
   line-height: 1.5;
 }
@@ -264,8 +264,10 @@
   width: 100%;
   min-height: 56px;
   margin-bottom: 10px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--color-border-strong);
   border-radius: 12px;
+  background: var(--color-surface);
+  color: var(--color-text);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 28px;
   font-weight: 700;

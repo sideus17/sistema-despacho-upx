@@ -59,19 +59,19 @@
 }
 
 .pill_DISPONIVEL {
-  background: #dcfce7;
-  color: #166534;
+  background: var(--tint-green-bg-strong);
+  color: var(--tint-green-text);
 }
 
 .pill_EM_ATENDIMENTO {
-  background: #ffedd5;
-  color: #c2410c;
+  background: var(--tint-orange-bg-strong);
+  color: var(--tint-orange-text);
 }
 
 .pill_INDISPONIVEL,
 .pill_SEM_MOTORISTA {
-  background: #e5e7eb;
-  color: #374151;
+  background: var(--color-border);
+  color: var(--color-text-soft);
 }
 
 .driver {

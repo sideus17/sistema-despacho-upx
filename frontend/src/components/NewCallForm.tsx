@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { CallPriority, EmergencyCall } from '../types';
 import { createCall, getErrorMessage } from '../services/api';
 import { useToast } from './Toast';
+import styles from './NewCallForm.module.css';
 
 interface NewCallFormProps {
   onCallCreated: (call: EmergencyCall) => void;
@@ -52,28 +53,16 @@ export default function NewCallForm({ onCallCreated }: NewCallFormProps) {
   };
 
   return (
-    <div style={{ padding: '16px' }}>
-      <h2 style={{
-        margin: '0 0 8px 0',
-        fontSize: '20px',
-        fontWeight: 'bold',
-        color: '#1f2937'
-      }}>
-        Novo Chamado
-      </h2>
+    <div className={styles.container}>
+      <h2 className={styles.title}>Novo Chamado</h2>
 
-      <p style={{
-        margin: '0 0 16px 0',
-        fontSize: '13px',
-        color: '#6b7280',
-        lineHeight: '1.5'
-      }}>
+      <p className={styles.intro}>
         Simulação da abertura de chamado por um usuário. O endereço será convertido em coordenadas para aparecer no mapa e entrar no cálculo de distância.
       </p>
 
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      <form onSubmit={handleSubmit} className={styles.form}>
         <div>
-          <label style={labelStyle}>Idade</label>
+          <label className={styles.label}>Idade</label>
           <input
             type="number"
             inputMode="numeric"
@@ -81,16 +70,16 @@ export default function NewCallForm({ onCallCreated }: NewCallFormProps) {
             value={age}
             onChange={(e) => setAge(e.target.value)}
             placeholder="Ex: 65"
-            style={inputStyle}
+            className={styles.input}
           />
         </div>
 
         <div>
-          <label style={labelStyle}>Sexo</label>
+          <label className={styles.label}>Sexo</label>
           <select
             value={gender}
             onChange={(e) => setGender(e.target.value)}
-            style={inputStyle}
+            className={styles.input}
           >
             <option value="M">Masculino</option>
             <option value="F">Feminino</option>
@@ -99,37 +88,33 @@ export default function NewCallForm({ onCallCreated }: NewCallFormProps) {
         </div>
 
         <div>
-          <label style={labelStyle}>Localização / Endereço</label>
+          <label className={styles.label}>Localização / Endereço</label>
           <input
             type="text"
             value={address}
             onChange={(e) => setAddress(e.target.value)}
             placeholder="Ex: Rua da Penha, 890 - Sorocaba"
-            style={inputStyle}
+            className={styles.input}
           />
         </div>
 
         <div>
-          <label style={labelStyle}>Descrição</label>
+          <label className={styles.label}>Descrição</label>
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Descreva o que está acontecendo com o paciente..."
             rows={4}
-            style={{
-              ...inputStyle,
-              resize: 'vertical',
-              fontFamily: 'inherit'
-            }}
+            className={styles.input}
           />
         </div>
 
         <div>
-          <label style={labelStyle}>Urgência</label>
+          <label className={styles.label}>Urgência</label>
           <select
             value={priority}
             onChange={(e) => setPriority(e.target.value as CallPriority)}
-            style={inputStyle}
+            className={styles.input}
           >
             <option value={CallPriority.EMERGENCIA}>Emergência</option>
             <option value={CallPriority.URGENTE}>Urgente</option>
@@ -137,43 +122,10 @@ export default function NewCallForm({ onCallCreated }: NewCallFormProps) {
           </select>
         </div>
 
-        <button
-          type="submit"
-          disabled={loading}
-          style={{
-            marginTop: '8px',
-            padding: '12px',
-            backgroundColor: loading ? '#9ca3af' : '#dc2626',
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            fontSize: '14px',
-            fontWeight: '700',
-            cursor: loading ? 'not-allowed' : 'pointer'
-          }}
-        >
+        <button type="submit" disabled={loading} className={styles.submit}>
           {loading ? 'Criando chamado...' : 'Abrir Chamado'}
         </button>
       </form>
     </div>
   );
 }
-
-const labelStyle: React.CSSProperties = {
-  display: 'block',
-  marginBottom: '6px',
-  fontSize: '13px',
-  fontWeight: '600',
-  color: '#374151'
-};
-
-const inputStyle: React.CSSProperties = {
-  width: '100%',
-  padding: '10px',
-  border: '1px solid #d1d5db',
-  borderRadius: '8px',
-  fontSize: '16px', // abaixo de 16px o iOS dá zoom ao focar o campo
-  outline: 'none',
-  backgroundColor: 'white',
-  boxSizing: 'border-box'
-};

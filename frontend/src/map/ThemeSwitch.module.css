@@ -25,7 +25,7 @@
 }
 
 .option:hover {
-  background: #f3f4f6;
+  background: var(--color-surface-hover);
   color: var(--color-text);
 }
 

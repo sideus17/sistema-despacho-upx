@@ -110,7 +110,7 @@
 }
 
 .popup .popupWarning {
-  color: #b45309;
+  color: var(--color-warning-text);
   font-weight: 600;
 }
 

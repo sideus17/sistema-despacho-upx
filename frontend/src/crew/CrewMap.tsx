@@ -5,7 +5,7 @@ import { Ambulance, EmergencyCall, Coordinates, Incident } from '../types';
 import { useMapStyle } from '../map/useMapStyle';
 import { DATA_ATTRIBUTION } from '../map/attribution';
 import { MAP_BACKGROUND } from '../map/mapStyle';
-import { useMapTheme } from '../map/useMapTheme';
+import { useTheme } from '../theme/theme';
 import { RouteLayer } from '../map/RouteLayer';
 import { IncidentLayer } from '../map/IncidentLayer';
 import { boundsOf, toLngLat } from '../map/geojson';
@@ -21,7 +21,7 @@ interface CrewMapProps {
 export default function CrewMap({ ambulance, call, route, incidents = [] }: CrewMapProps) {
   const mapRef = useRef<MapRef>(null);
   const [loaded, setLoaded] = useState(false);
-  const { theme } = useMapTheme();
+  const { theme } = useTheme();
   const mapStyle = useMapStyle(theme);
 
   const points: Coordinates[] = route && route.length > 1

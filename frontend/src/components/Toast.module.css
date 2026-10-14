@@ -32,7 +32,7 @@
 }
 
 .info {
-  background-color: var(--color-text);
+  background-color: var(--color-surface-inverse);
 }
 
 @keyframes toastIn {

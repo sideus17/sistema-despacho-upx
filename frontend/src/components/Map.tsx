@@ -17,7 +17,7 @@ import {
 import { useMapStyle } from '../map/useMapStyle';
 import { DATA_ATTRIBUTION } from '../map/attribution';
 import { MAP_BACKGROUND, ROUTE_COLORS } from '../map/mapStyle';
-import { useMapTheme } from '../map/useMapTheme';
+import { useTheme } from '../theme/theme';
 import { ThemeSwitch } from '../map/ThemeSwitch';
 import { RouteLayer } from '../map/RouteLayer';
 import { boundsOf, toLngLat } from '../map/geojson';
@@ -77,7 +77,7 @@ export default function Map({
   const [confirmingClose, setConfirmingClose] = useState(false);
   const [closing, setClosing] = useState(false);
   const [legendOpen, setLegendOpen] = useState(() => window.matchMedia('(min-width: 768px)').matches);
-  const { theme, preference } = useMapTheme();
+  const { theme, preference } = useTheme();
   const mapStyle = useMapStyle(theme);
 
   const allPoints = useMemo(() => [
