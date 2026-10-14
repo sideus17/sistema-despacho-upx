@@ -129,11 +129,12 @@ body {
   overflow: hidden;
 }
 
-/* Header */
+/* Header: barra fina com o nome e a conta */
 .header {
+  flex-shrink: 0;
   background: linear-gradient(135deg, var(--color-header-from) 0%, var(--color-header-to) 100%);
   color: white;
-  padding: 16px 24px;
+  padding: 0 8px 0 16px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   z-index: 100;
 }
@@ -143,78 +144,26 @@ body {
   justify-content: space-between;
   align-items: center;
   gap: 16px;
+  height: 56px;
   max-width: 1920px;
   margin: 0 auto;
 }
 
-.header-title h1 {
+.header-brand {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 24px;
+  font-size: 18px;
   font-weight: 700;
-  margin-bottom: 4px;
-}
-
-.header-logo {
-  width: 1.4em;
-  height: 1.4em;
-  flex-shrink: 0;
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
-}
-
-.header-title p {
-  font-size: 14px;
-  opacity: 0.9;
-}
-
-.header-stats {
-  display: flex;
-  gap: 24px;
-}
-
-.stat {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 8px 16px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  backdrop-filter: blur(10px);
-}
-
-.stat-value {
-  font-size: 24px;
-  font-weight: 700;
-  line-height: 1;
-}
-
-.stat-label {
-  font-size: 12px;
-  opacity: 0.9;
-  margin-top: 4px;
-}
-
-/* Usuário logado */
-.header-user {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 13px;
-  font-weight: 600;
   white-space: nowrap;
 }
 
-.header-user button {
-  min-height: 34px;
-  padding: 0 12px;
-  border: 1px solid rgba(255, 255, 255, 0.5);
+.header-logo {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.12);
-  color: white;
-  font-weight: 700;
-  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
 }
 
 /* Connection banner */
@@ -275,6 +224,52 @@ body {
   z-index: 10;
 }
 
+/* Resumo no topo da lateral */
+.sidebar-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.sidebar-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-height: var(--touch-target);
+  padding: 8px 4px;
+  border: none;
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.sidebar-stat + .sidebar-stat {
+  border-left: 1px solid var(--color-border);
+}
+
+.sidebar-stat strong {
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.sidebar-stat span {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.sidebar-stat-alert strong {
+  color: var(--color-danger);
+}
+
+@media (hover: hover) {
+  .sidebar-stat:hover {
+    background: var(--color-surface-hover);
+  }
+}
+
 /* Tabs */
 .tabs {
   display: flex;
@@ -303,21 +298,6 @@ body {
 .tab .icon {
   font-size: 20px;
   vertical-align: 0;
-}
-
-.tab-badge {
-  position: absolute;
-  top: 4px;
-  left: calc(50% + 6px);
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
-  border-radius: 9px;
-  background: var(--color-danger);
-  color: white;
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 18px;
 }
 
 .tab:hover {
@@ -353,20 +333,6 @@ body {
 
 .tab-content::-webkit-scrollbar-thumb:hover {
   background: var(--color-text-muted);
-}
-
-/* Footer */
-.footer {
-  background-color: #1f2937;
-  color: #9ca3af;
-  padding: 12px 24px;
-  text-align: center;
-  font-size: 12px;
-  border-top: 1px solid #374151;
-}
-
-.footer p {
-  margin: 0;
 }
 
 /* Animations */
@@ -448,18 +414,6 @@ body {
   .sidebar {
     width: 350px;
   }
-
-  .header-stats {
-    gap: 16px;
-  }
-
-  .stat {
-    padding: 6px 12px;
-  }
-
-  .stat-value {
-    font-size: 20px;
-  }
 }
 
 @media (max-width: 768px) {
@@ -475,55 +429,12 @@ body {
   .map-container {
     height: 50%;
   }
-
-  .header-content {
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  .header-stats {
-    width: 100%;
-    justify-content: space-around;
-  }
-
-  .header-title h1 {
-    font-size: 20px;
-  }
-
-  .footer {
-    display: none;
-  }
 }
 
 @media (max-width: 480px) {
-  .header {
-    padding: 12px 16px;
-  }
-
-  .header-title h1 {
-    font-size: 18px;
-  }
-
-  .header-title p {
-    font-size: 12px;
-  }
-
-  .stat-value {
-    font-size: 18px;
-  }
-
-  .stat-label {
-    font-size: 11px;
-  }
-
   .tab {
     padding: 10px 8px;
     font-size: 12px;
-  }
-
-  .footer {
-    font-size: 10px;
-    padding: 8px 16px;
   }
 }
 

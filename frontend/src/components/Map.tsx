@@ -18,7 +18,6 @@ import { useMapStyle } from '../map/useMapStyle';
 import { DATA_ATTRIBUTION } from '../map/attribution';
 import { MAP_BACKGROUND, ROUTE_COLORS } from '../map/mapStyle';
 import { useTheme } from '../theme/theme';
-import { ThemeSwitch } from '../map/ThemeSwitch';
 import { RouteLayer } from '../map/RouteLayer';
 import { boundsOf, toLngLat } from '../map/geojson';
 import { AmbulanceMarker, BaseMarker, CallMarker, IncidentMarker } from '../map/Markers';
@@ -77,7 +76,7 @@ export default function Map({
   const [confirmingClose, setConfirmingClose] = useState(false);
   const [closing, setClosing] = useState(false);
   const [legendOpen, setLegendOpen] = useState(() => window.matchMedia('(min-width: 768px)').matches);
-  const { theme, preference } = useTheme();
+  const { theme } = useTheme();
   const mapStyle = useMapStyle(theme);
 
   const allPoints = useMemo(() => [
@@ -355,8 +354,6 @@ export default function Map({
       ) : (
         <div className={styles.placeholder} style={{ background: MAP_BACKGROUND[theme] }} aria-label="Carregando mapa" />
       )}
-
-      <ThemeSwitch preference={preference} className={styles.themeSwitch} />
 
       {draft && (
         <div className={styles.pickHint} role="status">

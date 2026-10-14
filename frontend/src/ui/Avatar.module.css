@@ -1,0 +1,14 @@
+.avatar {
+  display: inline-grid;
+  flex-shrink: 0;
+  width: var(--avatar-size);
+  height: var(--avatar-size);
+  place-items: center;
+  border-radius: 50%;
+  color: white;
+  font-size: calc(var(--avatar-size) * 0.42);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  user-select: none;
+}

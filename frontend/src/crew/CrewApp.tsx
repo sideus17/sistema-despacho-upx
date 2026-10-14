@@ -24,6 +24,7 @@ import RouteNotes from '../components/RouteNotes';
 import ReportSheet from './incidents/ReportSheet';
 import { clearReports, flushReports, pendingReports } from './incidents/reportQueue';
 import { useAuth } from '../auth/AuthContext';
+import { AccountMenu } from '../components/AccountMenu';
 import InstallBanner from './InstallBanner';
 import { googleMapsUrl } from './navigation/mapsLink';
 import styles from './CrewApp.module.css';
@@ -98,7 +99,6 @@ export default function CrewApp() {
   const { me, signOut } = useAuth();
   const [snapshot] = useState(readSnapshot);
   const [typeFilter, setTypeFilter] = useState<AmbulanceType | 'ALL'>('ALL');
-  const [confirmingEnd, setConfirmingEnd] = useState(false);
   const [ambulances, setAmbulances] = useState<Ambulance[]>(snapshot?.ambulances ?? []);
   const [calls, setCalls] = useState<EmergencyCall[]>(snapshot?.calls ?? []);
   const [incidents, setIncidents] = useState<Incident[]>(snapshot?.incidents ?? []);
@@ -241,7 +241,6 @@ export default function CrewApp() {
       toast(getErrorMessage(error, 'Não foi possível encerrar o turno.'), 'error');
     } finally {
       setBusy(false);
-      setConfirmingEnd(false);
     }
   };
 
@@ -321,7 +320,10 @@ export default function CrewApp() {
       <div className={styles.shell}>
         {offlineBanner}
         <main className={styles.picker}>
-          <p className={styles.muted}>Olá, {me.fullName.split(' ')[0]}</p>
+          <div className={styles.pickerTop}>
+            <p className={styles.muted}>Olá, {me.fullName.split(' ')[0]}</p>
+            <AccountMenu onSignOut={handleSignOut} />
+          </div>
           <h1>Iniciar turno</h1>
           <p className={styles.muted}>Escolha a viatura que você vai usar hoje. A central passa a ver seu nome nela.</p>
 
@@ -354,8 +356,6 @@ export default function CrewApp() {
               ))}
             </ul>
           )}
-
-          <button className={styles.signOut} onClick={handleSignOut}>Sair da conta</button>
         </main>
       </div>
     );
@@ -402,17 +402,12 @@ export default function CrewApp() {
           <p className={styles.headerCode}><AmbulanceTypeIcon type={ambulance.type} /> {ambulance.code} <span>{ambulance.type} · {me.fullName.split(' ')[0]}</span></p>
           <StatusPill status={ambulance.status} />
         </div>
-        {/* Durante um atendimento o turno não pode ser encerrado */}
-        {!activeCall && (
-          confirmingEnd ? (
-            <div className={styles.headerConfirm}>
-              <button className={styles.linkButton} disabled={busy} onClick={handleEndShift}>Encerrar</button>
-              <button className={styles.linkButton} disabled={busy} onClick={() => setConfirmingEnd(false)}>Voltar</button>
-            </div>
-          ) : (
-            <button className={styles.linkButton} onClick={() => setConfirmingEnd(true)}>Encerrar turno</button>
-          )
-        )}
+        {/* Durante um atendimento não dá para encerrar o turno nem sair */}
+        <AccountMenu
+          onSignOut={handleSignOut}
+          shift={{ code: ambulance.code, onEnd: handleEndShift }}
+          blockedReason={activeCall ? 'Finalize o atendimento antes de encerrar o turno ou sair.' : undefined}
+        />
       </header>
 
       {offlineBanner}

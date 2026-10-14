@@ -75,18 +75,6 @@
   opacity: 0.85;
 }
 
-.linkButton {
-  min-height: var(--touch-target);
-  padding: 0 12px;
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.12);
-  color: white;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
 /* Status */
 .pill {
   display: inline-flex;
@@ -126,6 +114,14 @@
   flex: 1;
   overflow-y: auto;
   padding: calc(env(safe-area-inset-top) + 24px) 16px calc(env(safe-area-inset-bottom) + 24px);
+}
+
+.pickerTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: -8px -8px 0 0;
 }
 
 .picker h1 {
@@ -433,22 +429,4 @@
 .pickerItem:disabled {
   opacity: 0.6;
   cursor: wait;
-}
-
-.signOut {
-  display: block;
-  margin: 28px auto 0;
-  padding: 8px 12px;
-  border: none;
-  background: none;
-  color: var(--color-text-muted);
-  font-size: 14px;
-  font-weight: 600;
-  text-decoration: underline;
-  cursor: pointer;
-}
-
-.headerConfirm {
-  display: flex;
-  gap: 6px;
 }

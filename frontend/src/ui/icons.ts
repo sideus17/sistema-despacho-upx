@@ -60,3 +60,7 @@ export { default as MyLocationIcon } from '~icons/material-symbols/my-location-r
 export { default as VolumeOnIcon } from '~icons/material-symbols/volume-up-rounded';
 export { default as VolumeOffIcon } from '~icons/material-symbols/volume-off-rounded';
 export { default as ArrivalIcon } from '~icons/material-symbols/sports-score-rounded';
+
+// Conta do usuário
+export { default as LogoutIcon } from '~icons/material-symbols/logout-rounded';
+export { default as EndShiftIcon } from '~icons/material-symbols/timer-off-rounded';
