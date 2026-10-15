@@ -6,6 +6,7 @@ export interface AuthUser {
   id: string;
   fullName: string;
   role: UserRole;
+  email?: string;
 }
 
 declare global {
@@ -18,6 +19,11 @@ declare global {
 
 const PROFILE_CACHE_MS = 60_000;
 const profileCache = new Map<string, { user: AuthUser; expires: number }>();
+
+// Depois de editar o perfil, a próxima requisição já lê o nome novo
+export function invalidateProfile(userId: string) {
+  profileCache.delete(userId);
+}
 
 function deny(res: Response, status: number, error: string) {
   return res.status(status).json({ success: false, error, timestamp: new Date().toISOString() });
@@ -37,9 +43,10 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     if (data.claims.aal !== 'aal2') return deny(res, 403, 'MFA obrigatório. Confirme o código do app autenticador.');
 
     const userId = data.claims.sub;
+    const email = typeof data.claims.email === 'string' ? data.claims.email : undefined;
     const cached = profileCache.get(userId);
     if (cached && cached.expires > Date.now()) {
-      req.user = cached.user;
+      req.user = { ...cached.user, email };
       return next();
     }
 
@@ -48,7 +55,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
 
     const user: AuthUser = { id: profile.id, fullName: profile.full_name, role: profile.role };
     profileCache.set(userId, { user, expires: Date.now() + PROFILE_CACHE_MS });
-    req.user = user;
+    req.user = { ...user, email };
     next();
   } catch (error) {
     console.error('Auth error:', error);

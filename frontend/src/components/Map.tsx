@@ -17,8 +17,7 @@ import {
 import { useMapStyle } from '../map/useMapStyle';
 import { DATA_ATTRIBUTION } from '../map/attribution';
 import { MAP_BACKGROUND, ROUTE_COLORS } from '../map/mapStyle';
-import { useMapTheme } from '../map/useMapTheme';
-import { ThemeSwitch } from '../map/ThemeSwitch';
+import { useTheme } from '../theme/theme';
 import { RouteLayer } from '../map/RouteLayer';
 import { boundsOf, toLngLat } from '../map/geojson';
 import { AmbulanceMarker, BaseMarker, CallMarker, IncidentMarker } from '../map/Markers';
@@ -28,6 +27,7 @@ import { circlePolygon } from '../crew/navigation/geo';
 import { PRIORITY_META } from '../utils/calls';
 import { getTimeAgo } from '../services/api';
 import { AddLocationIcon, ExpandLessIcon, ExpandMoreIcon } from '../ui/icons';
+import { Avatar } from '../ui/Avatar';
 import type { IncidentDraft } from './Incidents';
 import styles from './Map.module.css';
 
@@ -77,7 +77,7 @@ export default function Map({
   const [confirmingClose, setConfirmingClose] = useState(false);
   const [closing, setClosing] = useState(false);
   const [legendOpen, setLegendOpen] = useState(() => window.matchMedia('(min-width: 768px)').matches);
-  const { theme, preference } = useMapTheme();
+  const { theme } = useTheme();
   const mapStyle = useMapStyle(theme);
 
   const allPoints = useMemo(() => [
@@ -163,7 +163,21 @@ export default function Map({
                 {ambulance.status}
               </span>
             </p>
-            <p><strong>Motorista:</strong> {ambulance.driver?.name ?? 'sem motorista em turno'}</p>
+            <p className={styles.popupDriver}>
+              <strong>Motorista:</strong>
+              {ambulance.driver ? (
+                <>
+                  <Avatar
+                    name={ambulance.driver.name}
+                    seed={ambulance.driver.id}
+                    icon={ambulance.driver.avatar}
+                    color={ambulance.driver.avatarColor}
+                    size={20}
+                  />
+                  {ambulance.driver.name}
+                </>
+              ) : 'sem motorista em turno'}
+            </p>
             <p><strong>Médico:</strong> {ambulance.crew.medic}</p>
             {ambulance.crew.nurse && <p><strong>Enfermeiro:</strong> {ambulance.crew.nurse}</p>}
           </>
@@ -355,8 +369,6 @@ export default function Map({
       ) : (
         <div className={styles.placeholder} style={{ background: MAP_BACKGROUND[theme] }} aria-label="Carregando mapa" />
       )}
-
-      <ThemeSwitch preference={preference} className={styles.themeSwitch} />
 
       {draft && (
         <div className={styles.pickHint} role="status">

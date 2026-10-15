@@ -41,7 +41,7 @@
   min-width: 20px;
   padding: 0 6px;
   border-radius: 999px;
-  background: rgba(0, 0, 0, 0.08);
+  background: rgba(128, 128, 128, 0.18);
   font-size: 12px;
   text-align: center;
 }
@@ -87,7 +87,7 @@
 }
 
 .cardActive {
-  background: #fff7ed;
+  background: var(--tint-orange-bg);
 }
 
 .cardSelected {
@@ -126,7 +126,7 @@
 }
 
 .description {
-  color: #4b5563;
+  color: var(--color-text-soft);
   font-size: 13px;
   line-height: 1.5;
 }
@@ -174,9 +174,9 @@
 }
 
 .secondary {
-  background: #ecfdf5;
-  color: #047857;
-  border: 1px solid #a7f3d0;
+  background: var(--tint-green-bg);
+  color: var(--tint-green-text);
+  border: 1px solid var(--tint-green-border);
 }
 
 .success {
@@ -202,17 +202,17 @@
   }
 
   .secondary:hover {
-    background: #d1fae5;
+    background: var(--tint-green-bg-strong);
   }
 }
 
 .ambulanceBadge {
   align-self: flex-start;
   padding: 4px 10px;
-  border: 1px solid #fed7aa;
+  border: 1px solid var(--tint-orange-border);
   border-radius: 6px;
-  background: #ffedd5;
-  color: #c2410c;
+  background: var(--tint-orange-bg-strong);
+  color: var(--tint-orange-text);
   font-size: 12px;
   font-weight: 700;
 }

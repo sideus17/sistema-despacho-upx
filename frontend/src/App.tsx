@@ -33,7 +33,8 @@ import {
   getErrorMessage
 } from './services/api';
 import { INCIDENT_LABEL } from './map/incidents';
-import { AddIcon, AmbulanceIcon, AnalyticsIcon, CallIcon, HeadsetIcon, WarningIcon } from './ui/icons';
+import { AddIcon, AmbulanceIcon, AnalyticsIcon, CallIcon, WarningIcon } from './ui/icons';
+import { AccountMenu } from './components/AccountMenu';
 import './styles/index.css';
 
 // O mapa (MapLibre) é o maior pacote do app: carrega à parte, sem atrasar a primeira tela
@@ -59,7 +60,7 @@ function App() {
   const [connection, setConnection] = useState<Connection>('connecting');
   const [activeTab, setActiveTabState] = useState<Tab>('calls');
   const toast = useToast();
-  const { me, signOut } = useAuth();
+  const { signOut } = useAuth();
 
   const loadData = useCallback(async () => {
     try {
@@ -233,32 +234,8 @@ function App() {
       {/* Header */}
       <header className="header">
         <div className="header-content">
-          <div className="header-title">
-            <h1><img src="/ambulance.svg" alt="" className="header-logo" /> SAMU - Sistema de Despacho Inteligente</h1>
-            <p>Sorocaba/SP - Sistema Acadêmico</p>
-          </div>
-
-          {stats && (
-            <div className="header-stats">
-              <div className="stat">
-                <span className="stat-value">{stats.availableAmbulances}/{stats.totalAmbulances}</span>
-                <span className="stat-label">Ambulâncias</span>
-              </div>
-              <div className="stat">
-                <span className="stat-value">{stats.pendingCalls}</span>
-                <span className="stat-label">Pendentes</span>
-              </div>
-              <div className="stat">
-                <span className="stat-value">{stats.activeIncidents}</span>
-                <span className="stat-label">Ocorrências</span>
-              </div>
-            </div>
-          )}
-
-          <div className="header-user">
-            <span><HeadsetIcon /> {me.fullName}</span>
-            <button onClick={signOut}>Sair</button>
-          </div>
+          <h1 className="header-brand"><img src="/ambulance.svg" alt="" className="header-logo" /> SAMU Despacho</h1>
+          <AccountMenu onSignOut={signOut} />
         </div>
       </header>
 
@@ -300,6 +277,31 @@ function App() {
 
         {/* Sidebar */}
         <div className="sidebar">
+          {/* Resumo: cada número abre a aba correspondente */}
+          {stats && (
+            <div className="sidebar-stats" role="group" aria-label="Resumo">
+              <button
+                className="sidebar-stat"
+                title={`${stats.availableAmbulances} de ${stats.totalAmbulances} viaturas disponíveis`}
+                onClick={() => setActiveTab('fleet')}
+              >
+                <strong>{stats.availableAmbulances}/{stats.totalAmbulances}</strong>
+                <span>Viaturas</span>
+              </button>
+              <button
+                className={`sidebar-stat ${stats.pendingCalls > 0 ? 'sidebar-stat-alert' : ''}`}
+                onClick={() => setActiveTab('calls')}
+              >
+                <strong>{stats.pendingCalls}</strong>
+                <span>Pendentes</span>
+              </button>
+              <button className="sidebar-stat" onClick={() => setActiveTab('incidents')}>
+                <strong>{stats.activeIncidents}</strong>
+                <span>Ocorrências</span>
+              </button>
+            </div>
+          )}
+
           {/* Tabs */}
           <div className="tabs">
             <button
@@ -307,7 +309,6 @@ function App() {
               onClick={() => setActiveTab('calls')}
             >
               <CallIcon /> Chamados
-              {calls.length > 0 && <span className="tab-badge">{calls.length}</span>}
             </button>
             <button
               className={`tab ${activeTab === 'new-call' ? 'active' : ''}`}
@@ -332,7 +333,6 @@ function App() {
               onClick={() => setActiveTab('incidents')}
             >
               <WarningIcon /> Ocorrências
-              {incidents.length > 0 && <span className="tab-badge">{incidents.length}</span>}
             </button>
           </div>
 
@@ -386,15 +386,6 @@ function App() {
           </div>
         </div>
       </div>
-
-      {/* Footer */}
-      <footer className="footer">
-        <p>
-          Sistema Acadêmico - Usina de Projetos Experimentais |
-          Algoritmo: Score ponderado (Distância 40%, Disponibilidade 30%, Tipo 20%, Ocorrências 10%) |
-          Rotas: Valhalla · Alertas: CEMADEN/MCTI, Defesa Civil, SGB/CPRM
-        </p>
-      </footer>
     </div>
   );
 }

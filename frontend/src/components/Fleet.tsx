@@ -1,7 +1,9 @@
 import { Ambulance, AmbulanceStatus } from '../types';
 import { getTimeAgo } from '../services/api';
 import { AmbulanceTypeIcon } from '../ui/AmbulanceTypeIcon';
-import { LocationIcon, PersonIcon } from '../ui/icons';
+import { CallIcon, LocationIcon } from '../ui/icons';
+import { Avatar } from '../ui/Avatar';
+import { formatPhone } from '../utils/documents';
 import styles from './Fleet.module.css';
 
 const STATUS_LABEL: Record<AmbulanceStatus, string> = {
@@ -39,9 +41,27 @@ export default function Fleet({ ambulances }: { ambulances: Ambulance[] }) {
                   {ambulance.driver ? STATUS_LABEL[ambulance.status] : 'Fora de serviço'}
                 </span>
               </div>
-              <p className={styles.driver}>
-                {ambulance.driver ? <><PersonIcon /> {ambulance.driver.name}</> : 'Sem motorista em turno'}
-              </p>
+              {ambulance.driver ? (
+                <div className={styles.driverRow}>
+                  <p className={styles.driver}>
+                    <Avatar
+                      name={ambulance.driver.name}
+                      seed={ambulance.driver.id}
+                      icon={ambulance.driver.avatar}
+                      color={ambulance.driver.avatarColor}
+                      size={24}
+                    />
+                    {ambulance.driver.name}
+                  </p>
+                  {ambulance.driver.phone && (
+                    <a className={styles.phone} href={`tel:+55${ambulance.driver.phone}`} aria-label={`Ligar para ${ambulance.driver.name}`}>
+                      <CallIcon /> {formatPhone(ambulance.driver.phone)}
+                    </a>
+                  )}
+                </div>
+              ) : (
+                <p className={styles.driver}>Sem motorista em turno</p>
+              )}
               {ambulance.driver && (
                 <p className={styles.meta}>
                   <LocationIcon /> {ambulance.locationUpdatedAt ? `posição atualizada ${getTimeAgo(ambulance.locationUpdatedAt)}` : 'posição da base (sem GPS ainda)'}

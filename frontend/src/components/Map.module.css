@@ -9,13 +9,6 @@
   height: 100%;
 }
 
-.themeSwitch {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  z-index: 2;
-}
-
 .popup h3 {
   margin: 0 0 8px;
   font-size: 16px;
@@ -27,16 +20,25 @@
   font-size: 14px;
 }
 
+.popup .popupDriver {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Canto superior direito: embaixo ficam os créditos do mapa */
 .legend {
   position: absolute;
-  right: 12px;
-  bottom: 32px;
+  top: 10px;
+  right: 10px;
   z-index: 2;
+  max-height: calc(100% - 60px);
   border-radius: var(--radius);
   background: var(--color-surface);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   font-size: 12px;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .legendToggle {
@@ -110,7 +112,7 @@
 }
 
 .popup .popupWarning {
-  color: #b45309;
+  color: var(--color-warning-text);
   font-weight: 600;
 }
 
@@ -162,15 +164,16 @@
   vertical-align: 0;
 }
 
+/* Embaixo, acima dos créditos: em cima ficam o zoom e a legenda */
 .pickHint {
   position: absolute;
-  top: 10px;
+  bottom: 40px;
   left: 50%;
   z-index: 2;
   display: flex;
   align-items: center;
   gap: 6px;
-  max-width: calc(100% - 140px);
+  max-width: calc(100% - 48px);
   padding: 8px 14px;
   border-radius: 999px;
   background: #1e3a8a;

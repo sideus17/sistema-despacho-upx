@@ -13,8 +13,7 @@ import { formatNavDistance, maneuverIcon, maneuverText, spokenInstruction } from
 import { googleMapsUrl } from './mapsLink';
 import { useMapStyle } from '../../map/useMapStyle';
 import { DATA_ATTRIBUTION } from '../../map/attribution';
-import { setThemePreference, useMapTheme } from '../../map/useMapTheme';
-import { nextThemePreference, THEME_OPTIONS } from '../../map/ThemeSwitch';
+import { nextThemePreference, setThemePreference, THEME_OPTIONS, useTheme } from '../../theme/theme';
 import { MapTheme, ROUTE_COLORS } from '../../map/mapStyle';
 import { lineFeature, toLngLat } from '../../map/geojson';
 import { CallMarker } from '../../map/Markers';
@@ -101,7 +100,7 @@ export default function NavigationView({
   const [voiceOn, setVoiceOn] = useState(readVoicePreference);
   const [finishing, setFinishing] = useState(false);
   const toast = useToast();
-  const { theme, preference } = useMapTheme();
+  const { theme, preference } = useTheme();
   const mapStyle = useMapStyle(theme);
   // Elemento do marcador de destino: o MapLibre posiciona, o React desenha o pino
   const [destinationEl] = useState(() => document.createElement('div'));
@@ -458,8 +457,8 @@ export default function NavigationView({
           <button
             className={styles.iconButton}
             onClick={() => setThemePreference(nextThemePreference(preference))}
-            aria-label={`Mapa: ${themeOption.label}. Toque para mudar`}
-            title={`Mapa: ${themeOption.label}`}
+            aria-label={`Tema: ${themeOption.label}. Toque para mudar`}
+            title={`Tema: ${themeOption.label}`}
           >
             <ThemeIcon />
           </button>

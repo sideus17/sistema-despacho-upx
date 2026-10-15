@@ -61,10 +61,30 @@ export enum UserRole {
   OPERADOR = 'OPERADOR'
 }
 
+export type AvatarIcon = 'medico' | 'medica' | 'enfermagem' | 'socorrista' | 'homem' | 'mulher' | 'pessoa';
+export type AvatarColor = 'azul' | 'verde' | 'vermelho' | 'laranja' | 'roxo' | 'turquesa' | 'rosa' | 'grafite';
+// Dados que contas antigas ainda não preencheram
+export type ProfileField = 'cpf' | 'phone' | 'cnh';
+
+export interface Cnh {
+  number: string;
+  category: string;
+  expiresOn: string; // AAAA-MM-DD
+}
+
 export interface Me {
   id: string;
   fullName: string;
   role: UserRole;
+  // Vêm do servidor; o perfil salvo no aparelho pode ser de antes deles (ou sem CPF e CNH, que não ficam salvos)
+  email?: string | null;
+  cpf?: string | null;
+  phone?: string | null;
+  cnh?: Cnh | null;
+  avatar?: AvatarIcon | null;
+  avatarColor?: AvatarColor | null;
+  theme?: 'auto' | 'day' | 'night';
+  missing?: ProfileField[];
 }
 
 // Interfaces
@@ -85,7 +105,8 @@ export interface Ambulance {
     medic: string;
     nurse?: string;
   };
-  driver: { id: string; name: string } | null;
+  // Motorista em turno; o celular só vem para a central
+  driver: { id: string; name: string; avatar?: AvatarIcon | null; avatarColor?: AvatarColor | null; phone?: string } | null;
   locationUpdatedAt: string | null;
 }
 

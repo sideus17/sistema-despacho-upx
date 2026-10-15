@@ -1,4 +1,4 @@
-import { supabase } from '../config/supabase';
+import { createVerifierClient, supabase } from '../config/supabase';
 import { Router, Request, Response } from 'express';
 import { analyzeDispatch } from '../services/dispatchService';
 import { calculateRoute } from '../services/routingService';
@@ -13,7 +13,8 @@ import {
   voteIncident
 } from '../services/incidentService';
 import { officialStatus, triggerOfficialRefresh } from '../services/official/refresh';
-import { requireAuth, requireRole } from '../middleware/auth';
+import { invalidateProfile, requireAuth, requireRole } from '../middleware/auth';
+import { duplicateMessage, parseCnh, parseCpf, parsePhone, profileUpdate, ProfileError, toMe } from '../services/profile';
 import {
   AmbulanceStatus,
   CallStatus,
@@ -72,6 +73,28 @@ router.post('/auth/signup', async (req: Request, res: Response) => {
     return fail(res, 403, 'Código da central inválido.');
   }
 
+  // CPF e celular para todos; CNH só para motorista
+  const documents: Record<string, string> = {};
+  try {
+    documents.cpf = parseCpf(req.body.cpf);
+    documents.phone = parsePhone(req.body.phone);
+    if (role === UserRole.MOTORISTA) {
+      const cnh = parseCnh(req.body.cnh);
+      Object.assign(documents, { cnh_number: cnh.number, cnh_category: cnh.category, cnh_expires_on: cnh.expiresOn });
+    }
+  } catch (error) {
+    if (error instanceof ProfileError) return fail(res, 400, error.message);
+    throw error;
+  }
+
+  // Avisa antes de criar a conta (o índice único do banco garante em cadastros simultâneos)
+  const { data: taken } = await supabase
+    .from('profiles')
+    .select('cpf, cnh_number')
+    .or(documents.cnh_number ? `cpf.eq.${documents.cpf},cnh_number.eq.${documents.cnh_number}` : `cpf.eq.${documents.cpf}`);
+  if (taken?.some(p => p.cpf === documents.cpf)) return fail(res, 409, 'Este CPF já está cadastrado em outra conta.');
+  if (taken?.length) return fail(res, 409, 'Esta CNH já está cadastrada em outra conta.');
+
   const { data, error } = await supabase.auth.admin.createUser({
     email,
     password,
@@ -84,10 +107,12 @@ router.post('/auth/signup', async (req: Request, res: Response) => {
     return fail(res, 400, alreadyExists ? 'Já existe uma conta com este e-mail.' : error?.message || 'Erro ao criar conta.');
   }
 
-  const { error: profileError } = await supabase.from('profiles').insert({ id: data.user.id, full_name: name, role });
+  const { error: profileError } = await supabase.from('profiles').insert({ id: data.user.id, full_name: name, role, ...documents });
   if (profileError) {
     await supabase.auth.admin.deleteUser(data.user.id);
-    return fail(res, 500, 'Erro ao criar o perfil. Tente novamente.');
+    const duplicate = duplicateMessage(profileError);
+    if (!duplicate) console.error('Signup profile error:', profileError);
+    return fail(res, duplicate ? 409 : 500, duplicate ?? 'Erro ao criar o perfil. Tente novamente.');
   }
 
   res.status(201).json({
@@ -100,8 +125,64 @@ router.post('/auth/signup', async (req: Request, res: Response) => {
 // Daqui para baixo, tudo exige login com MFA concluído
 router.use(requireAuth);
 
-router.get('/me', (req: Request, res: Response) => {
-  res.json({ success: true, data: req.user, timestamp: new Date().toISOString() });
+// Perfil completo da própria pessoa (CPF, celular e CNH não saem para outras)
+router.get('/me', async (req: Request, res: Response) => {
+  const { data, error } = await supabase.from('profiles').select('*').eq('id', req.user!.id).single();
+  if (error || !data) return fail(res, 500, 'Não foi possível carregar o perfil.');
+  res.json({ success: true, data: toMe(data, req.user!.email), timestamp: new Date().toISOString() });
+});
+
+router.patch('/me', async (req: Request, res: Response) => {
+  let update: Record<string, unknown>;
+  try {
+    update = profileUpdate(req.body ?? {}, req.user!.role);
+  } catch (error) {
+    if (error instanceof ProfileError) return fail(res, 400, error.message);
+    throw error;
+  }
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({ ...update, updated_at: new Date().toISOString() })
+    .eq('id', req.user!.id)
+    .select('*')
+    .single();
+
+  if (error || !data) {
+    const duplicate = duplicateMessage(error);
+    if (duplicate) return fail(res, 409, duplicate);
+    console.error('Profile update error:', error);
+    return fail(res, 500, 'Não foi possível salvar o perfil.');
+  }
+
+  invalidateProfile(req.user!.id);
+  res.json({ success: true, data: toMe(data, req.user!.email), timestamp: new Date().toISOString() });
+});
+
+// Troca de senha: confere a atual numa sessão à parte (a do aparelho continua valendo)
+router.post('/me/password', async (req: Request, res: Response) => {
+  const { currentPassword, newPassword } = req.body ?? {};
+  if (typeof currentPassword !== 'string' || !currentPassword) return fail(res, 400, 'Informe a senha atual.');
+  if (typeof newPassword !== 'string' || newPassword.length < 8) {
+    return fail(res, 400, 'A nova senha precisa ter pelo menos 8 caracteres.');
+  }
+  if (newPassword === currentPassword) return fail(res, 400, 'A nova senha precisa ser diferente da atual.');
+  if (!req.user!.email) return fail(res, 400, 'Conta sem e-mail: não dá para conferir a senha.');
+
+  const verifier = createVerifierClient();
+  const { error: signInError } = await verifier.auth.signInWithPassword({ email: req.user!.email, password: currentPassword });
+  if (signInError) {
+    const wrong = signInError.message.toLowerCase().includes('invalid');
+    return fail(res, wrong ? 400 : 503, wrong ? 'Senha atual incorreta.' : 'Não foi possível conferir a senha agora. Tente de novo.');
+  }
+  await verifier.auth.signOut({ scope: 'local' });
+
+  const { error } = await supabase.auth.admin.updateUserById(req.user!.id, { password: newPassword });
+  if (error) {
+    console.error('Password update error:', error);
+    return fail(res, 400, 'Não foi possível trocar a senha. Tente uma senha diferente.');
+  }
+  res.json({ success: true, data: null, timestamp: new Date().toISOString() });
 });
 
 // ============================================
@@ -161,7 +242,10 @@ router.post('/shifts/end', requireRole(UserRole.MOTORISTA), async (req: Request,
 // ============================================
 
 router.get('/ambulances', async (req: Request, res: Response) => {
-  const { data, error } = await supabase.from('ambulances').select('*, driver:profiles!driver_id(id, full_name)');
+  // "*" no motorista: funciona antes e depois da migração 003; só id, nome e avatar saem daqui
+  const { data, error } = await supabase.from('ambulances').select('*, driver:profiles!driver_id(*)');
+  // O celular do motorista vai só para a central, para ligar para a equipe
+  const withPhone = req.user!.role === UserRole.OPERADOR;
 
   if (error) {
     return res.status(500).json({ success: false, error: error.message, timestamp: new Date().toISOString() });
@@ -179,7 +263,15 @@ router.get('/ambulances', async (req: Request, res: Response) => {
       medic: amb.crew_medic,
       nurse: amb.crew_nurse || undefined
     },
-    driver: amb.driver ? { id: amb.driver.id, name: amb.driver.full_name } : null,
+    driver: amb.driver
+      ? {
+          id: amb.driver.id,
+          name: amb.driver.full_name,
+          avatar: amb.driver.avatar ?? null,
+          avatarColor: amb.driver.avatar_color ?? null,
+          ...(withPhone && amb.driver.phone ? { phone: amb.driver.phone } : {})
+        }
+      : null,
     locationUpdatedAt: amb.location_updated_at
   }));
 

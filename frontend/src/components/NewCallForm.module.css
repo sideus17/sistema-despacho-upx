@@ -1,0 +1,64 @@
+.container {
+  padding: 16px;
+}
+
+.title {
+  margin: 0 0 8px;
+  color: var(--color-text);
+  font-size: 20px;
+  font-weight: bold;
+}
+
+.intro {
+  margin: 0 0 16px;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--color-text-soft);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 8px;
+  outline: none;
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: 16px; /* abaixo de 16px o iOS dá zoom ao focar o campo */
+}
+
+textarea.input {
+  resize: vertical;
+}
+
+.submit {
+  margin-top: 8px;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  background-color: var(--color-danger);
+  color: white;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.submit:disabled {
+  background-color: #9ca3af;
+  cursor: not-allowed;
+}

@@ -3,6 +3,17 @@ import { supabase } from '../lib/supabase';
 import { getErrorMessage, signUp } from '../services/api';
 import { UserRole } from '../types';
 import { AmbulanceIcon, HeadsetIcon } from '../ui/icons';
+import {
+  CNH_CATEGORIES,
+  formatCnh,
+  formatCpf,
+  formatPhone,
+  isExpired,
+  isValidCellphone,
+  isValidCnh,
+  isValidCpf,
+  onlyDigits
+} from '../utils/documents';
 import { AuthLayout } from './AuthUI';
 import styles from './auth.module.css';
 
@@ -13,6 +24,11 @@ const ROLES = [
 
 export default function SignupScreen({ onLogin }: { onLogin: () => void }) {
   const [fullName, setFullName] = useState('');
+  const [cpf, setCpf] = useState('');
+  const [phone, setPhone] = useState('');
+  const [cnhNumber, setCnhNumber] = useState('');
+  const [cnhCategory, setCnhCategory] = useState('');
+  const [cnhExpiresOn, setCnhExpiresOn] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -22,10 +38,17 @@ export default function SignupScreen({ onLogin }: { onLogin: () => void }) {
   const [error, setError] = useState<string | null>(null);
 
   const validate = (): string | null => {
+    if (!role) return 'Escolha se você é motorista ou operador.';
     if (fullName.trim().length < 3) return 'Informe o nome completo.';
+    if (!isValidCpf(cpf)) return 'CPF inválido. Confira os números.';
+    if (!isValidCellphone(phone)) return 'Celular inválido. Use DDD + número, ex.: (15) 99999-9999.';
+    if (role === UserRole.MOTORISTA) {
+      if (!isValidCnh(cnhNumber)) return 'Número da CNH inválido. Confira os 11 dígitos.';
+      if (!cnhCategory) return 'Escolha a categoria da CNH.';
+      if (!cnhExpiresOn) return 'Informe a validade da CNH.';
+    }
     if (password.length < 8) return 'A senha precisa ter pelo menos 8 caracteres.';
     if (password !== confirmPassword) return 'As senhas não conferem.';
-    if (!role) return 'Escolha se você é motorista ou operador.';
     if (role === UserRole.OPERADOR && !inviteCode.trim()) return 'Informe o código da central.';
     return null;
   };
@@ -46,6 +69,9 @@ export default function SignupScreen({ onLogin }: { onLogin: () => void }) {
         email: email.trim(),
         password,
         role: role!,
+        cpf: onlyDigits(cpf),
+        phone: onlyDigits(phone),
+        cnh: role === UserRole.MOTORISTA ? { number: cnhNumber, category: cnhCategory, expiresOn: cnhExpiresOn } : undefined,
         inviteCode: role === UserRole.OPERADOR ? inviteCode.trim() : undefined
       });
       // Conta criada: entra direto, e o AuthGate leva para o cadastro do MFA
@@ -60,29 +86,6 @@ export default function SignupScreen({ onLogin }: { onLogin: () => void }) {
   return (
     <AuthLayout title="Criar conta" subtitle="Depois do cadastro você vai ativar a verificação em duas etapas.">
       <form className={styles.form} onSubmit={handleSubmit}>
-        <label className={styles.field}>
-          <span>Nome completo</span>
-          <input autoComplete="name" required value={fullName} onChange={(e) => setFullName(e.target.value)} />
-        </label>
-        <label className={styles.field}>
-          <span>E-mail</span>
-          <input type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-        </label>
-        <label className={styles.field}>
-          <span>Senha (mínimo 8 caracteres)</span>
-          <input type="password" autoComplete="new-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
-        </label>
-        <label className={styles.field}>
-          <span>Confirme a senha</span>
-          <input
-            type="password"
-            autoComplete="new-password"
-            required
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-          />
-        </label>
-
         <fieldset className={styles.roles}>
           <legend>Você é</legend>
           {ROLES.map(option => (
@@ -102,6 +105,88 @@ export default function SignupScreen({ onLogin }: { onLogin: () => void }) {
             </label>
           ))}
         </fieldset>
+
+        <label className={styles.field}>
+          <span>Nome completo</span>
+          <input autoComplete="name" required value={fullName} onChange={(e) => setFullName(e.target.value)} />
+        </label>
+        <label className={styles.field}>
+          <span>CPF</span>
+          <input
+            inputMode="numeric"
+            autoComplete="off"
+            placeholder="000.000.000-00"
+            required
+            value={cpf}
+            onChange={(e) => setCpf(formatCpf(e.target.value))}
+          />
+        </label>
+        <label className={styles.field}>
+          <span>Celular com DDD</span>
+          <input
+            type="tel"
+            inputMode="tel"
+            autoComplete="tel-national"
+            placeholder="(15) 99999-9999"
+            required
+            value={phone}
+            onChange={(e) => setPhone(formatPhone(e.target.value))}
+          />
+          <small className={styles.hint}>A central usa para falar com você durante o turno.</small>
+        </label>
+
+        {role === UserRole.MOTORISTA && (
+          <fieldset className={styles.group}>
+            <legend>CNH</legend>
+            <label className={styles.field}>
+              <span>Número de registro</span>
+              <input
+                inputMode="numeric"
+                autoComplete="off"
+                placeholder="00000000000"
+                required
+                value={cnhNumber}
+                onChange={(e) => setCnhNumber(formatCnh(e.target.value))}
+              />
+              <small className={styles.hint}>Os 11 dígitos do campo “Nº registro” da CNH.</small>
+            </label>
+            <div className={styles.row}>
+              <label className={styles.field}>
+                <span>Categoria</span>
+                <select required value={cnhCategory} onChange={(e) => setCnhCategory(e.target.value)}>
+                  <option value="">Escolha</option>
+                  {CNH_CATEGORIES.map(category => <option key={category} value={category}>{category}</option>)}
+                </select>
+              </label>
+              <label className={styles.field}>
+                <span>Validade</span>
+                <input type="date" required value={cnhExpiresOn} onChange={(e) => setCnhExpiresOn(e.target.value)} />
+              </label>
+            </div>
+            {cnhExpiresOn && isExpired(cnhExpiresOn) && (
+              <small className={styles.warning}>Esta CNH está vencida. Renove antes de dirigir a viatura.</small>
+            )}
+          </fieldset>
+        )}
+
+        <label className={styles.field}>
+          <span>E-mail</span>
+          <input type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+        </label>
+        <label className={styles.field}>
+          <span>Senha (mínimo 8 caracteres)</span>
+          <input type="password" autoComplete="new-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+        </label>
+        <label className={styles.field}>
+          <span>Confirme a senha</span>
+          <input
+            type="password"
+            autoComplete="new-password"
+            required
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+          />
+        </label>
 
         {role === UserRole.OPERADOR && (
           <label className={styles.field}>
