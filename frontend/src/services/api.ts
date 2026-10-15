@@ -1,6 +1,7 @@
 import axios from 'axios';
 import {
   Ambulance,
+  AmbulanceStatus,
   EmergencyCall,
   Base,
   WeatherEvent,
@@ -8,10 +9,13 @@ import {
   RouteInfo,
   Stats,
   ApiResponse,
-  Coordinates
+  Coordinates,
+  Me,
+  UserRole
 } from '../types';
+import { supabase } from '../lib/supabase';
 
-const API_BASE_URL = 'https://sistema-despacho-upx.onrender.com/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://sistema-despacho-upx.onrender.com/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -20,6 +24,52 @@ const api = axios.create({
     'Content-Type': 'application/json'
   }
 });
+
+// Toda chamada leva o token da sessão (o backend exige login com MFA)
+api.interceptors.request.use(async (config) => {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
+// Sessão expirada ou inválida: volta para a tela de login
+api.interceptors.response.use(
+  response => response,
+  error => {
+    if (error.response?.status === 401) supabase.auth.signOut();
+    return Promise.reject(error);
+  }
+);
+
+// ============================================
+// AUTH E TURNO
+// ============================================
+
+export interface SignupRequest {
+  fullName: string;
+  email: string;
+  password: string;
+  role: UserRole;
+  inviteCode?: string;
+}
+
+export async function signUp(request: SignupRequest): Promise<void> {
+  await api.post('/auth/signup', request);
+}
+
+export async function getMe(): Promise<Me> {
+  const response = await api.get<ApiResponse<Me>>('/me');
+  return response.data.data!;
+}
+
+export async function startShift(ambulanceId: string): Promise<void> {
+  await api.post('/shifts/start', { ambulanceId });
+}
+
+export async function endShift(): Promise<void> {
+  await api.post('/shifts/end');
+}
 
 // ============================================
 // AMBULANCES
@@ -230,12 +280,31 @@ export function getTimeAgo(timestamp: string): string {
   return `${diffDays} dias atrás`;
 }
 
-export async function finishDispatch(callId: string, ambulanceId: string): Promise<any> {
-  const response = await api.post<ApiResponse<any>>('/dispatch/finish', {
-    callId,
-    ambulanceId
-  });
+export async function finishDispatch(callId: string): Promise<any> {
+  const response = await api.post<ApiResponse<any>>('/dispatch/finish', { callId });
   return response.data.data;
+}
+
+export async function updateAmbulanceStatus(ambulanceId: string, status: AmbulanceStatus): Promise<void> {
+  await api.patch(`/ambulances/${ambulanceId}/status`, { status });
+}
+
+export async function updateAmbulanceLocation(ambulanceId: string, location: Coordinates): Promise<void> {
+  await api.patch(`/ambulances/${ambulanceId}/location`, location);
+}
+
+// Sem sinal, tempo esgotado ou servidor fora do ar: o problema não é a conta do usuário
+export function isServerUnreachable(error: unknown): boolean {
+  if (!axios.isAxiosError(error)) return false;
+  return !error.response || error.response.status >= 500;
+}
+
+export function getErrorMessage(error: any, fallback: string): string {
+  if (error?.response?.data?.error) return error.response.data.error;
+  if (error?.code === 'ERR_NETWORK' || error?.code === 'ECONNABORTED') {
+    return 'Sem conexão com o servidor. Tente novamente.';
+  }
+  return error?.message || fallback;
 }
 
 

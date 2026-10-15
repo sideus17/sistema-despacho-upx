@@ -20,7 +20,7 @@ export enum CallPriority {
 export enum CallStatus {
   PENDENTE = 'PENDENTE',
   EM_ATENDIMENTO = 'EM_ATENDIMENTO',
-  CONCLUIDO = 'CONCLUIDO',
+  FINALIZADO = 'FINALIZADO',
   CANCELADO = 'CANCELADO'
 }
 
@@ -36,6 +36,11 @@ export enum RiskLevel {
   MEDIO = 'MEDIO',
   ALTO = 'ALTO',
   CRITICO = 'CRITICO'
+}
+
+export enum UserRole {
+  MOTORISTA = 'MOTORISTA',
+  OPERADOR = 'OPERADOR'
 }
 
 // Interfaces
@@ -56,6 +61,8 @@ export interface Ambulance {
     medic: string;
     nurse?: string;
   };
+  driver: { id: string; name: string } | null; // motorista em turno (login no app)
+  locationUpdatedAt: string | null;
 }
 
 export interface EmergencyCall {
@@ -97,15 +104,21 @@ export interface RouteInfo {
   distance: number; // meters
   duration: number; // seconds
   geometry: Coordinates[];
-  instructions: RouteInstruction[];
+  steps: RouteStep[];
+  waypoints: Coordinates[]; // pontos de passagem forçados (ex.: desvio de área de risco)
   riskLevel: RiskLevel;
   weatherEvents: WeatherEvent[];
 }
 
-export interface RouteInstruction {
-  text: string;
-  distance: number;
-  duration: number;
+// Manobra no formato do OSRM; o texto em português é montado no app
+export interface RouteStep {
+  type: string; // turn, roundabout, arrive...
+  modifier?: string; // left, right, slight left, straight...
+  name: string; // rua após a manobra
+  location: Coordinates; // ponto da manobra
+  distance: number; // meters até a próxima manobra
+  duration: number; // seconds
+  exit?: number; // saída da rotatória
 }
 
 export interface DispatchScore {

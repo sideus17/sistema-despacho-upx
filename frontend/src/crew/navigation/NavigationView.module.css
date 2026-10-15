@@ -1,0 +1,244 @@
+.screen {
+  position: fixed;
+  inset: 0;
+  z-index: 1500;
+  background: #e5e7eb;
+}
+
+.map {
+  position: absolute;
+  inset: 0;
+}
+
+/* Atribuição do mapa (obrigatória) acima do painel inferior */
+.screen :global(.maplibregl-ctrl-bottom-right) {
+  bottom: calc(env(safe-area-inset-bottom) + 150px);
+}
+
+/* Faixa de instrução */
+.banner {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 10px);
+  left: 10px;
+  right: 10px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 72px;
+  padding: 12px 16px;
+  border-radius: 16px;
+  background: #166534;
+  color: white;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+}
+
+.bannerWarning {
+  background: #b45309;
+}
+
+.icon {
+  display: flex;
+  flex-shrink: 0;
+  width: 48px;
+  justify-content: center;
+  font-size: 40px;
+  line-height: 1;
+}
+
+.distance {
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.bannerText {
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.notice {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 96px);
+  left: 10px;
+  right: 10px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.recenter {
+  position: absolute;
+  right: 12px;
+  bottom: calc(env(safe-area-inset-bottom) + 160px);
+  min-height: 44px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 999px;
+  background: white;
+  color: var(--color-primary);
+  font-size: 15px;
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+}
+
+/* Painel inferior */
+.panel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px calc(env(safe-area-inset-bottom) + 14px);
+  border-radius: 18px 18px 0 0;
+  background: white;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.summary {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.summary strong {
+  color: #166534;
+  font-size: 26px;
+  font-weight: 800;
+}
+
+.summary span {
+  color: var(--color-text-muted);
+  font-size: 16px;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.iconButton,
+.exitButton,
+.mapsButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 52px;
+  border-radius: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.iconButton {
+  min-width: 52px;
+  border: 1px solid var(--color-border);
+  background: white;
+  font-size: 20px;
+}
+
+.mapsButton {
+  flex: 1;
+  padding: 0 12px;
+  background: #e0f2fe;
+  color: #075985;
+  font-size: 15px;
+  text-decoration: none;
+  text-align: center;
+}
+
+.exitButton {
+  padding: 0 18px;
+  border: none;
+  background: #fee2e2;
+  color: #991b1b;
+  font-size: 15px;
+}
+
+.finish {
+  width: 100%;
+  min-height: 56px;
+  border: none;
+  border-radius: 12px;
+  background: var(--color-success);
+  color: white;
+  font-size: 17px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.finish:disabled {
+  opacity: 0.6;
+}
+
+/* Noite: faixa e painel escuros para não ofuscar o motorista */
+.screen[data-theme='night'] {
+  background: #1c2531;
+}
+
+.screen[data-theme='night'] .banner {
+  background: #14532d;
+}
+
+.screen[data-theme='night'] .bannerWarning {
+  background: #92400e;
+}
+
+.screen[data-theme='night'] .notice {
+  background: #422006;
+  color: #fde68a;
+}
+
+.screen[data-theme='night'] .recenter {
+  background: #1f2937;
+  color: #93c5fd;
+}
+
+.screen[data-theme='night'] .panel {
+  background: #1f2937;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.5);
+  color: #e5e7eb;
+}
+
+.screen[data-theme='night'] .summary strong {
+  color: #4ade80;
+}
+
+.screen[data-theme='night'] .summary span {
+  color: #9ca3af;
+}
+
+.screen[data-theme='night'] .iconButton {
+  border-color: #374151;
+  background: #111827;
+  color: #e5e7eb;
+}
+
+.screen[data-theme='night'] .mapsButton {
+  background: #0c4a6e;
+  color: #e0f2fe;
+}
+
+.screen[data-theme='night'] .exitButton {
+  background: #450a0a;
+  color: #fecaca;
+}
+
+/* Marcadores */
+.vehicle {
+  width: 44px;
+  height: 44px;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.35));
+}
+
+.vehicle svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}

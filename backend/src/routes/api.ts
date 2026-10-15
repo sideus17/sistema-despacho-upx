@@ -3,16 +3,20 @@ import { Router, Request, Response } from 'express';
 import { analyzeDispatch } from '../services/dispatchService';
 import { calculateRoute } from '../services/routingService';
 import { geocodeAddress } from '../services/geocodingService';
-import { 
-  AmbulanceStatus, 
-  CallStatus, 
-  CallPriority,
+import { requireAuth, requireRole } from '../middleware/auth';
+import {
+  AmbulanceStatus,
+  CallStatus,
   EmergencyCall,
   ApiResponse,
-  Stats
+  Stats,
+  UserRole
 } from '../types';
 
 const router = Router();
+
+const fail = (res: Response, status: number, error: string) =>
+  res.status(status).json({ success: false, error, timestamp: new Date().toISOString() });
 
 // ============================================
 // HEALTH CHECK
@@ -31,11 +35,117 @@ router.get('/health', (req: Request, res: Response) => {
 });
 
 // ============================================
+// AUTH (público)
+// ============================================
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Cadastro pelo backend: valida a função (operador exige o código da central)
+// e cria o usuário já confirmado, sem depender do envio de e-mail do Supabase
+router.post('/auth/signup', async (req: Request, res: Response) => {
+  const { fullName, email, password, role, inviteCode } = req.body ?? {};
+  const name = typeof fullName === 'string' ? fullName.trim() : '';
+
+  if (name.length < 3) return fail(res, 400, 'Informe o nome completo.');
+  if (typeof email !== 'string' || !EMAIL_PATTERN.test(email)) return fail(res, 400, 'E-mail inválido.');
+  if (typeof password !== 'string' || password.length < 8) return fail(res, 400, 'A senha precisa ter pelo menos 8 caracteres.');
+  if (!Object.values(UserRole).includes(role)) return fail(res, 400, 'Escolha se você é motorista ou operador.');
+
+  const expectedCode = process.env.OPERATOR_INVITE_CODE;
+  if (role === UserRole.OPERADOR && (!expectedCode || inviteCode !== expectedCode)) {
+    return fail(res, 403, 'Código da central inválido.');
+  }
+
+  const { data, error } = await supabase.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    user_metadata: { full_name: name }
+  });
+
+  if (error || !data.user) {
+    const alreadyExists = error?.message?.toLowerCase().includes('already');
+    return fail(res, 400, alreadyExists ? 'Já existe uma conta com este e-mail.' : error?.message || 'Erro ao criar conta.');
+  }
+
+  const { error: profileError } = await supabase.from('profiles').insert({ id: data.user.id, full_name: name, role });
+  if (profileError) {
+    await supabase.auth.admin.deleteUser(data.user.id);
+    return fail(res, 500, 'Erro ao criar o perfil. Tente novamente.');
+  }
+
+  res.status(201).json({
+    success: true,
+    data: { id: data.user.id, fullName: name, role },
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Daqui para baixo, tudo exige login com MFA concluído
+router.use(requireAuth);
+
+router.get('/me', (req: Request, res: Response) => {
+  res.json({ success: true, data: req.user, timestamp: new Date().toISOString() });
+});
+
+// ============================================
+// TURNO (motorista ↔ viatura)
+// ============================================
+
+router.post('/shifts/start', requireRole(UserRole.MOTORISTA), async (req: Request, res: Response) => {
+  const { ambulanceId } = req.body ?? {};
+  if (!ambulanceId) return fail(res, 400, 'ambulanceId is required');
+
+  const { data: current } = await supabase.from('ambulances').select('id, code').eq('driver_id', req.user!.id).maybeSingle();
+  if (current) {
+    return current.id === ambulanceId
+      ? res.json({ success: true, data: { ambulanceId }, timestamp: new Date().toISOString() })
+      : fail(res, 409, `Você já está em turno na ${current.code}. Encerre o turno antes de trocar.`);
+  }
+
+  // Só assume a viatura se ninguém estiver com ela
+  const { data: taken, error } = await supabase
+    .from('ambulances')
+    .update({ driver_id: req.user!.id })
+    .eq('id', ambulanceId)
+    .is('driver_id', null)
+    .select('id');
+
+  if (error) return fail(res, 500, error.message);
+  if (!taken || taken.length === 0) return fail(res, 409, 'Esta viatura já está com outro motorista.');
+
+  // Viatura parada passa a ficar disponível; se estava em atendimento, o motorista assume o chamado
+  await supabase
+    .from('ambulances')
+    .update({ status: AmbulanceStatus.DISPONIVEL })
+    .eq('id', ambulanceId)
+    .eq('status', AmbulanceStatus.INDISPONIVEL);
+
+  res.json({ success: true, data: { ambulanceId }, timestamp: new Date().toISOString() });
+});
+
+router.post('/shifts/end', requireRole(UserRole.MOTORISTA), async (req: Request, res: Response) => {
+  const { data: ambulance } = await supabase.from('ambulances').select('id, status').eq('driver_id', req.user!.id).maybeSingle();
+  if (!ambulance) return fail(res, 404, 'Você não está em turno.');
+  if (ambulance.status === AmbulanceStatus.EM_ATENDIMENTO) {
+    return fail(res, 409, 'Finalize o atendimento antes de encerrar o turno.');
+  }
+
+  const { error } = await supabase
+    .from('ambulances')
+    .update({ driver_id: null, status: AmbulanceStatus.INDISPONIVEL })
+    .eq('id', ambulance.id);
+
+  if (error) return fail(res, 500, error.message);
+  res.json({ success: true, data: { ambulanceId: ambulance.id }, timestamp: new Date().toISOString() });
+});
+
+// ============================================
 // AMBULANCES
 // ============================================
 
 router.get('/ambulances', async (req: Request, res: Response) => {
-  const { data, error } = await supabase.from('ambulances').select('*');
+  const { data, error } = await supabase.from('ambulances').select('*, driver:profiles!driver_id(id, full_name)');
 
   if (error) {
     return res.status(500).json({ success: false, error: error.message, timestamp: new Date().toISOString() });
@@ -52,7 +162,9 @@ router.get('/ambulances', async (req: Request, res: Response) => {
       driver: amb.crew_driver,
       medic: amb.crew_medic,
       nurse: amb.crew_nurse || undefined
-    }
+    },
+    driver: amb.driver ? { id: amb.driver.id, name: amb.driver.full_name } : null,
+    locationUpdatedAt: amb.location_updated_at
   }));
 
   res.json({
@@ -62,41 +174,49 @@ router.get('/ambulances', async (req: Request, res: Response) => {
   });
 });
 
-
-router.patch('/ambulances/:id/status', async (req: Request, res: Response) => {
+// O motorista alterna disponível/indisponível só na própria viatura e fora de atendimento
+router.patch('/ambulances/:id/status', requireRole(UserRole.MOTORISTA), async (req: Request, res: Response) => {
   const { status } = req.body;
-  
-  if (!Object.values(AmbulanceStatus).includes(status)) {
+
+  if (status !== AmbulanceStatus.DISPONIVEL && status !== AmbulanceStatus.INDISPONIVEL) {
     return res.status(400).json({ success: false, error: 'Invalid status', timestamp: new Date().toISOString() });
   }
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('ambulances')
     .update({ status })
-    .eq('id', req.params.id);
+    .eq('id', req.params.id)
+    .eq('driver_id', req.user!.id)
+    .neq('status', AmbulanceStatus.EM_ATENDIMENTO)
+    .select('id');
 
   if (error) {
     return res.status(500).json({ success: false, error: error.message, timestamp: new Date().toISOString() });
   }
+  if (!data || data.length === 0) return fail(res, 409, 'Não foi possível mudar o status desta viatura agora.');
 
   res.json({ success: true, data: { message: 'Status updated successfully' }, timestamp: new Date().toISOString() });
 });
 
-router.patch('/ambulances/:id/location', async (req: Request, res: Response) => {
+// GPS enviado pelo app da viatura durante a navegação
+router.patch('/ambulances/:id/location', requireRole(UserRole.MOTORISTA), async (req: Request, res: Response) => {
   const { lat, lng } = req.body;
-  
+
   if (typeof lat !== 'number' || typeof lng !== 'number') {
     return res.status(400).json({ success: false, error: 'Invalid coordinates', timestamp: new Date().toISOString() });
   }
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('ambulances')
-    .update({ lat, lng })
-    .eq('id', req.params.id);
+    .update({ lat, lng, location_updated_at: new Date().toISOString() })
+    .eq('id', req.params.id)
+    .eq('driver_id', req.user!.id)
+    .select('id');
 
   if (error) {
     return res.status(500).json({ success: false, error: error.message, timestamp: new Date().toISOString() });
   }
+  if (!data || data.length === 0) return fail(res, 403, 'Esta viatura não está no seu turno.');
 
   res.json({ success: true, data: { message: 'Location updated successfully' }, timestamp: new Date().toISOString() });
 });
@@ -147,6 +267,7 @@ router.get('/calls/pending', async (req: Request, res: Response) => {
 
   const formattedCalls = data.map(call => ({
     id: call.id,
+    ambulance_id: call.ambulance_id,
     location: { lat: call.lat, lng: call.lng },
     address: call.address,
     priority: call.priority,
@@ -167,7 +288,7 @@ router.get('/calls/pending', async (req: Request, res: Response) => {
   });
 });
 
-router.post('/calls', async (req: Request, res: Response) => {
+router.post('/calls', requireRole(UserRole.OPERADOR), async (req: Request, res: Response) => {
   try {
     const { age, gender, address, description, priority } = req.body;
 
@@ -222,7 +343,7 @@ router.post('/calls', async (req: Request, res: Response) => {
   }
 });
 
-router.patch('/calls/:id/status', async (req: Request, res: Response) => {
+router.patch('/calls/:id/status', requireRole(UserRole.OPERADOR), async (req: Request, res: Response) => {
   const { status } = req.body;
   
   if (!Object.values(CallStatus).includes(status)) {
@@ -302,7 +423,7 @@ router.get('/weather/events', async (req: Request, res: Response) => {
 // DISPATCH
 // ============================================
 
-router.post('/dispatch/analyze', async (req: Request, res: Response) => {
+router.post('/dispatch/analyze', requireRole(UserRole.OPERADOR), async (req: Request, res: Response) => {
   try {
     const { callId } = req.body;
     
@@ -334,7 +455,7 @@ router.post('/dispatch/analyze', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/dispatch/execute', async (req: Request, res: Response) => {
+router.post('/dispatch/execute', requireRole(UserRole.OPERADOR), async (req: Request, res: Response) => {
   try {
     const { callId, ambulanceId } = req.body;
     
@@ -350,21 +471,43 @@ router.post('/dispatch/execute', async (req: Request, res: Response) => {
       return res.status(404).json({ success: false, error: 'Call or ambulance not found', timestamp: new Date().toISOString() });
     }
 
-    // Calcula a rota com as coordenadas que vieram do banco
-    const route = await calculateRoute(
-      { lat: ambData.lat, lng: ambData.lng }, 
-      { lat: callData.lat, lng: callData.lng }
-    );
+    // Reserva a ambulância só se ela estiver disponível e com motorista em turno (evita despacho duplo
+    // e garante que alguém recebe o chamado no app)
+    const { data: reserved, error: reserveError } = await supabase
+      .from('ambulances')
+      .update({ status: AmbulanceStatus.EM_ATENDIMENTO })
+      .eq('id', ambulanceId)
+      .eq('status', AmbulanceStatus.DISPONIVEL)
+      .not('driver_id', 'is', null)
+      .select('id');
 
-    // Atualiza os status no banco para EM_ATENDIMENTO
-    await supabase
+    if (reserveError) throw new Error(reserveError.message);
+    if (!reserved || reserved.length === 0) {
+      return res.status(409).json({ success: false, error: 'Ambulância não está disponível ou está sem motorista', timestamp: new Date().toISOString() });
+    }
+
+    // Vincula o chamado só se ele ainda estiver pendente; senão devolve a ambulância
+    const { data: assigned, error: assignError } = await supabase
       .from('calls')
-      .update({ 
+      .update({
         status: CallStatus.EM_ATENDIMENTO,
         ambulance_id: ambulanceId
       })
-      .eq('id', callId);
-    await supabase.from('ambulances').update({ status: AmbulanceStatus.EM_ATENDIMENTO }).eq('id', ambulanceId);
+      .eq('id', callId)
+      .eq('status', CallStatus.PENDENTE)
+      .select('id');
+
+    if (assignError || !assigned || assigned.length === 0) {
+      await supabase.from('ambulances').update({ status: AmbulanceStatus.DISPONIVEL }).eq('id', ambulanceId);
+      if (assignError) throw new Error(assignError.message);
+      return res.status(409).json({ success: false, error: 'Chamado não está mais pendente', timestamp: new Date().toISOString() });
+    }
+
+    // Calcula a rota com as coordenadas que vieram do banco
+    const route = await calculateRoute(
+      { lat: ambData.lat, lng: ambData.lng },
+      { lat: callData.lat, lng: callData.lng }
+    );
 
     // Calcula a estimativa de chegada
     const estimatedArrival = new Date(Date.now() + route.duration * 1000).toISOString();
@@ -385,15 +528,44 @@ router.post('/dispatch/execute', async (req: Request, res: Response) => {
 });
 
 router.post('/dispatch/finish', async (req: Request, res: Response) => {
-  const { callId, ambulanceId } = req.body;
+  const { callId } = req.body;
+
+  if (!callId) {
+    return res.status(400).json({ success: false, error: 'callId is required', timestamp: new Date().toISOString() });
+  }
+
   try {
+    // A ambulância vinculada vem do próprio chamado, não do frontend
+    const { data: callData, error: callError } = await supabase.from('calls').select('ambulance_id').eq('id', callId).single();
+    if (callError || !callData) {
+      return res.status(404).json({ success: false, error: 'Call not found', timestamp: new Date().toISOString() });
+    }
+
+    // Motorista só finaliza o chamado da própria viatura; o operador pode finalizar qualquer um
+    if (req.user!.role === UserRole.MOTORISTA) {
+      const { data: own } = await supabase.from('ambulances').select('id').eq('driver_id', req.user!.id).maybeSingle();
+      if (!own || own.id !== callData.ambulance_id) return fail(res, 403, 'Este chamado não é da sua viatura.');
+    }
+
     // Finaliza o chamado
-    await supabase.from('calls').update({ status: 'FINALIZADO', ambulance_id: null }).eq('id', callId);
+    const { error: finishError } = await supabase
+      .from('calls')
+      .update({ status: CallStatus.FINALIZADO, ambulance_id: null })
+      .eq('id', callId);
+    if (finishError) throw new Error(finishError.message);
+
     // Libera a ambulância
-    await supabase.from('ambulances').update({ status: AmbulanceStatus.DISPONIVEL }).eq('id', ambulanceId);
-    res.json({ success: true });
+    if (callData.ambulance_id) {
+      const { error: releaseError } = await supabase
+        .from('ambulances')
+        .update({ status: AmbulanceStatus.DISPONIVEL })
+        .eq('id', callData.ambulance_id);
+      if (releaseError) throw new Error(releaseError.message);
+    }
+
+    res.json({ success: true, data: { callId, ambulanceId: callData.ambulance_id }, timestamp: new Date().toISOString() });
   } catch (error) {
-    res.status(500).json({ error: 'Erro ao finalizar' });
+    res.status(500).json({ success: false, error: error instanceof Error ? error.message : 'Erro ao finalizar', timestamp: new Date().toISOString() });
   }
 });
 
@@ -437,18 +609,19 @@ router.post('/routes/calculate', async (req: Request, res: Response) => {
 // STATS
 // ============================================
 
-router.get('/stats', async (req: Request, res: Response) => {
+router.get('/stats', requireRole(UserRole.OPERADOR), async (req: Request, res: Response) => {
   try {
     // Para simplificar, buscamos todos os dados para contar
     const [ambRes, callsRes, weatherRes] = await Promise.all([
-      supabase.from('ambulances').select('id, status'),
+      supabase.from('ambulances').select('id, status, driver_id'),
       supabase.from('calls').select('id, status'),
       supabase.from('weather_events').select('id')
     ]);
 
     const stats: Stats = {
       totalAmbulances: ambRes.data?.length || 0,
-      availableAmbulances: ambRes.data?.filter(a => a.status === 'DISPONIVEL').length || 0,
+      // Disponível de verdade = livre e com motorista em turno para receber o chamado
+      availableAmbulances: ambRes.data?.filter(a => a.status === 'DISPONIVEL' && a.driver_id).length || 0,
       pendingCalls: callsRes.data?.filter(c => c.status === 'PENDENTE').length || 0,
       activeWeatherEvents: weatherRes.data?.length || 0
     };

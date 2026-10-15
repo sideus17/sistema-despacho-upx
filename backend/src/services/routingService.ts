@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Coordinates, RouteInfo, RouteInstruction, RiskLevel } from '../types';
+import { Coordinates, RouteInfo, RouteStep, RiskLevel } from '../types';
 import { supabase } from '../config/supabase';
 
 // OSRM public server (free)
@@ -39,6 +39,7 @@ export async function calculateRoute(from: Coordinates, to: Coordinates): Promis
     // Verifica eventos climáticos ao longo desta rota
     let weatherEvents = checkWeatherEventsOnRoute(geometry, allWeatherEvents);
     let riskLevel = calculateRouteRiskLevel(weatherEvents);
+    const waypoints: Coordinates[] = [];
 
     // 3. O PULO DO GATO: Lógica de Desvio Inteligente (Detour)
     if (riskLevel === RiskLevel.CRITICO || riskLevel === RiskLevel.ALTO) {
@@ -72,7 +73,8 @@ export async function calculateRoute(from: Coordinates, to: Coordinates): Promis
             route.distance = newRoute.distance;
             route.duration = newRoute.duration;
             route.legs = newRoute.legs;
-            
+            waypoints.push(detourWaypoint);
+
             // Informa ao frontend que um desvio foi ativado!
             riskLevel = RiskLevel.MEDIO; // O risco diminui porque desviamos do epicentro
             weatherEvents = [{
@@ -89,27 +91,34 @@ export async function calculateRoute(from: Coordinates, to: Coordinates): Promis
       }
     }
 
-    // Extrai instruções dos steps (funciona para a original ou para a desviada)
-    const instructions: RouteInstruction[] = [];
-    if (route.legs) {
-      for (const leg of route.legs) {
-        if (leg.steps) {
-          for (const step of leg.steps) {
-            instructions.push({
-              text: step.maneuver?.instruction || step.name || 'Continue',
-              distance: step.distance,
-              duration: step.duration
-            });
-          }
-        }
+    // Extrai as manobras dos steps (funciona para a original ou para a desviada).
+    // O OSRM não manda texto de instrução, só o tipo de manobra; o app monta a frase.
+    const steps: RouteStep[] = [];
+    const legs = route.legs || [];
+    legs.forEach((leg: any, legIndex: number) => {
+      for (const step of leg.steps || []) {
+        // A chegada no ponto de desvio não é destino: some da lista de manobras
+        if (step.maneuver?.type === 'arrive' && legIndex < legs.length - 1) continue;
+        if (step.maneuver?.type === 'depart' && legIndex > 0) continue;
+
+        steps.push({
+          type: step.maneuver?.type || 'continue',
+          modifier: step.maneuver?.modifier,
+          name: step.name || '',
+          location: { lng: step.maneuver?.location?.[0], lat: step.maneuver?.location?.[1] },
+          distance: step.distance,
+          duration: step.duration,
+          exit: step.maneuver?.exit
+        });
       }
-    }
+    });
 
     return {
       distance: route.distance,
       duration: route.duration,
       geometry,
-      instructions,
+      steps,
+      waypoints,
       riskLevel,
       weatherEvents
     };
@@ -143,13 +152,11 @@ async function calculateFallbackRoute(from: Coordinates, to: Coordinates): Promi
     distance: Math.round(distance),
     duration: Math.round(duration),
     geometry,
-    instructions: [
-      {
-        text: 'Siga em direção ao destino',
-        distance: Math.round(distance),
-        duration: Math.round(duration)
-      }
+    steps: [
+      { type: 'depart', name: '', location: from, distance: Math.round(distance), duration: Math.round(duration) },
+      { type: 'arrive', name: '', location: to, distance: 0, duration: 0 }
     ],
+    waypoints: [],
     riskLevel,
     weatherEvents
   };

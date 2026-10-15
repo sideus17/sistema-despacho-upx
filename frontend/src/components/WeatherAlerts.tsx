@@ -1,25 +1,12 @@
-import { WeatherEvent, WeatherEventType, RiskLevel } from '../types';
+import { WeatherEvent, RiskLevel } from '../types';
+import { WeatherEventIcon } from '../ui/WeatherEventIcon';
+import { CheckCircleIcon, ScheduleIcon, TimerIcon, WarningIcon } from '../ui/icons';
 
 interface WeatherAlertsProps {
   events: WeatherEvent[];
 }
 
 export default function WeatherAlerts({ events }: WeatherAlertsProps) {
-  const getEventIcon = (type: WeatherEventType): string => {
-    switch (type) {
-      case WeatherEventType.ALAGAMENTO:
-        return '🌊';
-      case WeatherEventType.QUEDA_ARVORE:
-        return '🌳';
-      case WeatherEventType.VENTOS_FORTES:
-        return '💨';
-      case WeatherEventType.ACIDENTE:
-        return '🚧';
-      default:
-        return '⚠️';
-    }
-  };
-
   const getRiskColor = (risk: RiskLevel): string => {
     switch (risk) {
       case RiskLevel.CRITICO:
@@ -58,7 +45,7 @@ export default function WeatherAlerts({ events }: WeatherAlertsProps) {
         color: '#6b7280'
       }}>
         <p style={{ fontSize: '16px', margin: '0' }}>
-          ✅ Nenhum evento climático ativo
+          <CheckCircleIcon /> Nenhum evento climático ativo
         </p>
       </div>
     );
@@ -95,8 +82,8 @@ export default function WeatherAlerts({ events }: WeatherAlertsProps) {
               marginBottom: '12px'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '24px' }}>
-                  {getEventIcon(event.type)}
+                <span style={{ fontSize: '24px', display: 'flex', color: getRiskColor(event.riskLevel) }}>
+                  <WeatherEventIcon type={event.type} />
                 </span>
                 <div>
                   <h3 style={{
@@ -162,13 +149,13 @@ export default function WeatherAlerts({ events }: WeatherAlertsProps) {
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span>
-                    ⏰ Início: {new Date(event.startTime).toLocaleTimeString('pt-BR', {
+                    <ScheduleIcon /> Início: {new Date(event.startTime).toLocaleTimeString('pt-BR', {
                       hour: '2-digit',
                       minute: '2-digit'
                     })}
                   </span>
                   <span>
-                    ⏱️ Previsão fim: {new Date(event.estimatedEndTime).toLocaleTimeString('pt-BR', {
+                    <TimerIcon /> Previsão fim: {new Date(event.estimatedEndTime).toLocaleTimeString('pt-BR', {
                       hour: '2-digit',
                       minute: '2-digit'
                     })}
@@ -193,7 +180,7 @@ export default function WeatherAlerts({ events }: WeatherAlertsProps) {
           fontSize: '13px',
           color: '#78350f'
         }}>
-          ⚠️ <strong>Atenção:</strong> Eventos climáticos podem afetar o tempo de resposta e a segurança das rotas.
+          <WarningIcon /> <strong>Atenção:</strong> Eventos climáticos podem afetar o tempo de resposta e a segurança das rotas.
         </p>
       </div>
     </div>

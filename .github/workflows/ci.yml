@@ -1,0 +1,61 @@
+# Confere a cada push que backend e frontend continuam compilando e que os testes passam.
+# Grátis em repositório público (GitHub Actions). O deploy continua no Render e na Vercel.
+name: CI
+
+on:
+  push:
+  workflow_dispatch:
+
+# Push novo no mesmo branch cancela a verificação anterior, que ficou velha
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+# Os nomes dos jobs (Backend e Frontend) são os checks exigidos pela regra do main: não renomear
+jobs:
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Instalar dependências
+        run: npm ci
+      - name: Conferir tipos
+        run: npx tsc --noEmit
+      # --if-present: as PRs chegam em partes e as primeiras ainda não têm testes
+      - name: Testes
+        run: npm run test --if-present
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Instalar dependências
+        run: npm ci
+      - name: Testes
+        run: npm run test --if-present
+      # tsc + vite build: o mesmo build que a Vercel faz
+      - name: Conferir tipos e gerar o build
+        run: npm run build
