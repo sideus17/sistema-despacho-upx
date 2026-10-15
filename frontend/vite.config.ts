@@ -72,6 +72,13 @@ export default defineConfig({
         changeOrigin: true,
         // Pelo proxy a chamada é da mesma origem: abre no celular (IP da rede) sem liberar CORS no backend
         configure: proxy => proxy.on('proxyReq', proxyReq => proxyReq.removeHeader('origin'))
+      },
+      // Supabase local (npm run db:start no backend), quando VITE_SUPABASE_URL=/supabase.
+      // Pelo proxy o login funciona também no celular, que não enxerga o 127.0.0.1 deste computador.
+      '/supabase': {
+        target: 'http://127.0.0.1:54321',
+        changeOrigin: true,
+        rewrite: path => path.replace(/^\/supabase/, '')
       }
     }
   }

@@ -1,6 +1,7 @@
 import express, { Express, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import apiRouter from './routes/api';
+import { databaseLabel } from './config/supabase';
 
 const app: Express = express();
 const PORT = process.env.PORT || 3000;
@@ -108,6 +109,7 @@ app.listen(PORT, () => {
   console.log(`✅ Server running on: http://localhost:${PORT}`);
   console.log(`✅ API available at: http://localhost:${PORT}/api`);
   console.log(`✅ Health check: http://localhost:${PORT}/api/health`);
+  console.log(`🗄️  Banco: ${databaseLabel()}`);
   console.log('');
   console.log('📊 Available endpoints:');
   console.log('   - GET  /api/ambulances');

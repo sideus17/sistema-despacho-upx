@@ -7,7 +7,11 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
-    "test": "tsx --test \"src/**/*.test.ts\""
+    "test": "tsx --test \"src/**/*.test.ts\"",
+    "db:start": "npx -y supabase@2.119.0 start",
+    "db:stop": "npx -y supabase@2.119.0 stop",
+    "db:reset": "npx -y supabase@2.119.0 db reset",
+    "db:status": "npx -y supabase@2.119.0 status"
   },
   "keywords": [
     "samu",

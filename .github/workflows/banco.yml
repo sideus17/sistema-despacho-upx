@@ -1,0 +1,55 @@
+# Sobe o Supabase local (o mesmo do npm run db:start) e confere migrações, seed, login com MFA
+# e cadastro pelo backend. Roda quando o banco muda; não é check obrigatório do main.
+name: Banco local
+
+on:
+  push:
+    paths:
+      - 'backend/supabase/**'
+      - 'backend/scripts/check-local-db.ts'
+      - 'backend/.env.example'
+      - 'frontend/.env.example'
+      - '.github/workflows/banco.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: banco-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  banco:
+    name: Banco local
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Instalar dependências
+        run: npm ci
+      - name: Subir o Supabase local (migrações e seed)
+        run: npm run db:start
+      # API_URL, ANON_KEY e SERVICE_ROLE_KEY do banco local (sem as aspas da saída do CLI)
+      - name: Chaves do banco local
+        run: npx -y supabase@2.119.0 status -o env | sed -E 's/^([A-Z_]+)="(.*)"$/\1=\2/' >> "$GITHUB_ENV"
+      - name: Subir o backend apontando para o banco local
+        run: |
+          npm run build
+          SUPABASE_URL="$API_URL" SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" OPERATOR_INVITE_CODE=ci \
+            OFFICIAL_SOURCES_ENABLED=false PORT=3001 node dist/server.js > "$RUNNER_TEMP/backend.log" 2>&1 &
+          for i in $(seq 1 30); do curl -sf http://localhost:3001/api/health > /dev/null && exit 0; sleep 1; done
+          exit 1
+      - name: Conferir banco, login com MFA e cadastro
+        run: npx tsx scripts/check-local-db.ts
+      - name: Log do backend
+        if: always()
+        run: cat "$RUNNER_TEMP/backend.log" || true

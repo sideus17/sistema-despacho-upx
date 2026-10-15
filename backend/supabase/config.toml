@@ -1,0 +1,75 @@
+# Supabase local para desenvolvimento (Supabase CLI + Docker). Comandos em backend/: npm run db:start | db:reset | db:stop
+# Só o banco, o Auth (com MFA), a API REST e o Studio: o app não usa Realtime, Storage nem Edge Functions.
+# Referência completa: https://supabase.com/docs/guides/local-development/cli/config
+project_id = "sistema-despacho-upx"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+# Mesma versão do projeto hospedado
+major_version = 17
+
+[db.pooler]
+enabled = false
+
+[db.migrations]
+enabled = true
+
+# Viaturas, bases e os dois usuários de teste (recriados a cada db:reset)
+[db.seed]
+enabled = true
+sql_paths = ["./seed.sql"]
+
+[studio]
+enabled = true
+port = 54323
+api_url = "http://127.0.0.1"
+
+# E-mails do Auth ficam presos aqui, não saem para a internet
+[local_smtp]
+enabled = true
+port = 54324
+
+[realtime]
+enabled = false
+
+[storage]
+enabled = false
+
+[edge_runtime]
+enabled = false
+
+[analytics]
+enabled = false
+
+[auth]
+enabled = true
+site_url = "http://localhost:5173"
+additional_redirect_urls = []
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+refresh_token_reuse_interval = 10
+enable_signup = true
+enable_anonymous_sign_ins = false
+minimum_password_length = 6
+
+[auth.email]
+enable_signup = true
+# O cadastro passa pelo backend, que já cria a conta confirmada
+enable_confirmations = false
+secure_password_change = false
+
+# Login com app autenticador, como na produção
+[auth.mfa]
+max_enrolled_factors = 10
+
+[auth.mfa.totp]
+enroll_enabled = true
+verify_enabled = true

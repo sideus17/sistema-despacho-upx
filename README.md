@@ -74,21 +74,45 @@ Algoritmo de score ponderado:
 ### Pré-requisitos
 - Node.js 20+ ([Download](https://nodejs.org/))
 - npm 10+
+- Docker Desktop, para o banco local ([Download](https://www.docker.com/products/docker-desktop/)). Qualquer conta serve, ou nenhuma.
+
+### Banco local (Supabase)
+
+O desenvolvimento usa um Supabase no Docker, separado da produção: cadastros e testes feitos na sua máquina não vão para o banco do site publicado.
+
+```bash
+cd backend
+npm install
+npm run db:start      # primeira vez baixa as imagens (alguns minutos)
+```
+
+- Já vem com as 2 bases, as 4 viaturas e dois usuários de teste (senha `samu-local`, MFA já cadastrado):
+
+  | E-mail | Chave para o app autenticador |
+  |---|---|
+  | `operador@samu.local` | `QEXMSYXBWYAJ6H4IYEFVDR7LPT2QHC5E` |
+  | `motorista@samu.local` | `KG7MTCZNIKS3IYLEUCXYYOIJ3S2M5TSC` |
+
+  No Google Authenticator: **+ → Inserir chave de configuração**, tipo "Baseado no horário". A chave vale para sempre, mesmo depois de recriar o banco.
+- Studio (ver e editar os dados): `http://localhost:54323`
+- `npm run db:reset` apaga tudo e recria (migrações + seed). `npm run db:stop` desliga.
+- Migração nova: criar em `backend/supabase/migrations/` e rodar `npm run db:reset`. Na produção ela continua sendo aplicada pelo SQL Editor do Supabase.
 
 ### Backend
 
 ```bash
 cd backend
-npm install
+cp .env.example .env  # já aponta para o banco local; preencha CEMADEN e o código da central
 npm run dev
 ```
 
-Servidor rodará em: `http://localhost:3000`
+Servidor rodará em: `http://localhost:3001` (o log de início mostra se o banco é o local ou o de produção)
 
 ### Frontend
 
 ```bash
 cd frontend
+cp .env.example .env.local
 npm install
 npm run dev
 ```
