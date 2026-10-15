@@ -236,6 +236,7 @@
 }
 
 .mapWrap {
+  position: relative;
   flex: 1;
   min-height: 220px;
   border-radius: var(--radius);
@@ -243,20 +244,31 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
 }
 
+/* Relatar ocorrência na via, sobre o mapa (canto livre: zoom à esquerda, créditos embaixo) */
+.reportButton {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 48px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 999px;
+  background: #ea580c;
+  color: white;
+  font-size: 15px;
+  font-weight: 800;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+}
+
 .routeInfo {
   display: flex;
   gap: 16px;
   font-size: 15px;
-}
-
-.warning {
-  padding: 10px 12px;
-  border: 1px solid #fde047;
-  border-radius: 8px;
-  background: #fefce8;
-  color: #713f12;
-  font-size: 13px;
-  line-height: 1.4;
 }
 
 .idle {

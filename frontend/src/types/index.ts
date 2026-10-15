@@ -1,3 +1,5 @@
+import type { MultiPolygon, Polygon } from 'geojson';
+
 // Enums
 export enum AmbulanceType {
   USA = 'USA',
@@ -24,18 +26,34 @@ export enum CallStatus {
   CANCELADO = 'CANCELADO'
 }
 
-export enum WeatherEventType {
+export enum IncidentType {
   ALAGAMENTO = 'ALAGAMENTO',
   QUEDA_ARVORE = 'QUEDA_ARVORE',
+  VIA_BLOQUEADA = 'VIA_BLOQUEADA',
+  ACIDENTE = 'ACIDENTE',
   VENTOS_FORTES = 'VENTOS_FORTES',
-  ACIDENTE = 'ACIDENTE'
+  CHUVA_FORTE = 'CHUVA_FORTE',
+  ALERTA_OFICIAL = 'ALERTA_OFICIAL'
 }
 
-export enum RiskLevel {
-  BAIXO = 'BAIXO',
-  MEDIO = 'MEDIO',
-  ALTO = 'ALTO',
-  CRITICO = 'CRITICO'
+export enum IncidentSource {
+  CENTRAL = 'CENTRAL',
+  EQUIPE = 'EQUIPE',
+  CEMADEN = 'CEMADEN',
+  DEFESA_CIVIL = 'DEFESA_CIVIL'
+}
+
+// O que a ocorrência faz com a rota
+export enum IncidentEffect {
+  BLOQUEIO = 'BLOQUEIO',
+  RISCO = 'RISCO',
+  AVISO = 'AVISO'
+}
+
+export enum IncidentVote {
+  SIM = 'SIM',
+  NAO = 'NAO',
+  PASSOU = 'PASSOU'
 }
 
 export enum UserRole {
@@ -96,25 +114,48 @@ export interface Base {
   capacity: number;
 }
 
-export interface WeatherEvent {
+export interface Incident {
   id: string;
-  type: WeatherEventType;
+  type: IncidentType;
+  source: IncidentSource;
+  effect: IncidentEffect;
+  location: Coordinates;
+  radius: number; // metros
+  description: string | null;
+  createdAt: string;
+  expiresAt: string | null; // null: até a central encerrar
+  lastConfirmedAt: string | null;
+  createdBy: { id: string; name: string } | null;
+  ambulance: { id: string; code: string } | null;
+  geometry: Polygon | MultiPolygon | null; // contorno da área (fontes oficiais), só para exibir
+  votes: { yes: number; no: number };
+  myVote: IncidentVote | null;
+}
+
+// Ocorrência no caminho de uma rota (ou evitada por ela)
+export interface RouteIncident {
+  id: string;
+  type: IncidentType;
+  source: IncidentSource;
+  effect: IncidentEffect;
   location: Coordinates;
   radius: number;
-  riskLevel: RiskLevel;
-  description: string;
-  startTime: string;
-  estimatedEndTime?: string;
+  ambulance: { id: string; code: string } | null;
+  distanceAlong?: number; // metros do início da rota até a área (só nas que a rota atravessa)
 }
+
+export type RouteEngine = 'valhalla' | 'osrm' | 'linha-reta';
 
 export interface RouteInfo {
   distance: number;
   duration: number;
   geometry: Coordinates[];
   steps: RouteStep[];
-  waypoints: Coordinates[];
-  riskLevel: RiskLevel;
-  weatherEvents: WeatherEvent[];
+  waypoints: Coordinates[]; // pontos da rota perto dos desvios (o link do Google Maps passa por eles)
+  engine: RouteEngine;
+  incidentsOnRoute: RouteIncident[];
+  avoided: RouteIncident[];
+  warnings: string[];
 }
 
 export interface RouteStep {
@@ -133,7 +174,7 @@ export interface DispatchScore {
   distanceScore: number;
   availabilityScore: number;
   typeScore: number;
-  weatherPenalty: number;
+  incidentPenalty: number;
   route?: RouteInfo;
   explanation: string;
 }
@@ -151,11 +192,21 @@ export interface ApiResponse<T> {
   timestamp: string;
 }
 
+export interface OfficialSourceStatus {
+  id: 'cemaden' | 'defesaCivil';
+  name: string;
+  enabled: boolean;
+  lastAttempt: string | null;
+  lastSuccess: string | null;
+  lastError: string | null;
+  summary: string | null;
+}
+
 export interface Stats {
   totalAmbulances: number;
   availableAmbulances: number;
   pendingCalls: number;
-  activeWeatherEvents: number;
+  activeIncidents: number;
 }
 
 

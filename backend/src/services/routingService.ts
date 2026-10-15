@@ -1,274 +1,155 @@
-import axios from 'axios';
-import { Coordinates, RouteInfo, RouteStep, RiskLevel } from '../types';
-import { supabase } from '../config/supabase';
+import { Coordinates, Incident, RouteEngine, RouteIncident, RouteInfo } from '../types';
+import { listActiveIncidents } from './incidentService';
+import { circleEntryAlong, cumulativeDistances, distanceMeters, exclusionRing, nearCorridor, projectOnLine } from './geo';
+import { EngineRoute, osrmRoute } from './osrm';
+import { maxExcludePerimeter, valhallaRoute } from './valhalla';
+import { routeAvoiding } from './avoidance';
+import { triggerOfficialRefresh } from './official/refresh';
 
-// OSRM public server (free)
-const OSRM_SERVER = 'https://router.project-osrm.org';
+// Mesma rota pedida de novo (análise, despacho, prévia da equipe) sai do cache
+const CACHE_TTL = 10 * 60_000;
+// Rota sem desvio (servidor principal fora) vale pouco: logo tenta de novo
+const DEGRADED_CACHE_TTL = 30_000;
+const CACHE_MAX = 200;
+const MAX_MAPS_WAYPOINTS = 3;
+
+const cache = new Map<string, { expires: number; route: Promise<RouteInfo> }>();
 
 /**
- * Calculate route between two points using OSRM
+ * Rota entre dois pontos desviando das ocorrências ativas no caminho.
+ * Valhalla (desvia de áreas) → OSRM (sem desvio) → linha reta.
  */
 export async function calculateRoute(from: Coordinates, to: Coordinates): Promise<RouteInfo> {
+  triggerOfficialRefresh();
+  const { incidents, warning } = await incidentsNear(from, to);
+
+  // Mesmos pontos (~10 m) e mesmas ocorrências no caminho: mesma rota
+  const point = (c: Coordinates) => `${c.lat.toFixed(4)},${c.lng.toFixed(4)}`;
+  const key = [point(from), point(to), ...incidents.map(i => `${i.id}:${i.effect}:${i.radius}`).sort()].join('|');
+
+  const cached = cache.get(key);
+  if (cached && cached.expires > Date.now()) return cached.route;
+
+  const entry = { expires: Date.now() + CACHE_TTL, route: computeRoute(from, to, incidents, warning) };
+  cache.set(key, entry);
+  entry.route
+    .then(route => {
+      if (route.engine !== 'valhalla' || warning) entry.expires = Date.now() + DEGRADED_CACHE_TTL;
+    })
+    .catch(() => cache.delete(key));
+
+  for (const [oldKey, old] of cache) {
+    if (cache.size <= CACHE_MAX && old.expires > Date.now()) break;
+    cache.delete(oldKey);
+  }
+  return entry.route;
+}
+
+// Ocorrências com área perto do trajeto (as de fora não mudam a rota nem o cache)
+async function incidentsNear(from: Coordinates, to: Coordinates): Promise<{ incidents: Incident[]; warning?: string }> {
   try {
-    // 1. Busca os eventos climáticos no Supabase primeiro
-    const { data: weatherData } = await supabase.from('weather_events').select('*');
-    const allWeatherEvents = weatherData || [];
-
-    // 2. Primeira tentativa: Rota mais rápida (direta)
-    const url = `${OSRM_SERVER}/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}`;
-    const params = {
-      overview: 'full',
-      geometries: 'geojson',
-      steps: 'true'
-    };
-
-    const response = await axios.get(url, { params, timeout: 5000 });
-
-    if (response.data.code !== 'Ok' || !response.data.routes || response.data.routes.length === 0) {
-      throw new Error('No route found');
-    }
-
-    const route = response.data.routes[0];
-
-    // Extrai a geometria inicial
-    let geometry: Coordinates[] = route.geometry.coordinates.map((coord: number[]) => ({
-      lng: coord[0],
-      lat: coord[1]
-    }));
-
-    // Verifica eventos climáticos ao longo desta rota
-    let weatherEvents = checkWeatherEventsOnRoute(geometry, allWeatherEvents);
-    let riskLevel = calculateRouteRiskLevel(weatherEvents);
-    const waypoints: Coordinates[] = [];
-
-    // 3. O PULO DO GATO: Lógica de Desvio Inteligente (Detour)
-    if (riskLevel === RiskLevel.CRITICO || riskLevel === RiskLevel.ALTO) {
-      console.log(`[ALERTA] Rota intercepta área de risco ${riskLevel}. Calculando desvio...`);
-      
-      // Pega o evento que está bloqueando a rota
-      const blockingEvent = weatherEvents.find(e => e.riskLevel === RiskLevel.CRITICO || e.riskLevel === RiskLevel.ALTO);
-      
-      if (blockingEvent) {
-        // Cria um waypoint (ponto de passagem) forçando a rota a "dar a volta" 
-        // Adicionamos aprox. 1.5km (0.015 graus) de distância do epicentro do evento
-        const detourWaypoint = {
-          lat: blockingEvent.location.lat + 0.015,
-          lng: blockingEvent.location.lng - 0.015
-        };
-
-        // Chama o OSRM novamente, forçando ele a passar pelo ponto de desvio
-        const detourUrl = `${OSRM_SERVER}/route/v1/driving/${from.lng},${from.lat};${detourWaypoint.lng},${detourWaypoint.lat};${to.lng},${to.lat}`;
-        
-        try {
-          const detourResponse = await axios.get(detourUrl, { params, timeout: 5000 });
-          
-          if (detourResponse.data.code === 'Ok' && detourResponse.data.routes.length > 0) {
-            const newRoute = detourResponse.data.routes[0];
-            
-            // Atualiza os dados com a nova rota desviada
-            geometry = newRoute.geometry.coordinates.map((coord: number[]) => ({
-              lng: coord[0], lat: coord[1]
-            }));
-            
-            route.distance = newRoute.distance;
-            route.duration = newRoute.duration;
-            route.legs = newRoute.legs;
-            waypoints.push(detourWaypoint);
-
-            // Informa ao frontend que um desvio foi ativado!
-            riskLevel = RiskLevel.MEDIO; // O risco diminui porque desviamos do epicentro
-            weatherEvents = [{
-              ...blockingEvent,
-              riskLevel: RiskLevel.MEDIO,
-              description: `[DESVIO ATIVADO] Rota alterada para evitar: ${blockingEvent.description}`
-            }];
-            
-            console.log('[SUCESSO] Rota alternativa traçada com sucesso!');
-          }
-        } catch (detourError) {
-          console.warn('Falha ao calcular rota de desvio. Mantendo rota original.', detourError);
-        }
-      }
-    }
-
-    // Extrai as manobras dos steps (funciona para a original ou para a desviada).
-    // O OSRM não manda texto de instrução, só o tipo de manobra; o app monta a frase.
-    const steps: RouteStep[] = [];
-    const legs = route.legs || [];
-    legs.forEach((leg: any, legIndex: number) => {
-      for (const step of leg.steps || []) {
-        // A chegada no ponto de desvio não é destino: some da lista de manobras
-        if (step.maneuver?.type === 'arrive' && legIndex < legs.length - 1) continue;
-        if (step.maneuver?.type === 'depart' && legIndex > 0) continue;
-
-        steps.push({
-          type: step.maneuver?.type || 'continue',
-          modifier: step.maneuver?.modifier,
-          name: step.name || '',
-          location: { lng: step.maneuver?.location?.[0], lat: step.maneuver?.location?.[1] },
-          distance: step.distance,
-          duration: step.duration,
-          exit: step.maneuver?.exit
-        });
-      }
-    });
-
-    return {
-      distance: route.distance,
-      duration: route.duration,
-      geometry,
-      steps,
-      waypoints,
-      riskLevel,
-      weatherEvents
-    };
-
+    const margin = Math.max(2000, 0.3 * distanceMeters(from, to));
+    const incidents = (await listActiveIncidents()).filter(
+      incident => incident.radius > 0 && nearCorridor(from, to, incident.location, incident.radius, margin)
+    );
+    return { incidents };
   } catch (error) {
-    console.warn('OSRM route calculation failed, using fallback:', error);
-    return await calculateFallbackRoute(from, to);
+    console.warn('Falha ao buscar ocorrências para a rota:', error);
+    return { incidents: [], warning: 'Não foi possível consultar as ocorrências: rota calculada sem desvios.' };
   }
 }
 
-/**
- * Fallback route calculation (straight line)
- */
-async function calculateFallbackRoute(from: Coordinates, to: Coordinates): Promise<RouteInfo> {
-  const distance = calculateDistance(from.lat, from.lng, to.lat, to.lng) * 1000; // Convert to meters
-  const averageSpeed = 40; // km/h in urban areas
-  const duration = (distance / 1000) / averageSpeed * 3600; // seconds
+async function computeRoute(from: Coordinates, to: Coordinates, incidents: Incident[], warning?: string): Promise<RouteInfo> {
+  const warnings = warning ? [warning] : [];
 
-  // Simple straight line geometry
-  const geometry: Coordinates[] = [from, to];
+  try {
+    const result = await routeAvoiding(
+      from,
+      to,
+      incidents,
+      exclude => valhallaRoute(from, to, exclude.map(incident => exclusionRing(incident.location, incident.radius))),
+      { maxPerimeter: maxExcludePerimeter() }
+    );
+    return buildRouteInfo(result.route, 'valhalla', incidents, result.avoided, [...warnings, ...result.warnings]);
+  } catch (error) {
+    console.warn('Valhalla indisponível, usando o OSRM:', error instanceof Error ? error.message : error);
+  }
 
-  // Busca os eventos climáticos no Supabase
-  const { data: weatherData } = await supabase.from('weather_events').select('*');
-  const allWeatherEvents = weatherData || [];
+  try {
+    const route = await osrmRoute(from, to);
+    return buildRouteInfo(route, 'osrm', incidents, [], [
+      ...warnings,
+      'Servidor de rotas principal fora do ar: rota calculada sem desviar das ocorrências.'
+    ]);
+  } catch (error) {
+    console.warn('OSRM indisponível, usando linha reta:', error instanceof Error ? error.message : error);
+  }
 
-  // Check for weather events
-  const weatherEvents = checkWeatherEventsOnRoute(geometry, allWeatherEvents);
-  const riskLevel = calculateRouteRiskLevel(weatherEvents);
+  return buildRouteInfo(straightLine(from, to), 'linha-reta', incidents, [], [
+    ...warnings,
+    'Servidores de rotas fora do ar: trajeto aproximado em linha reta.'
+  ]);
+}
 
+function toRouteIncident(incident: Incident, distanceAlong?: number): RouteIncident {
   return {
-    distance: Math.round(distance),
-    duration: Math.round(duration),
-    geometry,
-    steps: [
-      { type: 'depart', name: '', location: from, distance: Math.round(distance), duration: Math.round(duration) },
-      { type: 'arrive', name: '', location: to, distance: 0, duration: 0 }
-    ],
-    waypoints: [],
-    riskLevel,
-    weatherEvents
+    id: incident.id,
+    type: incident.type,
+    source: incident.source,
+    effect: incident.effect,
+    location: incident.location,
+    radius: incident.radius,
+    ambulance: incident.ambulance,
+    ...(distanceAlong !== undefined ? { distanceAlong: Math.round(distanceAlong) } : {})
   };
 }
 
-/**
- * Check for weather events along the route using local calculation
- */
-function checkWeatherEventsOnRoute(geometry: Coordinates[], allEvents: any[]): any[] {
-  const events: any[] = [];
-  const checkedEvents = new Set<string>();
+function buildRouteInfo(
+  route: EngineRoute,
+  engine: RouteEngine,
+  incidents: Incident[],
+  avoided: Incident[],
+  warnings: string[]
+): RouteInfo {
+  const cumulative = cumulativeDistances(route.geometry);
 
-  // Sample points along the route (every 10th point or at least start/end)
-  const sampleInterval = Math.max(1, Math.floor(geometry.length / 10));
-  
-  for (let i = 0; i < geometry.length; i += sampleInterval) {
-    const point = geometry[i];
-    
-    // Filtra localmente os eventos próximos (500 metros)
-    const nearbyEvents = allEvents.filter(e => {
-      const dist = calculateDistance(point.lat, point.lng, e.lat, e.lng) * 1000; // em metros
-      return dist <= (e.radius || 500);
-    });
-    
-    for (const event of nearbyEvents) {
-      if (!checkedEvents.has(event.id)) {
-        events.push({
-          id: event.id,
-          type: event.type,
-          location: { lat: event.lat, lng: event.lng },
-          radius: event.radius,
-          riskLevel: event.risk_level as RiskLevel,
-          description: event.description,
-          startTime: event.start_time,
-          estimatedEndTime: event.estimated_end_time
-        });
-        checkedEvents.add(event.id);
-      }
-    }
-  }
+  const incidentsOnRoute = incidents
+    .map(incident => ({ incident, along: circleEntryAlong(route.geometry, cumulative, incident.location, incident.radius) }))
+    .filter((hit): hit is { incident: Incident; along: number } => hit.along !== null)
+    .sort((a, b) => a.along - b.along)
+    .map(hit => toRouteIncident(hit.incident, hit.along));
 
-  // Always check last point
-  if (geometry.length > 0) {
-    const lastPoint = geometry[geometry.length - 1];
-    
-    const nearbyEvents = allEvents.filter(e => {
-      const dist = calculateDistance(lastPoint.lat, lastPoint.lng, e.lat, e.lng) * 1000;
-      return dist <= (e.radius || 500);
-    });
-    
-    for (const event of nearbyEvents) {
-      if (!checkedEvents.has(event.id)) {
-        events.push({
-          id: event.id,
-          type: event.type,
-          location: { lat: event.lat, lng: event.lng },
-          radius: event.radius,
-          riskLevel: event.risk_level as RiskLevel,
-          description: event.description,
-          startTime: event.start_time,
-          estimatedEndTime: event.estimated_end_time
-        });
-        checkedEvents.add(event.id);
-      }
-    }
-  }
+  // O link do Google Maps passa pelos pontos da nossa rota mais próximos de cada desvio
+  const waypoints = avoided
+    .slice(0, MAX_MAPS_WAYPOINTS)
+    .map(incident => projectOnLine(route.geometry, cumulative, incident.location).point);
 
-  return events;
+  return {
+    distance: Math.round(route.distance),
+    duration: Math.round(route.duration),
+    geometry: route.geometry,
+    steps: route.steps,
+    waypoints,
+    engine,
+    incidentsOnRoute,
+    avoided: avoided.map(incident => toRouteIncident(incident)),
+    warnings
+  };
 }
 
-/**
- * Calculate overall risk level for the route
- */
-function calculateRouteRiskLevel(weatherEvents: any[]): RiskLevel {
-  if (weatherEvents.length === 0) {
-    return RiskLevel.BAIXO;
-  }
-
-  // Find highest risk level
-  const riskOrder = [RiskLevel.BAIXO, RiskLevel.MEDIO, RiskLevel.ALTO, RiskLevel.CRITICO];
-  let maxRisk = RiskLevel.BAIXO;
-
-  for (const event of weatherEvents) {
-    const currentIndex = riskOrder.indexOf(event.riskLevel);
-    const maxIndex = riskOrder.indexOf(maxRisk);
-    if (currentIndex > maxIndex) {
-      maxRisk = event.riskLevel;
-    }
-  }
-
-  return maxRisk;
-}
-
-/**
- * Haversine formula to calculate distance between two coordinates (in km)
- */
-function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6371; // Earth's radius in km
-  const dLat = toRad(lat2 - lat1);
-  const dLng = toRad(lng2 - lng1);
-  
-  const a = 
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-    Math.sin(dLng / 2) * Math.sin(dLng / 2);
-  
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
-
-function toRad(degrees: number): number {
-  return degrees * (Math.PI / 180);
+// Último recurso: linha reta a 40 km/h
+function straightLine(from: Coordinates, to: Coordinates): EngineRoute {
+  const distance = distanceMeters(from, to);
+  const duration = (distance / 1000 / 40) * 3600;
+  return {
+    distance,
+    duration,
+    geometry: [from, to],
+    steps: [
+      { type: 'depart', name: '', location: from, distance: Math.round(distance), duration: Math.round(duration) },
+      { type: 'arrive', name: '', location: to, distance: 0, duration: 0 }
+    ]
+  };
 }
 
 /**

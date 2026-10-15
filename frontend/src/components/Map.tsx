@@ -6,57 +6,76 @@ import {
   Ambulance,
   EmergencyCall,
   Base,
-  WeatherEvent,
+  Incident,
   AmbulanceStatus,
   CallPriority,
   CallStatus,
-  RiskLevel,
-  WeatherEventType,
+  IncidentEffect,
+  IncidentType,
   Coordinates
 } from '../types';
 import { useMapStyle } from '../map/useMapStyle';
+import { DATA_ATTRIBUTION } from '../map/attribution';
 import { MAP_BACKGROUND, ROUTE_COLORS } from '../map/mapStyle';
 import { useMapTheme } from '../map/useMapTheme';
 import { ThemeSwitch } from '../map/ThemeSwitch';
 import { RouteLayer } from '../map/RouteLayer';
 import { boundsOf, toLngLat } from '../map/geojson';
-import { AmbulanceMarker, BaseMarker, CallMarker, RISK_COLOR, WeatherMarker } from '../map/Markers';
+import { AmbulanceMarker, BaseMarker, CallMarker, IncidentMarker } from '../map/Markers';
+import { IncidentLayer } from '../map/IncidentLayer';
+import { EFFECT_META, INCIDENT_LABEL, expiryLabel, sourceLabel } from '../map/incidents';
 import { circlePolygon } from '../crew/navigation/geo';
 import { PRIORITY_META } from '../utils/calls';
-import { ExpandLessIcon, ExpandMoreIcon } from '../ui/icons';
+import { getTimeAgo } from '../services/api';
+import { AddLocationIcon, ExpandLessIcon, ExpandMoreIcon } from '../ui/icons';
+import type { IncidentDraft } from './Incidents';
 import styles from './Map.module.css';
 
 // Sorocaba
 const INITIAL_VIEW = { longitude: -47.4526, latitude: -23.5015, zoom: 13 };
 
-const RISK_FILL: FillLayerSpecification['paint'] = { 'fill-color': ['get', 'color'], 'fill-opacity': 0.18 };
-const RISK_OUTLINE: LineLayerSpecification['paint'] = { 'line-color': ['get', 'color'], 'line-width': 2 };
+// Prévia da área sendo marcada pela central
+const DRAFT_COLOR = '#2563eb';
+const DRAFT_FILL: FillLayerSpecification['paint'] = { 'fill-color': DRAFT_COLOR, 'fill-opacity': 0.12 };
+const DRAFT_OUTLINE: LineLayerSpecification['paint'] = { 'line-color': DRAFT_COLOR, 'line-width': 2, 'line-dasharray': [2, 1.5] };
 
-type Selection = { kind: 'ambulance' | 'call' | 'base' | 'weather'; id: string } | null;
+type Selection = { kind: 'ambulance' | 'call' | 'base' | 'incident'; id: string } | null;
 
 interface MapProps {
   ambulances: Ambulance[];
   calls: EmergencyCall[];
   bases: Base[];
-  weatherEvents: WeatherEvent[];
+  incidents: Incident[];
   selectedCall?: EmergencyCall | null;
   routeGeometry?: Coordinates[] | null;
   onCallSelect?: (call: EmergencyCall) => void;
+  // Nova ocorrência em andamento: o clique no mapa marca o local
+  draft?: IncidentDraft | null;
+  onPickLocation?: (location: Coordinates) => void;
+  onCloseIncident?: (incident: Incident) => Promise<void>;
+  // Pedido para mostrar uma ocorrência (a cada pedido muda o `at`)
+  focusIncident?: { id: string; at: number } | null;
 }
 
 export default function Map({
   ambulances,
   calls,
   bases,
-  weatherEvents,
+  incidents,
   selectedCall,
   routeGeometry,
-  onCallSelect
+  onCallSelect,
+  draft,
+  onPickLocation,
+  onCloseIncident,
+  focusIncident
 }: MapProps) {
   const mapRef = useRef<MapRef>(null);
   const fitted = useRef(false);
   const [loaded, setLoaded] = useState(false);
   const [popup, setPopup] = useState<Selection>(null);
+  const [confirmingClose, setConfirmingClose] = useState(false);
+  const [closing, setClosing] = useState(false);
   const [legendOpen, setLegendOpen] = useState(() => window.matchMedia('(min-width: 768px)').matches);
   const { theme, preference } = useMapTheme();
   const mapStyle = useMapStyle(theme);
@@ -86,19 +105,40 @@ export default function Map({
     }
   }, [loaded, selectedCall?.id, routeGeometry]);
 
-  const riskAreas = useMemo(() => ({
-    type: 'FeatureCollection' as const,
-    features: weatherEvents.map(event => ({
-      type: 'Feature' as const,
-      properties: { color: RISK_COLOR[event.riskLevel] ?? RISK_COLOR[RiskLevel.BAIXO] },
-      geometry: { type: 'Polygon' as const, coordinates: [circlePolygon(event.location, event.radius)] }
-    }))
-  }), [weatherEvents]);
+  // Ocorrência pedida pela lista: centraliza e abre o popup
+  useEffect(() => {
+    const map = mapRef.current;
+    const incident = incidents.find(i => i.id === focusIncident?.id);
+    if (!loaded || !map || !incident) return;
+    map.flyTo({ center: toLngLat(incident.location), zoom: Math.max(map.getZoom(), 15), duration: 600 });
+    setPopup({ kind: 'incident', id: incident.id });
+  }, [loaded, focusIncident]);
+
+  // Outro popup aberto cancela a confirmação de encerramento
+  useEffect(() => setConfirmingClose(false), [popup?.kind, popup?.id]);
+
+  const draftArea = useMemo(() => draft?.location ? {
+    type: 'Feature' as const,
+    properties: {},
+    geometry: { type: 'Polygon' as const, coordinates: [circlePolygon(draft.location, draft.radius)] }
+  } : null, [draft?.location, draft?.radius]);
 
   const open = (kind: NonNullable<Selection>['kind'], id: string) => (event: { originalEvent: MouseEvent }) => {
     // Sem isso o clique chega ao mapa e fecha o popup na hora
     event.originalEvent.stopPropagation();
     setPopup({ kind, id });
+  };
+
+  const handleClose = async (incident: Incident) => {
+    if (!onCloseIncident) return;
+    setClosing(true);
+    try {
+      await onCloseIncident(incident);
+      setPopup(null);
+    } finally {
+      setClosing(false);
+      setConfirmingClose(false);
+    }
   };
 
   const renderPopup = () => {
@@ -169,21 +209,45 @@ export default function Map({
       };
     }
 
-    const event = weatherEvents.find(e => e.id === popup.id);
-    if (!event) return null;
+    const incident = incidents.find(i => i.id === popup.id);
+    if (!incident) return null;
+    const effect = EFFECT_META[incident.effect];
+    const confirmed = incident.lastConfirmedAt && incident.lastConfirmedAt !== incident.createdAt;
     return {
-      location: event.location,
+      location: incident.location,
       offset: 18,
       content: (
         <>
-          <h3>Evento Climático</h3>
-          <p><strong>Tipo:</strong> {event.type.replace('_', ' ')}</p>
+          <h3>{INCIDENT_LABEL[incident.type] ?? incident.type}</h3>
           <p>
-            <strong>Risco:</strong>{' '}
-            <span style={{ color: RISK_COLOR[event.riskLevel], fontWeight: 'bold' }}>{event.riskLevel}</span>
+            <span className={styles.effectPill} style={{ background: effect.color }}>{effect.label}</span> {effect.hint}
           </p>
-          <p><strong>Descrição:</strong> {event.description}</p>
-          <p><strong>Raio:</strong> {event.radius}m</p>
+          <p><strong>Fonte:</strong> {sourceLabel(incident)} · {getTimeAgo(incident.createdAt)}</p>
+          <p className={styles.capitalize}>{expiryLabel(incident)}</p>
+          {confirmed && <p><strong>Confirmada:</strong> {getTimeAgo(incident.lastConfirmedAt!)}</p>}
+          {incident.votes.no > 0 && (
+            <p className={styles.popupWarning}>
+              {incident.votes.no === 1 ? '1 equipe disse' : `${incident.votes.no} equipes disseram`} que não está mais lá
+            </p>
+          )}
+          {incident.description && <p>{incident.description}</p>}
+          {incident.radius > 0 && <p><strong>Raio:</strong> {incident.radius} m</p>}
+          {onCloseIncident && (
+            <div className={styles.popupActions}>
+              {confirmingClose ? (
+                <>
+                  <button className={styles.popupDanger} disabled={closing} onClick={() => handleClose(incident)}>
+                    {closing ? 'Encerrando…' : 'Confirmar encerramento'}
+                  </button>
+                  <button className={styles.popupSecondary} disabled={closing} onClick={() => setConfirmingClose(false)}>
+                    Cancelar
+                  </button>
+                </>
+              ) : (
+                <button className={styles.popupSecondary} onClick={() => setConfirmingClose(true)}>Encerrar</button>
+              )}
+            </div>
+          )}
         </>
       )
     };
@@ -204,7 +268,11 @@ export default function Map({
           dragRotate={false}
           pitchWithRotate={false}
           touchPitch={false}
-          attributionControl={{ compact: true }}
+          attributionControl={{ compact: true, customAttribution: DATA_ATTRIBUTION }}
+          cursor={draft ? 'crosshair' : undefined}
+          onClick={event => {
+            if (draft && onPickLocation) onPickLocation({ lat: event.lngLat.lat, lng: event.lngLat.lng });
+          }}
           onLoad={event => {
             event.target.touchZoomRotate.disableRotation();
             setLoaded(true);
@@ -212,23 +280,21 @@ export default function Map({
         >
           <NavigationControl position="top-left" showCompass={false} />
 
-          <Source id="risk-areas" type="geojson" data={riskAreas}>
-            <Layer id="risk-fill" type="fill" paint={RISK_FILL} />
-            <Layer id="risk-outline" type="line" paint={RISK_OUTLINE} />
-          </Source>
+          <IncidentLayer incidents={incidents} onSelect={(incident, event) => open('incident', incident.id)(event)} />
+
+          {draftArea && draft?.location && (
+            <>
+              <Source id="incident-draft" type="geojson" data={draftArea}>
+                <Layer id="incident-draft-fill" type="fill" paint={DRAFT_FILL} />
+                <Layer id="incident-draft-outline" type="line" paint={DRAFT_OUTLINE} />
+              </Source>
+              <Marker longitude={draft.location.lng} latitude={draft.location.lat} anchor="bottom">
+                <span className={styles.draftPin}><AddLocationIcon /></span>
+              </Marker>
+            </>
+          )}
 
           {routeGeometry && routeGeometry.length > 1 && <RouteLayer line={routeGeometry} theme={theme} />}
-
-          {weatherEvents.map(event => (
-            <Marker
-              key={event.id}
-              longitude={event.location.lng}
-              latitude={event.location.lat}
-              onClick={open('weather', event.id)}
-            >
-              <WeatherMarker type={event.type} riskLevel={event.riskLevel} />
-            </Marker>
-          ))}
 
           {bases.map(base => (
             <Marker key={base.id} longitude={base.location.lng} latitude={base.location.lat} onClick={open('base', base.id)}>
@@ -292,6 +358,12 @@ export default function Map({
 
       <ThemeSwitch preference={preference} className={styles.themeSwitch} />
 
+      {draft && (
+        <div className={styles.pickHint} role="status">
+          <AddLocationIcon /> {draft.location ? 'Toque de novo para mudar o local' : 'Toque no mapa para marcar o local da ocorrência'}
+        </div>
+      )}
+
       {/* Legend */}
       <div className={styles.legend}>
         <button
@@ -309,7 +381,8 @@ export default function Map({
             <li><span className={styles.legendIcon}><AmbulanceMarker status={AmbulanceStatus.DISPONIVEL} hasDriver={false} /></span> Sem motorista</li>
             <li><span className={`${styles.legendIcon} ${styles.legendPin}`}><CallMarker priority={CallPriority.EMERGENCIA} /></span> Chamado</li>
             <li><span className={styles.legendIcon}><BaseMarker /></span> Base</li>
-            <li><span className={styles.legendIcon}><WeatherMarker type={WeatherEventType.ALAGAMENTO} riskLevel={RiskLevel.ALTO} /></span> Evento climático</li>
+            <li><span className={styles.legendIcon}><IncidentMarker type={IncidentType.VIA_BLOQUEADA} effect={IncidentEffect.BLOQUEIO} /></span> Bloqueio (rota desvia)</li>
+            <li><span className={styles.legendIcon}><IncidentMarker type={IncidentType.ALAGAMENTO} effect={IncidentEffect.RISCO} /></span> Risco na via</li>
             {hasRoute && <li><span className={styles.legendIcon}><span className={styles.legendRoute} style={{ background: ROUTE_COLORS[theme].line, boxShadow: `0 0 0 2px ${ROUTE_COLORS[theme].casing}` }} /></span> Rota selecionada</li>}
           </ul>
         )}

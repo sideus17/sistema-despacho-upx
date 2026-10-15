@@ -1,8 +1,9 @@
 import type { CSSProperties } from 'react';
-import { AmbulanceStatus, CallPriority, RiskLevel, WeatherEventType } from '../types';
+import { AmbulanceStatus, CallPriority, IncidentEffect, IncidentType } from '../types';
 import { PRIORITY_META } from '../utils/calls';
 import { AmbulanceMarkerIcon, EmergencyIcon, HospitalIcon } from '../ui/icons';
-import { WeatherEventIcon } from '../ui/WeatherEventIcon';
+import { IncidentIcon } from '../ui/IncidentIcon';
+import { EFFECT_META } from './incidents';
 import styles from './Markers.module.css';
 
 const AMBULANCE_COLOR: Record<AmbulanceStatus, string> = {
@@ -13,13 +14,6 @@ const AMBULANCE_COLOR: Record<AmbulanceStatus, string> = {
 
 // Cinza: viatura sem motorista em turno (fora de serviço)
 const OFF_DUTY_COLOR = '#9ca3af';
-
-export const RISK_COLOR: Record<RiskLevel, string> = {
-  [RiskLevel.CRITICO]: '#dc2626',
-  [RiskLevel.ALTO]: '#f59e0b',
-  [RiskLevel.MEDIO]: '#eab308',
-  [RiskLevel.BAIXO]: '#3b82f6'
-};
 
 export function AmbulanceMarker({ status, hasDriver = true }: { status: AmbulanceStatus; hasDriver?: boolean }) {
   const color = hasDriver ? AMBULANCE_COLOR[status] ?? OFF_DUTY_COLOR : OFF_DUTY_COLOR;
@@ -67,10 +61,13 @@ export function BaseMarker() {
   );
 }
 
-export function WeatherMarker({ type, riskLevel }: { type: WeatherEventType; riskLevel: RiskLevel }) {
+export function IncidentMarker({ type, effect }: { type: IncidentType; effect: IncidentEffect }) {
   return (
-    <div className={styles.weather} style={{ background: RISK_COLOR[riskLevel] ?? RISK_COLOR[RiskLevel.BAIXO] }}>
-      <WeatherEventIcon type={type} />
+    <div
+      className={`${styles.incident} ${effect === IncidentEffect.BLOQUEIO ? styles.incidentBlock : ''}`}
+      style={{ background: EFFECT_META[effect]?.color }}
+    >
+      <IncidentIcon type={type} />
     </div>
   );
 }

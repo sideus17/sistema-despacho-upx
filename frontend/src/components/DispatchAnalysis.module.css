@@ -251,6 +251,10 @@
   font-size: 13px;
 }
 
+.routeNotes:not(:empty) {
+  margin: -4px 0 12px;
+}
+
 .routePending {
   margin-bottom: 12px;
   padding: 10px;

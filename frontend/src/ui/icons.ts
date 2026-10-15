@@ -25,7 +25,6 @@ export { default as LocationIcon } from '~icons/material-symbols/location-on-rou
 export { default as DistanceIcon } from '~icons/material-symbols/straighten-rounded';
 export { default as TimerIcon } from '~icons/material-symbols/timer-rounded';
 export { default as ScheduleIcon } from '~icons/material-symbols/schedule-rounded';
-export { default as TrafficIcon } from '~icons/material-symbols/traffic-rounded';
 export { default as DetourIcon } from '~icons/material-symbols/alt-route-rounded';
 export { default as StarIcon } from '~icons/material-symbols/star-rounded';
 export { default as CheckCircleIcon } from '~icons/material-symbols/check-circle-rounded';
@@ -35,11 +34,16 @@ export { default as BellIcon } from '~icons/material-symbols/notifications-activ
 export { default as EmergencyIcon } from '~icons/material-symbols/e911-emergency-rounded';
 export { default as InfoIcon } from '~icons/material-symbols/info-rounded';
 
-// Eventos climáticos
+// Ocorrências na rota
 export { default as FloodIcon } from '~icons/material-symbols/flood-rounded';
 export { default as TreeIcon } from '~icons/material-symbols/forest-rounded';
+export { default as RoadBlockIcon } from '~icons/material-symbols/remove-road-rounded';
 export { default as WindIcon } from '~icons/material-symbols/air-rounded';
+export { default as HeavyRainIcon } from '~icons/material-symbols/rainy-heavy-rounded';
 export { default as CarCrashIcon } from '~icons/material-symbols/car-crash-rounded';
+export { default as OfficialAlertIcon } from '~icons/material-symbols/campaign-rounded';
+export { default as AddLocationIcon } from '~icons/material-symbols/add-location-alt-rounded';
+export { default as ReportIcon } from '~icons/material-symbols/report-rounded';
 
 // Marcadores do mapa (Healthicons) e legenda
 export { default as AmbulanceMarkerIcon } from '~icons/healthicons/ambulance';

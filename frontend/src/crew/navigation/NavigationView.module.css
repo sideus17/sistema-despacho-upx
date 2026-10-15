@@ -15,12 +15,19 @@
   bottom: calc(env(safe-area-inset-bottom) + 150px);
 }
 
-/* Faixa de instrução */
-.banner {
+/* Topo: instrução e avisos */
+.top {
   position: absolute;
   top: calc(env(safe-area-inset-top) + 10px);
   left: 10px;
   right: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Faixa de instrução */
+.banner {
   display: flex;
   align-items: center;
   gap: 14px;
@@ -58,10 +65,6 @@
 }
 
 .notice {
-  position: absolute;
-  top: calc(env(safe-area-inset-top) + 96px);
-  left: 10px;
-  right: 10px;
   padding: 10px 14px;
   border-radius: 10px;
   background: #fef3c7;
@@ -241,4 +244,77 @@
   display: block;
   width: 100%;
   height: 100%;
+}
+
+/* Aviso de ocorrência à frente, logo abaixo da instrução */
+.incidentAlert {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-left: 6px solid var(--alert-color);
+  border-radius: 12px;
+  background: white;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+}
+
+.incidentAlertIcon {
+  display: grid;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--alert-color);
+  color: white;
+  font-size: 22px;
+}
+
+.incidentAlertIcon :global(.icon) {
+  vertical-align: 0;
+}
+
+.incidentAlert p {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.incidentAlert strong {
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.incidentAlert span {
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+/* Relatar ocorrência: alvo grande, longe dos botões do painel e acima dos créditos do mapa */
+.report {
+  position: absolute;
+  left: 12px;
+  bottom: calc(env(safe-area-inset-bottom) + 200px);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 52px;
+  padding: 0 18px;
+  border: none;
+  border-radius: 999px;
+  background: #ea580c;
+  color: white;
+  font-size: 16px;
+  font-weight: 800;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+}
+
+.screen[data-theme='night'] .incidentAlert {
+  background: #1f2937;
+  color: #e5e7eb;
+}
+
+.screen[data-theme='night'] .incidentAlert span {
+  color: #9ca3af;
 }

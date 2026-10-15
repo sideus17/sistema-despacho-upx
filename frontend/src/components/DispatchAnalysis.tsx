@@ -4,7 +4,8 @@ import { formatDistance, formatDuration, getTimeAgo } from '../services/api';
 import { PRIORITY_META } from '../utils/calls';
 import { PriorityLabel } from '../ui/PriorityLabel';
 import { AmbulanceTypeIcon } from '../ui/AmbulanceTypeIcon';
-import { AnalyticsIcon, BackIcon, CheckCircleIcon, DistanceIcon, LocationIcon, PersonIcon, StarIcon, TimerIcon, TrafficIcon } from '../ui/icons';
+import RouteNotes from './RouteNotes';
+import { AnalyticsIcon, BackIcon, CheckCircleIcon, DistanceIcon, LocationIcon, PersonIcon, StarIcon, TimerIcon } from '../ui/icons';
 import styles from './DispatchAnalysis.module.css';
 
 interface DispatchAnalysisProps {
@@ -99,7 +100,7 @@ export default function DispatchAnalysis({
       {!loading && recommendation && (
         <>
           <p className={styles.algorithm}>
-            Score: distância 40% · disponibilidade 30% · tipo 20% · clima 10%
+            Score: distância 40% · disponibilidade 30% · tipo 20% · ocorrências 10%
           </p>
 
           <div className={styles.options}>
@@ -143,17 +144,19 @@ export default function DispatchAnalysis({
                     <div><dt>Disponibilidade</dt><dd>{rec.availabilityScore}/100</dd></div>
                     <div><dt>Tipo</dt><dd>{rec.typeScore}/100</dd></div>
                     <div>
-                      <dt>Clima</dt>
-                      <dd className={rec.weatherPenalty < 0 ? styles.negative : ''}>{rec.weatherPenalty}</dd>
+                      <dt>Ocorrências</dt>
+                      <dd className={rec.incidentPenalty < 0 ? styles.negative : ''}>{rec.incidentPenalty}</dd>
                     </div>
                   </dl>
 
                   {rec.route ? (
-                    <div className={styles.route}>
-                      <span><DistanceIcon /> <strong>{formatDistance(rec.route.distance)}</strong></span>
-                      <span><TimerIcon /> <strong>{formatDuration(rec.route.duration)}</strong></span>
-                      <span><TrafficIcon /> Risco: <strong>{rec.route.riskLevel}</strong></span>
-                    </div>
+                    <>
+                      <div className={styles.route}>
+                        <span><DistanceIcon /> <strong>{formatDistance(rec.route.distance)}</strong></span>
+                        <span><TimerIcon /> <strong>{formatDuration(rec.route.duration)}</strong></span>
+                      </div>
+                      <div className={styles.routeNotes}><RouteNotes route={rec.route} /></div>
+                    </>
                   ) : (
                     <div className={styles.routePending}>
                       {routeLoadingId === rec.ambulanceId ? 'Calculando rota…' : 'Toque para ver a rota no mapa'}

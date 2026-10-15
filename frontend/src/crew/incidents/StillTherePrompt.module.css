@@ -1,0 +1,104 @@
+/* Acima do painel da navegação */
+.prompt {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: calc(env(safe-area-inset-bottom) + 150px);
+  z-index: 3;
+  overflow: hidden;
+  padding: 14px 14px 18px;
+  border-radius: 16px;
+  background: white;
+  color: var(--color-text);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.icon {
+  display: grid;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border-radius: 50%;
+  background: #f59e0b;
+  color: white;
+  font-size: 24px;
+}
+
+.icon .icon {
+  vertical-align: 0;
+}
+
+.question {
+  font-size: 19px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.source {
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.answers {
+  display: flex;
+  gap: 10px;
+}
+
+/* Alvos grandes (72 px): a resposta não pode exigir mira */
+.yes,
+.no {
+  flex: 1;
+  min-height: 72px;
+  border: none;
+  border-radius: 14px;
+  color: white;
+  font-size: 22px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.yes {
+  background: #dc2626;
+}
+
+.no {
+  background: #16a34a;
+}
+
+/* Barra do tempo restante */
+.timer {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 5px;
+  width: 100%;
+  background: #f59e0b;
+  transform-origin: left;
+  animation: countdown linear forwards;
+}
+
+@keyframes countdown {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+:global([data-theme='night']) .prompt {
+  background: #1f2937;
+  color: #e5e7eb;
+}
+
+:global([data-theme='night']) .source {
+  color: #9ca3af;
+}

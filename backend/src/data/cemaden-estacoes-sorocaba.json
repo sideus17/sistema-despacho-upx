@@ -1,0 +1,62 @@
+{
+ "source": "CEMADEN/MCTI",
+ "fetchedAt": "2026-10-10T01:26:21.512Z",
+ "stations": [
+  {
+   "code": "355220503A",
+   "name": "Cerrado",
+   "kind": "Pluviométrica",
+   "lat": -23.508,
+   "lng": -47.486
+  },
+  {
+   "code": "355220504A",
+   "name": "Brigadeiro Tobias",
+   "kind": "Pluviométrica",
+   "lat": -23.51027,
+   "lng": -47.36154
+  },
+  {
+   "code": "355220505A",
+   "name": "Morros",
+   "kind": "Pluviométrica",
+   "lat": -23.51807,
+   "lng": -47.41729
+  },
+  {
+   "code": "355220506A",
+   "name": "Éden",
+   "kind": "Pluviométrica",
+   "lat": -23.424,
+   "lng": -47.408
+  },
+  {
+   "code": "355220508A",
+   "name": "Retiro São João",
+   "kind": "Pluviométrica",
+   "lat": -23.4553,
+   "lng": -47.4428
+  },
+  {
+   "code": "355220509A",
+   "name": "Aparecidinha",
+   "kind": "Pluviométrica",
+   "lat": -23.42682,
+   "lng": -47.36295
+  },
+  {
+   "code": "355220510A",
+   "name": "Jardim Saira",
+   "kind": "Pluviométrica",
+   "lat": -23.478,
+   "lng": -47.422
+  },
+  {
+   "code": "355220514H",
+   "name": "Rio Una",
+   "kind": "Hidrológica",
+   "lat": -23.5015,
+   "lng": -47.4519
+  }
+ ]
+}

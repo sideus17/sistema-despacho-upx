@@ -24,18 +24,34 @@ export enum CallStatus {
   CANCELADO = 'CANCELADO'
 }
 
-export enum WeatherEventType {
+export enum IncidentType {
   ALAGAMENTO = 'ALAGAMENTO',
   QUEDA_ARVORE = 'QUEDA_ARVORE',
+  VIA_BLOQUEADA = 'VIA_BLOQUEADA',
+  ACIDENTE = 'ACIDENTE',
   VENTOS_FORTES = 'VENTOS_FORTES',
-  ACIDENTE = 'ACIDENTE'
+  CHUVA_FORTE = 'CHUVA_FORTE',
+  ALERTA_OFICIAL = 'ALERTA_OFICIAL'
 }
 
-export enum RiskLevel {
-  BAIXO = 'BAIXO',
-  MEDIO = 'MEDIO',
-  ALTO = 'ALTO',
-  CRITICO = 'CRITICO'
+export enum IncidentSource {
+  CENTRAL = 'CENTRAL',
+  EQUIPE = 'EQUIPE',
+  CEMADEN = 'CEMADEN',
+  DEFESA_CIVIL = 'DEFESA_CIVIL'
+}
+
+// O que a ocorrência faz com a rota
+export enum IncidentEffect {
+  BLOQUEIO = 'BLOQUEIO', // a rota desvia
+  RISCO = 'RISCO', // a rota evita se houver alternativa razoável
+  AVISO = 'AVISO' // só informa
+}
+
+export enum IncidentVote {
+  SIM = 'SIM', // ainda está lá
+  NAO = 'NAO', // não está mais lá
+  PASSOU = 'PASSOU' // viatura passou pelo local normalmente
 }
 
 export enum UserRole {
@@ -89,25 +105,48 @@ export interface Base {
   capacity: number;
 }
 
-export interface WeatherEvent {
+export interface Incident {
   id: string;
-  type: WeatherEventType;
+  type: IncidentType;
+  source: IncidentSource;
+  effect: IncidentEffect;
   location: Coordinates;
-  radius: number; // meters
-  riskLevel: RiskLevel;
-  description: string;
-  startTime: string;
-  estimatedEndTime?: string;
+  radius: number; // metros
+  description: string | null;
+  createdAt: string;
+  expiresAt: string | null; // null: até a central encerrar
+  lastConfirmedAt: string | null;
+  createdBy: { id: string; name: string } | null;
+  ambulance: { id: string; code: string } | null; // viatura que relatou
+  geometry: unknown | null; // polígono GeoJSON, só para exibir
+  votes: { yes: number; no: number }; // "não está lá" contados desde a última confirmação
+  myVote: IncidentVote | null;
 }
+
+// Ocorrência no caminho de uma rota (ou evitada por ela)
+export interface RouteIncident {
+  id: string;
+  type: IncidentType;
+  source: IncidentSource;
+  effect: IncidentEffect;
+  location: Coordinates;
+  radius: number; // metros
+  ambulance: { id: string; code: string } | null; // viatura que relatou
+  distanceAlong?: number; // metros do início da rota até a área (só nas que a rota atravessa)
+}
+
+export type RouteEngine = 'valhalla' | 'osrm' | 'linha-reta';
 
 export interface RouteInfo {
   distance: number; // meters
   duration: number; // seconds
   geometry: Coordinates[];
   steps: RouteStep[];
-  waypoints: Coordinates[]; // pontos de passagem forçados (ex.: desvio de área de risco)
-  riskLevel: RiskLevel;
-  weatherEvents: WeatherEvent[];
+  waypoints: Coordinates[]; // pontos da própria rota perto dos desvios (o link do Google Maps passa por eles)
+  engine: RouteEngine;
+  incidentsOnRoute: RouteIncident[]; // a rota atravessa (aviso, risco aceito ou bloqueio sem alternativa)
+  avoided: RouteIncident[]; // a rota desviou
+  warnings: string[];
 }
 
 // Manobra no formato do OSRM; o texto em português é montado no app
@@ -127,7 +166,7 @@ export interface DispatchScore {
   distanceScore: number;
   availabilityScore: number;
   typeScore: number;
-  weatherPenalty: number;
+  incidentPenalty: number;
   route?: RouteInfo;
   explanation: string;
 }
@@ -157,7 +196,7 @@ export interface Stats {
   totalAmbulances: number;
   availableAmbulances: number;
   pendingCalls: number;
-  activeWeatherEvents: number;
+  activeIncidents: number;
   averageResponseTime?: number;
 }
 

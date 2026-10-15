@@ -3,6 +3,16 @@ import { Router, Request, Response } from 'express';
 import { analyzeDispatch } from '../services/dispatchService';
 import { calculateRoute } from '../services/routingService';
 import { geocodeAddress } from '../services/geocodingService';
+import {
+  IncidentError,
+  closeIncident,
+  countActiveIncidents,
+  createIncident,
+  listActiveIncidents,
+  registerPassage,
+  voteIncident
+} from '../services/incidentService';
+import { officialStatus, triggerOfficialRefresh } from '../services/official/refresh';
 import { requireAuth, requireRole } from '../middleware/auth';
 import {
   AmbulanceStatus,
@@ -17,6 +27,12 @@ const router = Router();
 
 const fail = (res: Response, status: number, error: string) =>
   res.status(status).json({ success: false, error, timestamp: new Date().toISOString() });
+
+const failIncident = (res: Response, error: unknown, fallback: string) => {
+  if (error instanceof IncidentError) return fail(res, error.status, error.message);
+  console.error(`${fallback}:`, error);
+  return fail(res, 500, fallback);
+};
 
 // ============================================
 // HEALTH CHECK
@@ -200,7 +216,7 @@ router.patch('/ambulances/:id/status', requireRole(UserRole.MOTORISTA), async (r
 
 // GPS enviado pelo app da viatura durante a navegação
 router.patch('/ambulances/:id/location', requireRole(UserRole.MOTORISTA), async (req: Request, res: Response) => {
-  const { lat, lng } = req.body;
+  const { lat, lng, speed } = req.body;
 
   if (typeof lat !== 'number' || typeof lng !== 'number') {
     return res.status(400).json({ success: false, error: 'Invalid coordinates', timestamp: new Date().toISOString() });
@@ -219,6 +235,10 @@ router.patch('/ambulances/:id/location', requireRole(UserRole.MOTORISTA), async 
   if (!data || data.length === 0) return fail(res, 403, 'Esta viatura não está no seu turno.');
 
   res.json({ success: true, data: { message: 'Location updated successfully' }, timestamp: new Date().toISOString() });
+
+  // Depois de responder: passar normalmente por um relato de equipe ajuda a tirá-lo do mapa
+  registerPassage(req.user!, req.params.id, { lat, lng }, typeof speed === 'number' ? speed : null)
+    .catch(error => console.warn('Falha ao registrar passagem por ocorrência:', error));
 });
 
 // ============================================
@@ -390,32 +410,54 @@ router.get('/bases', async (req: Request, res: Response) => {
 
 
 // ============================================
-// WEATHER EVENTS
+// OCORRÊNCIAS (central, equipes e fontes oficiais)
 // ============================================
 
-router.get('/weather/events', async (req: Request, res: Response) => {
-  const { data, error } = await supabase.from('weather_events').select('*');
-
-  if (error) {
-    return res.status(500).json({ success: false, error: error.message, timestamp: new Date().toISOString() });
+router.get('/incidents', async (req: Request, res: Response) => {
+  try {
+    // Sistema em uso: aproveita para atualizar CEMADEN e Defesa Civil (em segundo plano)
+    triggerOfficialRefresh();
+    const incidents = await listActiveIncidents(req.user!.id);
+    res.json({ success: true, data: incidents, timestamp: new Date().toISOString() });
+  } catch (error) {
+    failIncident(res, error, 'Erro ao buscar ocorrências.');
   }
+});
 
-  const formattedEvents = data.map(event => ({
-    id: event.id,
-    type: event.type,
-    location: { lat: event.lat, lng: event.lng },
-    radius: event.radius,
-    riskLevel: event.risk_level,
-    description: event.description,
-    startTime: event.start_time,
-    estimatedEndTime: event.estimated_end_time
-  }));
+// Central marca no mapa; a equipe relata onde está (o relato repetido confirma o anterior)
+router.post('/incidents', requireRole(UserRole.OPERADOR, UserRole.MOTORISTA), async (req: Request, res: Response) => {
+  try {
+    const result = await createIncident(req.user!, req.body ?? {});
+    res.status(result.created ? 201 : 200).json({ success: true, data: result, timestamp: new Date().toISOString() });
+  } catch (error) {
+    failIncident(res, error, 'Erro ao registrar a ocorrência.');
+  }
+});
 
-  res.json({
-    success: true,
-    data: formattedEvents,
-    timestamp: new Date().toISOString()
-  });
+router.post('/incidents/:id/close', requireRole(UserRole.OPERADOR), async (req: Request, res: Response) => {
+  try {
+    await closeIncident(req.user!, req.params.id);
+    res.json({ success: true, data: { id: req.params.id }, timestamp: new Date().toISOString() });
+  } catch (error) {
+    failIncident(res, error, 'Erro ao encerrar a ocorrência.');
+  }
+});
+
+// Quando cada fonte oficial foi lida pela última vez e se deu erro
+router.get('/official/status', requireRole(UserRole.OPERADOR), (req: Request, res: Response) => {
+  res.json({ success: true, data: officialStatus(), timestamp: new Date().toISOString() });
+});
+
+// "Ainda está lá?" das equipes; a central usa só o SIM, para confirmar o bloqueio de um relato
+router.post('/incidents/:id/vote', requireRole(UserRole.OPERADOR, UserRole.MOTORISTA), async (req: Request, res: Response) => {
+  try {
+    const { vote } = req.body ?? {};
+    if (vote !== 'SIM' && vote !== 'NAO') return fail(res, 400, 'Resposta inválida.');
+    const result = await voteIncident(req.user!, req.params.id, vote);
+    res.json({ success: true, data: result, timestamp: new Date().toISOString() });
+  } catch (error) {
+    failIncident(res, error, 'Erro ao registrar a resposta.');
+  }
 });
 
 
@@ -612,10 +654,10 @@ router.post('/routes/calculate', async (req: Request, res: Response) => {
 router.get('/stats', requireRole(UserRole.OPERADOR), async (req: Request, res: Response) => {
   try {
     // Para simplificar, buscamos todos os dados para contar
-    const [ambRes, callsRes, weatherRes] = await Promise.all([
+    const [ambRes, callsRes, activeIncidents] = await Promise.all([
       supabase.from('ambulances').select('id, status, driver_id'),
       supabase.from('calls').select('id, status'),
-      supabase.from('weather_events').select('id')
+      countActiveIncidents()
     ]);
 
     const stats: Stats = {
@@ -623,7 +665,7 @@ router.get('/stats', requireRole(UserRole.OPERADOR), async (req: Request, res: R
       // Disponível de verdade = livre e com motorista em turno para receber o chamado
       availableAmbulances: ambRes.data?.filter(a => a.status === 'DISPONIVEL' && a.driver_id).length || 0,
       pendingCalls: callsRes.data?.filter(c => c.status === 'PENDENTE').length || 0,
-      activeWeatherEvents: weatherRes.data?.length || 0
+      activeIncidents
     };
 
     res.json({ success: true, data: stats, timestamp: new Date().toISOString() });

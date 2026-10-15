@@ -3,23 +3,43 @@ import { createPortal } from 'react-dom';
 import { Map as MapLibreMap, Marker, GeoJSONSource } from 'maplibre-gl';
 import type { LayerSpecification, StyleSpecification } from 'maplibre-gl';
 import '../../map/maplibre';
-import { Ambulance, Coordinates, EmergencyCall, RouteInfo } from '../../types';
-import { calculateRoute, getErrorMessage, updateAmbulanceLocation } from '../../services/api';
+import { Ambulance, Coordinates, EmergencyCall, Incident, RouteInfo } from '../../types';
+import { calculateRoute, getErrorMessage, updateAmbulanceLocation, voteIncident } from '../../services/api';
 import { useToast } from '../../components/Toast';
+import { useAuth } from '../../auth/AuthContext';
 import { useGeolocation, useSimulatedGeolocation } from './useGeolocation';
 import { useNavigation } from './useNavigation';
 import { formatNavDistance, maneuverIcon, maneuverText, spokenInstruction } from './instructions';
 import { googleMapsUrl } from './mapsLink';
 import { useMapStyle } from '../../map/useMapStyle';
+import { DATA_ATTRIBUTION } from '../../map/attribution';
 import { setThemePreference, useMapTheme } from '../../map/useMapTheme';
 import { nextThemePreference, THEME_OPTIONS } from '../../map/ThemeSwitch';
 import { MapTheme, ROUTE_COLORS } from '../../map/mapStyle';
 import { lineFeature, toLngLat } from '../../map/geojson';
 import { CallMarker } from '../../map/Markers';
-import { ArrivalIcon, CheckCircleIcon, DetourIcon, MyLocationIcon, VolumeOffIcon, VolumeOnIcon } from '../../ui/icons';
+import {
+  DASHED_OUTLINE_FILTER,
+  EFFECT_META,
+  INCIDENT_FILL,
+  INCIDENT_LABEL,
+  INCIDENT_OUTLINE,
+  INCIDENT_OUTLINE_DASHED,
+  SOLID_OUTLINE_FILTER,
+  incidentAreas,
+  sourceLabel
+} from '../../map/incidents';
+import { IncidentIcon } from '../../ui/IncidentIcon';
+import { ArrivalIcon, CheckCircleIcon, DetourIcon, MyLocationIcon, ReportIcon, VolumeOffIcon, VolumeOnIcon } from '../../ui/icons';
+import ReportSheet from '../incidents/ReportSheet';
+import StillTherePrompt from '../incidents/StillTherePrompt';
+import { useIncidentAlerts } from '../incidents/useIncidentAlerts';
+import { formatNavDistance as formatAlertDistance } from './instructions';
 import styles from './NavigationView.module.css';
 
 const REROUTE_INTERVAL_MS = 15000;
+// Bloqueio novo à frente: recalcula logo (o intervalo só evita repetir enquanto a rota nova chega)
+const BLOCK_REROUTE_INTERVAL_MS = 5000;
 const LOCATION_SYNC_MS = 10000;
 const VOICE_KEY = 'samu:voz';
 
@@ -28,6 +48,13 @@ const VEHICLE_SVG =
 
 // O mapa nasce vazio e recebe o estilo SAMU assim que ele carrega
 const EMPTY_STYLE: StyleSpecification = { version: 8, sources: {}, layers: [] };
+
+// Áreas das ocorrências, por baixo da rota
+const INCIDENT_LAYERS: LayerSpecification[] = [
+  { id: 'incident-fill', type: 'fill', source: 'incidents', paint: INCIDENT_FILL },
+  { id: 'incident-outline', type: 'line', source: 'incidents', filter: SOLID_OUTLINE_FILTER, paint: INCIDENT_OUTLINE },
+  { id: 'incident-outline-dashed', type: 'line', source: 'incidents', filter: DASHED_OUTLINE_FILTER, paint: INCIDENT_OUTLINE_DASHED }
+];
 
 function routeLayers(theme: MapTheme): LayerSpecification[] {
   const layout = { 'line-join': 'round', 'line-cap': 'round' } as const;
@@ -49,13 +76,26 @@ interface NavigationViewProps {
   ambulance: Ambulance;
   call: EmergencyCall;
   initialRoute: RouteInfo;
+  incidents: Incident[];
   simulate: boolean;
   onExit: () => void;
   onFinish: () => Promise<void>;
+  onIncidentsChange: () => void; // relato ou resposta enviada: atualiza a lista
 }
 
-export default function NavigationView({ ambulance, call, initialRoute, simulate, onExit, onFinish }: NavigationViewProps) {
+export default function NavigationView({
+  ambulance,
+  call,
+  initialRoute,
+  incidents,
+  simulate,
+  onExit,
+  onFinish,
+  onIncidentsChange
+}: NavigationViewProps) {
+  const { me } = useAuth();
   const [route, setRoute] = useState(initialRoute);
+  const [reporting, setReporting] = useState(false);
   const [rerouting, setRerouting] = useState(false);
   const [following, setFollowing] = useState(true);
   const [voiceOn, setVoiceOn] = useState(readVoicePreference);
@@ -75,6 +115,8 @@ export default function NavigationView({ ambulance, call, initialRoute, simulate
   const mapRef = useRef<MapLibreMap | null>(null);
   const vehicleRef = useRef<Marker | null>(null);
   const routeLineRef = useRef<Coordinates[]>(initialRoute.geometry);
+  const incidentsRef = useRef(incidents);
+  incidentsRef.current = incidents;
   const lastReroute = useRef(0);
   const announced = useRef(new Set<string>());
   const voiceRef = useRef(voiceOn);
@@ -84,13 +126,15 @@ export default function NavigationView({ ambulance, call, initialRoute, simulate
 
   const heading = fix && fix.heading !== null && (fix.speed ?? 0) > 2 ? fix.heading : nav.routeBearing;
 
-  const speak = useCallback((text: string) => {
+  // `interrupt`: instruções de manobra cortam a fala anterior; avisos entram na fila, sem cortar
+  const speak = useCallback((text: string, interrupt = true) => {
     if (!voiceRef.current || !('speechSynthesis' in window)) return;
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'pt-BR';
-    window.speechSynthesis.cancel();
+    if (interrupt) window.speechSynthesis.cancel();
     window.speechSynthesis.speak(utterance);
   }, []);
+  const speakQueued = useCallback((text: string) => speak(text, false), [speak]);
 
   // Cria o mapa uma vez
   useEffect(() => {
@@ -104,7 +148,7 @@ export default function NavigationView({ ambulance, call, initialRoute, simulate
       zoom: 17,
       pitch: 50,
       bearing: nav.routeBearing,
-      attributionControl: { compact: true }
+      attributionControl: { compact: true, customAttribution: DATA_ATTRIBUTION }
     });
     mapRef.current = map;
 
@@ -137,11 +181,20 @@ export default function NavigationView({ ambulance, call, initialRoute, simulate
     map.setStyle(mapStyle, {
       transformStyle: (_previous, next) => ({
         ...next,
-        sources: { ...next.sources, route: { type: 'geojson', data: lineFeature(routeLineRef.current) } },
-        layers: [...next.layers, ...routeLayers(theme)]
+        sources: {
+          ...next.sources,
+          incidents: { type: 'geojson', data: incidentAreas(incidentsRef.current) },
+          route: { type: 'geojson', data: lineFeature(routeLineRef.current) }
+        },
+        layers: [...next.layers, ...INCIDENT_LAYERS, ...routeLayers(theme)]
       })
     });
   }, [mapStyle, theme]);
+
+  // Ocorrências novas ou encerradas aparecem sem recarregar o estilo
+  useEffect(() => {
+    (mapRef.current?.getSource('incidents') as GeoJSONSource | undefined)?.setData(incidentAreas(incidents));
+  }, [incidents]);
 
   // A cada leitura: move o carro, apaga o trecho percorrido e gira o mapa na direção do movimento
   useEffect(() => {
@@ -165,14 +218,14 @@ export default function NavigationView({ ambulance, call, initialRoute, simulate
     }
   }, [nav.position, nav.remaining, heading, following]);
 
-  // Saiu da rota: recalcula a partir de onde o carro está (o backend reaplica o desvio de risco)
-  useEffect(() => {
+  // Recalcula a partir de onde o carro está (o backend desvia das ocorrências ativas)
+  const reroute = useCallback((message: string, minInterval: number) => {
     const current = fixRef.current;
-    if (!nav.offRoute || rerouting || !current || Date.now() - lastReroute.current < REROUTE_INTERVAL_MS) return;
+    if (rerouting || !current || Date.now() - lastReroute.current < minInterval) return;
 
     lastReroute.current = Date.now();
     setRerouting(true);
-    speak('Recalculando rota');
+    speak(message);
 
     calculateRoute(current.position, call.location)
       .then(newRoute => {
@@ -181,7 +234,39 @@ export default function NavigationView({ ambulance, call, initialRoute, simulate
       })
       .catch(error => toast(getErrorMessage(error, 'Não foi possível recalcular a rota.'), 'error'))
       .finally(() => setRerouting(false));
-  }, [nav.offRoute, rerouting, call.location, speak, toast]);
+  }, [rerouting, call.location, speak, toast]);
+
+  const alerts = useIncidentAlerts({
+    incidents,
+    route,
+    remaining: nav.remaining,
+    position: fix?.position ?? null,
+    meId: me.id,
+    active: !!fix && !nav.arrived && !rerouting,
+    speak: speakQueued
+  });
+
+  // Saiu da rota
+  useEffect(() => {
+    if (nav.offRoute) reroute('Recalculando rota', REROUTE_INTERVAL_MS);
+  }, [nav.offRoute, reroute]);
+
+  // Bloqueio novo no caminho que falta
+  useEffect(() => {
+    if (alerts.blockedAhead && !nav.arrived) reroute('Via bloqueada à frente. Recalculando rota', BLOCK_REROUTE_INTERVAL_MS);
+  }, [alerts.blockedAhead, nav.arrived, reroute]);
+
+  const { prompt, closePrompt } = alerts;
+  const answerPrompt = useCallback((answer: 'SIM' | 'NAO' | null) => {
+    closePrompt();
+    if (!prompt || !answer) return;
+    voteIncident(prompt.id, answer)
+      .then(() => {
+        speak('Obrigado', false);
+        onIncidentsChange();
+      })
+      .catch(() => { /* sem sinal: a pergunta só não conta */ });
+  }, [prompt, closePrompt, speak, onIncidentsChange]);
 
   // Avisos por voz: ~300 m antes da manobra, na hora da manobra e na chegada
   const step = route.steps[nav.stepIndex];
@@ -239,7 +324,7 @@ export default function NavigationView({ ambulance, call, initialRoute, simulate
   useEffect(() => {
     const sync = () => {
       const current = fixRef.current;
-      if (current) updateAmbulanceLocation(ambulance.id, current.position).catch(() => {});
+      if (current) updateAmbulanceLocation(ambulance.id, current.position, current.speed).catch(() => {});
     };
     const timer = window.setInterval(sync, LOCATION_SYNC_MS);
     return () => {
@@ -284,30 +369,67 @@ export default function NavigationView({ ambulance, call, initialRoute, simulate
       <div ref={containerRef} className={styles.map} />
       {createPortal(<CallMarker priority={call.priority} />, destinationEl)}
 
-      <header className={`${styles.banner} ${rerouting ? styles.bannerWarning : ''}`} aria-live="polite">
-        {rerouting ? (
-          <p className={styles.bannerText}>Recalculando rota…</p>
-        ) : nav.arrived ? (
-          <>
-            <span className={styles.icon}><ArrivalIcon /></span>
-            <p className={styles.bannerText}>Você chegou ao destino</p>
-          </>
-        ) : step && StepIcon ? (
-          <>
-            <span className={styles.icon}><StepIcon /></span>
-            <div>
-              <p className={styles.distance}>{formatNavDistance(nav.distanceToManeuver)}</p>
-              <p className={styles.bannerText}>{maneuverText(step)}</p>
-            </div>
-          </>
-        ) : null}
-      </header>
+      {/* Instrução e, logo abaixo, avisos (empilhados: a instrução pode ter duas linhas) */}
+      <div className={styles.top}>
+        <header className={`${styles.banner} ${rerouting ? styles.bannerWarning : ''}`} aria-live="polite">
+          {rerouting ? (
+            <p className={styles.bannerText}>Recalculando rota…</p>
+          ) : nav.arrived ? (
+            <>
+              <span className={styles.icon}><ArrivalIcon /></span>
+              <p className={styles.bannerText}>Você chegou ao destino</p>
+            </>
+          ) : step && StepIcon ? (
+            <>
+              <span className={styles.icon}><StepIcon /></span>
+              <div>
+                <p className={styles.distance}>{formatNavDistance(nav.distanceToManeuver)}</p>
+                <p className={styles.bannerText}>{maneuverText(step)}</p>
+              </div>
+            </>
+          ) : null}
+        </header>
 
-      {!simulate && real.error ? (
-        <p className={styles.notice}>{real.error}</p>
-      ) : !fix ? (
-        <p className={styles.notice}>Obtendo sua localização…</p>
-      ) : null}
+        {!simulate && real.error ? (
+          <p className={styles.notice}>{real.error}</p>
+        ) : !fix ? (
+          <p className={styles.notice}>Obtendo sua localização…</p>
+        ) : alerts.alert ? (
+          <div
+            className={styles.incidentAlert}
+            style={{ '--alert-color': EFFECT_META[alerts.alert.incident.effect].color } as React.CSSProperties}
+            role="status"
+          >
+            <span className={styles.incidentAlertIcon}><IncidentIcon type={alerts.alert.incident.type} /></span>
+            <p>
+              <strong>
+                {INCIDENT_LABEL[alerts.alert.incident.type]}
+                {alerts.alert.distance !== null && ` em ${formatAlertDistance(alerts.alert.distance)}`}
+              </strong>
+              <span>
+                {alerts.alert.distance === null
+                  ? alerts.alert.incident.description ?? sourceLabel(alerts.alert.incident)
+                  : `${sourceLabel(alerts.alert.incident)} · ${EFFECT_META[alerts.alert.incident.effect].label.toLowerCase()}`}
+              </span>
+            </p>
+          </div>
+        ) : null}
+      </div>
+
+      {alerts.prompt && <StillTherePrompt incident={alerts.prompt} onAnswer={answerPrompt} />}
+
+      {!nav.arrived && !alerts.prompt && (
+        <button className={styles.report} onClick={() => setReporting(true)}><ReportIcon /> Reportar</button>
+      )}
+
+      {reporting && (
+        <ReportSheet
+          getPosition={async () => fixRef.current?.position ?? null}
+          onClose={() => setReporting(false)}
+          onReported={onIncidentsChange}
+          speak={speakQueued}
+        />
+      )}
 
       {!following && (
         <button className={styles.recenter} onClick={recenter}><MyLocationIcon /> Recentralizar</button>
