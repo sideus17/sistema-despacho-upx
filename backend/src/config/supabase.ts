@@ -15,6 +15,12 @@ export const supabase = createClient(supabaseUrl, serviceRoleKey, {
   auth: { persistSession: false, autoRefreshToken: false }
 });
 
+// Para o log de início: deixa claro se o servidor está gravando no banco local ou no de produção
+export function databaseLabel(): string {
+  const host = new URL(supabaseUrl).hostname;
+  return host === '127.0.0.1' || host === 'localhost' ? 'local (Supabase CLI)' : `PRODUÇÃO (${host})`;
+}
+
 // Cliente descartável para conferir a senha de alguém sem trocar a sessão do cliente acima
 export function createVerifierClient() {
   return createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } });
