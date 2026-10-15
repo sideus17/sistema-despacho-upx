@@ -15,7 +15,7 @@ import {
 } from '../types';
 import { supabase } from '../lib/supabase';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://sistema-despacho-upx.onrender.com/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://sistema-despacho-upx-xq9r.onrender.com/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
