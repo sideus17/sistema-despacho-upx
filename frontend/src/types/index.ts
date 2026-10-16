@@ -185,6 +185,13 @@ export interface RouteInfo {
   alternatives?: RouteInfo[]; // outros caminhos, só quando pedidos
 }
 
+// Trecho da rota com limite de velocidade conhecido (metros desde o início da rota)
+export interface SpeedLimitSegment {
+  from: number;
+  to: number;
+  kmh: number;
+}
+
 // Sugestão da busca de endereço (Photon, pelo backend)
 export interface PlaceSuggestion {
   label: string;

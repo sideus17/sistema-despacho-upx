@@ -45,3 +45,45 @@ export async function valhallaRoute(
     throw error;
   }
 }
+
+// Trecho da rota com limite de velocidade conhecido (metros desde o início da rota)
+export interface SpeedLimitSegment {
+  from: number;
+  to: number;
+  kmh: number;
+}
+
+/**
+ * Arestas do `trace_attributes` → trechos com limite, juntando vizinhos com o mesmo valor.
+ * Trecho sem limite no OpenStreetMap fica de fora (o app esconde a placa ali).
+ */
+export function speedLimitSegments(edges: { length?: number; speed_limit?: number | string | null }[]): SpeedLimitSegment[] {
+  const segments: SpeedLimitSegment[] = [];
+  let along = 0;
+  for (const edge of edges) {
+    const length = (edge.length ?? 0) * 1000; // km → m
+    const kmh = typeof edge.speed_limit === 'number' && edge.speed_limit > 0 ? edge.speed_limit : null;
+    const last = segments[segments.length - 1];
+    if (kmh !== null) {
+      if (last && last.kmh === kmh && Math.abs(last.to - along) < 1) last.to = along + length;
+      else segments.push({ from: along, to: along + length, kmh });
+    }
+    along += length;
+  }
+  return segments.map(segment => ({ ...segment, from: Math.round(segment.from), to: Math.round(segment.to) }));
+}
+
+// Limites de velocidade ao longo de uma rota (o OpenStreetMap tem limite em boa parte das vias de Sorocaba)
+export async function valhallaSpeedLimits(shape: Coordinates[]): Promise<SpeedLimitSegment[]> {
+  const response = await axios.post(
+    `${valhallaUrl()}/trace_attributes`,
+    {
+      shape: shape.map(point => ({ lat: point.lat, lon: point.lng })),
+      costing: 'auto',
+      shape_match: 'map_snap',
+      filters: { attributes: ['edge.length', 'edge.speed_limit'], action: 'include' }
+    },
+    { timeout: 10000, headers: { 'X-Client-Id': clientId() } }
+  );
+  return speedLimitSegments(response.data.edges ?? []);
+}

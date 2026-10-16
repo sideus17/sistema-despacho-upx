@@ -2,7 +2,7 @@ import { Coordinates, Incident, RouteEngine, RouteIncident, RouteInfo } from '..
 import { listActiveIncidents } from './incidentService';
 import { circleEntryAlong, cumulativeDistances, distanceMeters, exclusionRing, nearCorridor, projectOnLine } from './geo';
 import { EngineRoute, osrmRoute } from './osrm';
-import { maxExcludePerimeter, valhallaRoute } from './valhalla';
+import { SpeedLimitSegment, maxExcludePerimeter, valhallaRoute, valhallaSpeedLimits } from './valhalla';
 import { routeAvoiding } from './avoidance';
 import { triggerOfficialRefresh } from './official/refresh';
 
@@ -211,4 +211,41 @@ export function formatDistance(meters: number): string {
     return `${(meters / 1000).toFixed(1)}km`;
   }
   return `${Math.round(meters)}m`;
+}
+// ============================================
+// LIMITE DE VELOCIDADE
+// ============================================
+
+const LIMITS_TTL = 30 * 60_000;
+const LIMITS_MAX = 100;
+const LIMITS_MIN_SPACING = 15; // metros entre pontos enviados ao Valhalla (rota longa vira consulta enorme)
+const limitsCache = new Map<string, { expires: number; segments: Promise<SpeedLimitSegment[]> }>();
+
+// Pontos a pelo menos 15 m um do outro, sempre com o primeiro e o último
+export function thinLine(line: Coordinates[], spacing = LIMITS_MIN_SPACING): Coordinates[] {
+  if (line.length <= 2) return line;
+  const thinned = [line[0]];
+  for (let i = 1; i < line.length - 1; i++) {
+    if (distanceMeters(thinned[thinned.length - 1], line[i]) >= spacing) thinned.push(line[i]);
+  }
+  thinned.push(line[line.length - 1]);
+  return thinned;
+}
+
+export async function speedLimitsAlong(line: Coordinates[]): Promise<SpeedLimitSegment[]> {
+  const shape = thinLine(line);
+  const point = (c: Coordinates) => `${c.lat.toFixed(5)},${c.lng.toFixed(5)}`;
+  const key = `${shape.length}|${point(shape[0])}|${point(shape[Math.floor(shape.length / 2)])}|${point(shape[shape.length - 1])}`;
+
+  const cached = limitsCache.get(key);
+  if (cached && cached.expires > Date.now()) return cached.segments;
+
+  const segments = valhallaSpeedLimits(shape);
+  limitsCache.set(key, { expires: Date.now() + LIMITS_TTL, segments });
+  segments.catch(() => limitsCache.delete(key));
+  for (const [oldKey, old] of limitsCache) {
+    if (limitsCache.size <= LIMITS_MAX && old.expires > Date.now()) break;
+    limitsCache.delete(oldKey);
+  }
+  return segments;
 }

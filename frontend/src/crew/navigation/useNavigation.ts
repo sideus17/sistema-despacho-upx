@@ -12,6 +12,7 @@ export interface NavigationState {
   remaining: Coordinates[];
   distanceRemaining: number;
   durationRemaining: number;
+  travelled: number; // metros percorridos ao longo da rota (para achar o limite de velocidade do trecho)
   stepIndex: number; // próxima manobra
   distanceToManeuver: number;
   routeBearing: number;
@@ -42,6 +43,7 @@ export function useNavigation(route: RouteInfo, destination: Coordinates, fix: G
     remaining: line,
     distanceRemaining: route.distance,
     durationRemaining: route.duration,
+    travelled: 0,
     stepIndex: Math.min(1, route.steps.length - 1),
     distanceToManeuver: route.steps[0]?.distance ?? 0,
     routeBearing: line.length > 1 ? bearing(line[0], line[1]) : 0,
@@ -77,6 +79,7 @@ export function useNavigation(route: RouteInfo, destination: Coordinates, fix: G
       remaining: remainingLine(line, projection),
       distanceRemaining,
       durationRemaining: total > 0 ? (route.duration * distanceRemaining) / total : 0,
+      travelled,
       stepIndex,
       distanceToManeuver: Math.max(0, (stepAlong[stepIndex] ?? total) - travelled),
       routeBearing: bearing(line[segment], line[segment + 1] ?? line[segment]),

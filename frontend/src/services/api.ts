@@ -8,6 +8,7 @@ import {
   IncidentType,
   OfficialSourceStatus,
   PlaceSuggestion,
+  SpeedLimitSegment,
   DispatchRecommendation,
   RouteInfo,
   Stats,
@@ -266,6 +267,12 @@ export async function calculateRoute(
     ...(options.alternatives ? { alternatives: true } : {})
   });
   return response.data.data!;
+}
+
+// Limites de velocidade ao longo da rota (placa na navegação); sem dado, a placa não aparece
+export async function getSpeedLimits(geometry: Coordinates[]): Promise<SpeedLimitSegment[]> {
+  const response = await api.post<ApiResponse<SpeedLimitSegment[]>>('/routes/limits', { geometry });
+  return response.data.data ?? [];
 }
 
 // Autocompletar de endereços e locais da região de Sorocaba

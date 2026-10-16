@@ -1,7 +1,7 @@
 import { createVerifierClient, supabase } from '../config/supabase';
 import { Router, Request, Response } from 'express';
 import { analyzeDispatch } from '../services/dispatchService';
-import { calculateRoute } from '../services/routingService';
+import { calculateRoute, speedLimitsAlong } from '../services/routingService';
 import { geocodeAddress, reversePlace, searchPlaces } from '../services/geocodingService';
 import {
   IncidentError,
@@ -720,6 +720,21 @@ router.post('/routes/calculate', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Erro ao calcular rota:', error);
     fail(res, 500, 'Não foi possível calcular a rota.');
+  }
+});
+
+// Limites de velocidade ao longo da rota que a equipe está seguindo (placa na navegação)
+const MAX_LIMIT_POINTS = 5000;
+router.post('/routes/limits', async (req: Request, res: Response) => {
+  const raw: unknown = req.body?.geometry;
+  const line = Array.isArray(raw) && raw.length <= MAX_LIMIT_POINTS ? raw.map(parseCoordinates) : null;
+  if (!line || line.length < 2 || line.some(point => !point)) return fail(res, 400, 'Rota inválida.');
+
+  try {
+    res.json({ success: true, data: await speedLimitsAlong(line as Coordinates[]), timestamp: new Date().toISOString() });
+  } catch (error) {
+    console.warn('Limites de velocidade indisponíveis:', error instanceof Error ? error.message : error);
+    fail(res, 502, 'Limites de velocidade indisponíveis agora.');
   }
 });
 

@@ -17,6 +17,7 @@ import {
 import { usePolling } from '../hooks/usePolling';
 import { useToast } from '../components/Toast';
 import { PRIORITY_META, formatGender } from '../utils/calls';
+import { fastestIndex, routeOptions, routeVia } from '../utils/routes';
 import { PriorityLabel } from '../ui/PriorityLabel';
 import { AmbulanceTypeIcon } from '../ui/AmbulanceTypeIcon';
 import { BellIcon, CheckCircleIcon, DistanceIcon, NavigateIcon, ReportIcon, TimerIcon } from '../ui/icons';
@@ -108,6 +109,10 @@ export default function CrewApp() {
   const [connection, setConnection] = useState<'connecting' | 'online' | 'error'>('connecting');
   const [online, setOnline] = useState(() => navigator.onLine);
   const [route, setRoute] = useState<RouteInfo | null>(null);
+  // Rota escolhida entre a principal e as alternativas (a navegação começa por ela)
+  const [routeIndex, setRouteIndex] = useState(0);
+  const routeChoices = useMemo(() => routeOptions(route), [route]);
+  const chosenRoute = routeChoices[routeIndex] ?? route;
   const [confirmingFinish, setConfirmingFinish] = useState(false);
   const [busy, setBusy] = useState(false);
   const [isNewDispatch, setIsNewDispatch] = useState(false);
@@ -210,8 +215,12 @@ export default function CrewApp() {
     if (!activeCall || !ambulance || navigating) return;
 
     let cancelled = false;
-    calculateRoute(ambulance.location, activeCall.location)
-      .then(result => { if (!cancelled) setRoute(result); })
+    calculateRoute(ambulance.location, activeCall.location, { alternatives: true })
+      .then(result => {
+        if (cancelled) return;
+        setRoute(result);
+        setRouteIndex(0);
+      })
       .catch(() => { /* sem rota: o mapa mostra só os dois pontos */ });
 
     return () => { cancelled = true; };
@@ -378,13 +387,13 @@ export default function CrewApp() {
   const meta = activeCall ? PRIORITY_META[activeCall.priority] : undefined;
   const gender = activeCall ? formatGender(activeCall.patientInfo.gender) : null;
 
-  if (navigating && activeCall && route) {
+  if (navigating && activeCall && chosenRoute) {
     return (
       <Suspense fallback={<div className={styles.shell}><div className={styles.centered}><div className={styles.spinner} /></div></div>}>
         <NavigationView
           ambulance={ambulance}
           call={activeCall}
-          initialRoute={route}
+          initialRoute={chosenRoute}
           incidents={incidents}
           simulate={SIMULATE}
           onExit={() => setNavigating(false)}
@@ -435,36 +444,63 @@ export default function CrewApp() {
 
             <div className={styles.mapWrap}>
               <Suspense fallback={null}>
-                <CrewMap ambulance={ambulance} call={activeCall} route={route?.geometry} incidents={incidents} />
+                <CrewMap
+                  ambulance={ambulance}
+                  call={activeCall}
+                  routes={routeChoices.map(option => option.geometry)}
+                  selectedRoute={routeIndex}
+                  onSelectRoute={setRouteIndex}
+                  incidents={incidents}
+                />
               </Suspense>
               {reportButton}
             </div>
 
-            {route && (
+            {routeChoices.length > 1 ? (
+              // Como no Waze: escolhe o caminho antes de sair (no mapa, a escolhida fica azul)
+              <div className={styles.routeChoices} role="radiogroup" aria-label="Escolha a rota">
+                {routeChoices.map((option, index) => {
+                  const via = routeVia(option);
+                  return (
+                    <button
+                      key={index}
+                      role="radio"
+                      aria-checked={index === routeIndex}
+                      className={`${styles.routeChoice} ${index === routeIndex ? styles.routeChoiceSelected : ''}`}
+                      onClick={() => setRouteIndex(index)}
+                    >
+                      <strong>{formatDuration(option.duration)}</strong>
+                      <span>{formatDistance(option.distance)}{via && ` · via ${via}`}</span>
+                      {index === fastestIndex(routeChoices) && <em>Mais rápida</em>}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : chosenRoute && (
               <div className={styles.routeInfo}>
-                <span><DistanceIcon /> <strong>{formatDistance(route.distance)}</strong></span>
-                <span><TimerIcon /> <strong>{formatDuration(route.duration)}</strong></span>
+                <span><DistanceIcon /> <strong>{formatDistance(chosenRoute.distance)}</strong></span>
+                <span><TimerIcon /> <strong>{formatDuration(chosenRoute.duration)}</strong></span>
               </div>
             )}
-            {route && <RouteNotes route={route} />}
+            {chosenRoute && <RouteNotes route={chosenRoute} />}
           </main>
 
           <nav className={styles.actionBar}>
             <div className={styles.navRow}>
               <button
                 className={styles.navigate}
-                disabled={!route}
+                disabled={!chosenRoute}
                 onClick={() => {
                   setIsNewDispatch(false);
                   setNavigating(true);
                 }}
               >
-                {route ? <><NavigateIcon /> Iniciar navegação</> : 'Calculando rota…'}
+                {chosenRoute ? <><NavigateIcon /> Iniciar navegação</> : 'Calculando rota…'}
               </button>
-              {route && (
+              {chosenRoute && (
                 <a
                   className={styles.mapsLink}
-                  href={googleMapsUrl(ambulance.location, activeCall.location, route.geometry, route.waypoints)}
+                  href={googleMapsUrl(ambulance.location, activeCall.location, chosenRoute.geometry, chosenRoute.waypoints)}
                   target="_blank"
                   rel="noopener noreferrer"
                 >

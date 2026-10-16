@@ -3,12 +3,13 @@ import { createPortal } from 'react-dom';
 import { Map as MapLibreMap, Marker, GeoJSONSource } from 'maplibre-gl';
 import type { LayerSpecification, StyleSpecification } from 'maplibre-gl';
 import '../../map/maplibre';
-import { Ambulance, Coordinates, EmergencyCall, Incident, RouteInfo } from '../../types';
-import { calculateRoute, getErrorMessage, updateAmbulanceLocation, voteIncident } from '../../services/api';
+import { Ambulance, Coordinates, EmergencyCall, Incident, RouteInfo, SpeedLimitSegment } from '../../types';
+import { calculateRoute, getErrorMessage, getSpeedLimits, updateAmbulanceLocation, voteIncident } from '../../services/api';
 import { useToast } from '../../components/Toast';
 import { useAuth } from '../../auth/AuthContext';
 import { useGeolocation, useSimulatedGeolocation } from './useGeolocation';
 import { useNavigation } from './useNavigation';
+import { overLimit, speedLimitAt, toKmh } from './speed';
 import { formatNavDistance, maneuverIcon, maneuverText, spokenInstruction } from './instructions';
 import { googleMapsUrl } from './mapsLink';
 import { useMapStyle } from '../../map/useMapStyle';
@@ -110,6 +111,19 @@ export default function NavigationView({
   const fix = simulate ? sim.fix : real.fix;
   const nav = useNavigation(route, call.location, fix);
 
+  // Limites de velocidade da rota atual (início e cada recálculo); sem resposta, a placa não aparece
+  const [limits, setLimits] = useState<SpeedLimitSegment[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    setLimits([]);
+    getSpeedLimits(route.geometry)
+      .then(segments => { if (!cancelled) setLimits(segments); })
+      .catch(() => { /* sem limites: só o velocímetro */ });
+    return () => { cancelled = true; };
+  }, [route]);
+  const speedKmh = toKmh(fix?.speed);
+  const speedLimit = speedLimitAt(limits, nav.travelled);
+
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const vehicleRef = useRef<Marker | null>(null);
@@ -150,6 +164,10 @@ export default function NavigationView({
       attributionControl: { compact: true, customAttribution: DATA_ATTRIBUTION }
     });
     mapRef.current = map;
+    // Créditos abertos cobririam o velocímetro: começam recolhidos no "i" (um toque abre)
+    map.once('load', () => {
+      map.getContainer().querySelector('.maplibregl-ctrl-attrib')?.classList.remove('maplibregl-compact-show');
+    });
 
     // Mexer no mapa com o dedo desliga o "seguir o carro" (zoom não desliga)
     const stopFollowing = (event: { originalEvent?: unknown }) => {
@@ -419,6 +437,25 @@ export default function NavigationView({
 
       {!nav.arrived && !alerts.prompt && (
         <button className={styles.report} onClick={() => setReporting(true)}><ReportIcon /> Reportar</button>
+      )}
+
+      {/* Placa do limite da via e velocímetro, como no Waze (só informa: em atendimento a viatura pode passar do limite) */}
+      {!nav.arrived && (speedLimit !== null || speedKmh !== null) && (
+        <div className={styles.speed}>
+          {speedLimit !== null && (
+            <span className={styles.speedLimit} role="img" aria-label={`Limite da via: ${speedLimit} km/h`}>{speedLimit}</span>
+          )}
+          {speedKmh !== null && (
+            <span
+              className={`${styles.speedometer} ${overLimit(speedKmh, speedLimit) ? styles.speeding : ''}`}
+              role="img"
+              aria-label={`Velocidade: ${speedKmh} km/h`}
+            >
+              <strong>{speedKmh}</strong>
+              <small>km/h</small>
+            </span>
+          )}
+        </div>
       )}
 
       {reporting && (

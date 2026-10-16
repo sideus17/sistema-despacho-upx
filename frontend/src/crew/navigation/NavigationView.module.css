@@ -290,11 +290,11 @@
   font-size: 13px;
 }
 
-/* Relatar ocorrência: alvo grande, longe dos botões do painel e acima dos créditos do mapa */
+/* Relatar ocorrência: alvo grande à direita, acima do "Recentralizar" (como no Waze) */
 .report {
   position: absolute;
-  left: 12px;
-  bottom: calc(env(safe-area-inset-bottom) + 200px);
+  right: 12px;
+  bottom: calc(env(safe-area-inset-bottom) + 220px);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -316,5 +316,74 @@
 }
 
 .screen[data-theme='night'] .incidentAlert span {
+  color: #9ca3af;
+}
+
+/* Limite da via e velocímetro: canto inferior esquerdo, acima do painel */
+.speed {
+  position: absolute;
+  left: 12px;
+  bottom: calc(env(safe-area-inset-bottom) + 160px);
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  pointer-events: none;
+}
+
+/* Placa de regulamentação: círculo branco com borda vermelha */
+.speedLimit {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border: 5px solid #dc2626;
+  border-radius: 999px;
+  background: white;
+  color: #111827;
+  font-size: 18px;
+  font-weight: 900;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.speedometer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 60px;
+  border-radius: 999px;
+  background: white;
+  color: #111827;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  line-height: 1;
+}
+
+.speedometer strong {
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.speedometer small {
+  color: #6b7280;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.speedometer.speeding {
+  background: #dc2626;
+  color: white;
+}
+
+.speedometer.speeding small {
+  color: #fee2e2;
+}
+
+.screen[data-theme='night'] .speedometer:not(.speeding) {
+  background: #1f2937;
+  color: #e5e7eb;
+}
+
+.screen[data-theme='night'] .speedometer:not(.speeding) small {
   color: #9ca3af;
 }
