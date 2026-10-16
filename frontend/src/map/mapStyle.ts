@@ -11,6 +11,12 @@ export const ROUTE_COLORS: Record<MapTheme, { line: string; casing: string }> = 
   night: { line: '#4fc3f7', casing: '#01579b' }
 };
 
+// Caminhos alternativos: cinza-azulado por baixo da rota escolhida, como no Waze
+export const ALT_ROUTE_COLORS: Record<MapTheme, { line: string; casing: string }> = {
+  day: { line: '#a3b5c9', casing: '#6b7f96' },
+  night: { line: '#5b6b80', casing: '#2f3a48' }
+};
+
 type RoadKind = 'motorway' | 'primary' | 'secondary' | 'minor';
 
 interface Palette {

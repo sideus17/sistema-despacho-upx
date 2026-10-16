@@ -34,7 +34,8 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']
 }));
 
-// Parse JSON bodies
+// Parse JSON bodies (a geometria de uma rota longa, para os limites de velocidade, passa dos 100 kB padrão)
+app.use('/api/routes/limits', express.json({ limit: '1mb' }));
 app.use(express.json());
 
 // Parse URL-encoded bodies

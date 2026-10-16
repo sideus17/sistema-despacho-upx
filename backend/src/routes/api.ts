@@ -1,11 +1,10 @@
 import { createVerifierClient, supabase } from '../config/supabase';
 import { Router, Request, Response } from 'express';
 import { analyzeDispatch } from '../services/dispatchService';
-import { calculateRoute } from '../services/routingService';
-import { geocodeAddress } from '../services/geocodingService';
+import { calculateRoute, speedLimitsAlong } from '../services/routingService';
+import { geocodeAddress, reversePlace, searchPlaces } from '../services/geocodingService';
 import {
   IncidentError,
-  closeIncident,
   countActiveIncidents,
   createIncident,
   listActiveIncidents,
@@ -18,6 +17,7 @@ import { duplicateMessage, parseCnh, parseCpf, parsePhone, profileUpdate, Profil
 import {
   AmbulanceStatus,
   CallStatus,
+  Coordinates,
   EmergencyCall,
   ApiResponse,
   Stats,
@@ -502,7 +502,7 @@ router.get('/bases', async (req: Request, res: Response) => {
 
 
 // ============================================
-// OCORRÊNCIAS (central, equipes e fontes oficiais)
+// OCORRÊNCIAS (equipes e fontes oficiais; a central só acompanha)
 // ============================================
 
 router.get('/incidents', async (req: Request, res: Response) => {
@@ -516,8 +516,8 @@ router.get('/incidents', async (req: Request, res: Response) => {
   }
 });
 
-// Central marca no mapa; a equipe relata onde está (o relato repetido confirma o anterior)
-router.post('/incidents', requireRole(UserRole.OPERADOR, UserRole.MOTORISTA), async (req: Request, res: Response) => {
+// A equipe relata onde está (o relato repetido confirma o anterior)
+router.post('/incidents', requireRole(UserRole.MOTORISTA), async (req: Request, res: Response) => {
   try {
     const result = await createIncident(req.user!, req.body ?? {});
     res.status(result.created ? 201 : 200).json({ success: true, data: result, timestamp: new Date().toISOString() });
@@ -526,22 +526,13 @@ router.post('/incidents', requireRole(UserRole.OPERADOR, UserRole.MOTORISTA), as
   }
 });
 
-router.post('/incidents/:id/close', requireRole(UserRole.OPERADOR), async (req: Request, res: Response) => {
-  try {
-    await closeIncident(req.user!, req.params.id);
-    res.json({ success: true, data: { id: req.params.id }, timestamp: new Date().toISOString() });
-  } catch (error) {
-    failIncident(res, error, 'Erro ao encerrar a ocorrência.');
-  }
-});
-
 // Quando cada fonte oficial foi lida pela última vez e se deu erro
 router.get('/official/status', requireRole(UserRole.OPERADOR), (req: Request, res: Response) => {
   res.json({ success: true, data: officialStatus(), timestamp: new Date().toISOString() });
 });
 
-// "Ainda está lá?" das equipes; a central usa só o SIM, para confirmar o bloqueio de um relato
-router.post('/incidents/:id/vote', requireRole(UserRole.OPERADOR, UserRole.MOTORISTA), async (req: Request, res: Response) => {
+// "Ainda está lá?" das equipes
+router.post('/incidents/:id/vote', requireRole(UserRole.MOTORISTA), async (req: Request, res: Response) => {
   try {
     const { vote } = req.body ?? {};
     if (vote !== 'SIM' && vote !== 'NAO') return fail(res, 400, 'Resposta inválida.');
@@ -707,35 +698,69 @@ router.post('/dispatch/finish', async (req: Request, res: Response) => {
 // ROUTES
 // ============================================
 
+// Ponto {lat, lng} com números de verdade (0 é válido; texto não)
+function parseCoordinates(value: unknown): Coordinates | null {
+  const point = value as { lat?: unknown; lng?: unknown } | null;
+  const lat = point?.lat;
+  const lng = point?.lng;
+  if (typeof lat !== 'number' || typeof lng !== 'number' || !Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
+  return { lat, lng };
+}
+
+// `alternatives: true` traz também até 2 caminhos diferentes (painel de rotas e prévia da equipe)
 router.post('/routes/calculate', async (req: Request, res: Response) => {
+  const from = parseCoordinates(req.body?.from);
+  const to = parseCoordinates(req.body?.to);
+  if (!from || !to) return fail(res, 400, 'Coordenadas inválidas.');
+
   try {
-    const { from, to } = req.body;
-    
-    if (!from || !to || !from.lat || !from.lng || !to.lat || !to.lng) {
-      const response: ApiResponse<null> = {
-        success: false,
-        error: 'Invalid coordinates',
-        timestamp: new Date().toISOString()
-      };
-      return res.status(400).json(response);
-    }
-
-    const route = await calculateRoute(from, to);
-
-    const response: ApiResponse<typeof route> = {
-      success: true,
-      data: route,
-      timestamp: new Date().toISOString()
-    };
-    res.json(response);
-
+    const route = await calculateRoute(from, to, { alternatives: req.body?.alternatives === true });
+    res.json({ success: true, data: route, timestamp: new Date().toISOString() });
   } catch (error) {
-    const response: ApiResponse<null> = {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-      timestamp: new Date().toISOString()
-    };
-    res.status(500).json(response);
+    console.error('Erro ao calcular rota:', error);
+    fail(res, 500, 'Não foi possível calcular a rota.');
+  }
+});
+
+// Limites de velocidade ao longo da rota que a equipe está seguindo (placa na navegação)
+const MAX_LIMIT_POINTS = 5000;
+router.post('/routes/limits', async (req: Request, res: Response) => {
+  const raw: unknown = req.body?.geometry;
+  const line = Array.isArray(raw) && raw.length <= MAX_LIMIT_POINTS ? raw.map(parseCoordinates) : null;
+  if (!line || line.length < 2 || line.some(point => !point)) return fail(res, 400, 'Rota inválida.');
+
+  try {
+    res.json({ success: true, data: await speedLimitsAlong(line as Coordinates[]), timestamp: new Date().toISOString() });
+  } catch (error) {
+    console.warn('Limites de velocidade indisponíveis:', error instanceof Error ? error.message : error);
+    fail(res, 502, 'Limites de velocidade indisponíveis agora.');
+  }
+});
+
+// Endereços e locais para o autocompletar (Photon, região de Sorocaba)
+router.get('/geocode/search', async (req: Request, res: Response) => {
+  const query = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+  if (query.length < 3 || query.length > 120) return fail(res, 400, 'Digite de 3 a 120 caracteres.');
+
+  try {
+    res.json({ success: true, data: await searchPlaces(query), timestamp: new Date().toISOString() });
+  } catch (error) {
+    console.warn('Busca de endereço falhou:', error instanceof Error ? error.message : error);
+    fail(res, 502, 'A busca de endereços não respondeu. Tente de novo ou escolha no mapa.');
+  }
+});
+
+// Nome do ponto escolhido no mapa
+router.get('/geocode/reverse', async (req: Request, res: Response) => {
+  const point = parseCoordinates({ lat: Number(req.query.lat), lng: Number(req.query.lng) });
+  if (!point) return fail(res, 400, 'Coordenadas inválidas.');
+
+  try {
+    res.json({ success: true, data: await reversePlace(point), timestamp: new Date().toISOString() });
+  } catch (error) {
+    console.warn('Busca reversa falhou:', error instanceof Error ? error.message : error);
+    res.json({ success: true, data: null, timestamp: new Date().toISOString() });
   }
 });
 

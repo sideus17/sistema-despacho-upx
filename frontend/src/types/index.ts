@@ -33,7 +33,12 @@ export enum IncidentType {
   ACIDENTE = 'ACIDENTE',
   VENTOS_FORTES = 'VENTOS_FORTES',
   CHUVA_FORTE = 'CHUVA_FORTE',
-  ALERTA_OFICIAL = 'ALERTA_OFICIAL'
+  ALERTA_OFICIAL = 'ALERTA_OFICIAL',
+  OBRAS = 'OBRAS',
+  CONGESTIONAMENTO = 'CONGESTIONAMENTO',
+  PERIGO_NA_VIA = 'PERIGO_NA_VIA',
+  VEICULO_PARADO = 'VEICULO_PARADO',
+  SEMAFORO_QUEBRADO = 'SEMAFORO_QUEBRADO'
 }
 
 export enum IncidentSource {
@@ -177,6 +182,21 @@ export interface RouteInfo {
   incidentsOnRoute: RouteIncident[];
   avoided: RouteIncident[];
   warnings: string[];
+  alternatives?: RouteInfo[]; // outros caminhos, só quando pedidos
+}
+
+// Trecho da rota com limite de velocidade conhecido (metros desde o início da rota)
+export interface SpeedLimitSegment {
+  from: number;
+  to: number;
+  kmh: number;
+}
+
+// Sugestão da busca de endereço (Photon, pelo backend)
+export interface PlaceSuggestion {
+  label: string;
+  detail: string;
+  location: Coordinates;
 }
 
 export interface RouteStep {

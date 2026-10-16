@@ -2,7 +2,7 @@ import { Coordinates, Incident, RouteEngine, RouteIncident, RouteInfo } from '..
 import { listActiveIncidents } from './incidentService';
 import { circleEntryAlong, cumulativeDistances, distanceMeters, exclusionRing, nearCorridor, projectOnLine } from './geo';
 import { EngineRoute, osrmRoute } from './osrm';
-import { maxExcludePerimeter, valhallaRoute } from './valhalla';
+import { SpeedLimitSegment, maxExcludePerimeter, valhallaRoute, valhallaSpeedLimits } from './valhalla';
 import { routeAvoiding } from './avoidance';
 import { triggerOfficialRefresh } from './official/refresh';
 
@@ -12,25 +12,37 @@ const CACHE_TTL = 10 * 60_000;
 const DEGRADED_CACHE_TTL = 30_000;
 const CACHE_MAX = 200;
 const MAX_MAPS_WAYPOINTS = 3;
+// Caminhos diferentes pedidos além do principal (painel de rotas e prévia da equipe)
+const ALTERNATES = 2;
+
+export interface RouteOptions {
+  alternatives?: boolean;
+}
 
 const cache = new Map<string, { expires: number; route: Promise<RouteInfo> }>();
 
 /**
  * Rota entre dois pontos desviando das ocorrências ativas no caminho.
  * Valhalla (desvia de áreas) → OSRM (sem desvio) → linha reta.
+ * Com `alternatives`, vêm também até 2 caminhos diferentes, que desviam dos mesmos bloqueios.
  */
-export async function calculateRoute(from: Coordinates, to: Coordinates): Promise<RouteInfo> {
+export async function calculateRoute(from: Coordinates, to: Coordinates, options: RouteOptions = {}): Promise<RouteInfo> {
   triggerOfficialRefresh();
   const { incidents, warning } = await incidentsNear(from, to);
 
   // Mesmos pontos (~10 m) e mesmas ocorrências no caminho: mesma rota
   const point = (c: Coordinates) => `${c.lat.toFixed(4)},${c.lng.toFixed(4)}`;
-  const key = [point(from), point(to), ...incidents.map(i => `${i.id}:${i.effect}:${i.radius}`).sort()].join('|');
+  const key = [
+    point(from),
+    point(to),
+    options.alternatives ? 'alt' : 'uma',
+    ...incidents.map(i => `${i.id}:${i.effect}:${i.radius}`).sort()
+  ].join('|');
 
   const cached = cache.get(key);
   if (cached && cached.expires > Date.now()) return cached.route;
 
-  const entry = { expires: Date.now() + CACHE_TTL, route: computeRoute(from, to, incidents, warning) };
+  const entry = { expires: Date.now() + CACHE_TTL, route: computeRoute(from, to, incidents, options, warning) };
   cache.set(key, entry);
   entry.route
     .then(route => {
@@ -59,25 +71,33 @@ async function incidentsNear(from: Coordinates, to: Coordinates): Promise<{ inci
   }
 }
 
-async function computeRoute(from: Coordinates, to: Coordinates, incidents: Incident[], warning?: string): Promise<RouteInfo> {
+async function computeRoute(
+  from: Coordinates,
+  to: Coordinates,
+  incidents: Incident[],
+  options: RouteOptions,
+  warning?: string
+): Promise<RouteInfo> {
   const warnings = warning ? [warning] : [];
+  const alternates = options.alternatives ? ALTERNATES : 0;
 
   try {
     const result = await routeAvoiding(
       from,
       to,
       incidents,
-      exclude => valhallaRoute(from, to, exclude.map(incident => exclusionRing(incident.location, incident.radius))),
+      exclude => valhallaRoute(from, to, exclude.map(incident => exclusionRing(incident.location, incident.radius)), alternates),
       { maxPerimeter: maxExcludePerimeter() }
     );
-    return buildRouteInfo(result.route, 'valhalla', incidents, result.avoided, [...warnings, ...result.warnings]);
+    const allWarnings = [...warnings, ...result.warnings];
+    return withAlternatives(result.route, 'valhalla', incidents, result.excluded, allWarnings);
   } catch (error) {
     console.warn('Valhalla indisponível, usando o OSRM:', error instanceof Error ? error.message : error);
   }
 
   try {
-    const route = await osrmRoute(from, to);
-    return buildRouteInfo(route, 'osrm', incidents, [], [
+    const route = await osrmRoute(from, to, alternates > 0);
+    return withAlternatives(route, 'osrm', incidents, [], [
       ...warnings,
       'Servidor de rotas principal fora do ar: rota calculada sem desviar das ocorrências.'
     ]);
@@ -102,6 +122,23 @@ function toRouteIncident(incident: Incident, distanceAlong?: number): RouteIncid
     ambulance: incident.ambulance,
     ...(distanceAlong !== undefined ? { distanceAlong: Math.round(distanceAlong) } : {})
   };
+}
+
+// Principal e alternativas com as mesmas ocorrências cruzadas; "evitada" é a que cada caminho não atravessa
+function withAlternatives(
+  route: EngineRoute,
+  engine: RouteEngine,
+  incidents: Incident[],
+  excluded: Incident[],
+  warnings: string[]
+): RouteInfo {
+  const build = (path: EngineRoute) => {
+    const cumulative = cumulativeDistances(path.geometry);
+    const avoided = excluded.filter(incident => circleEntryAlong(path.geometry, cumulative, incident.location, incident.radius) === null);
+    return buildRouteInfo(path, engine, incidents, avoided, warnings);
+  };
+  const main = build(route);
+  return route.alternatives?.length ? { ...main, alternatives: route.alternatives.map(build) } : main;
 }
 
 function buildRouteInfo(
@@ -174,4 +211,41 @@ export function formatDistance(meters: number): string {
     return `${(meters / 1000).toFixed(1)}km`;
   }
   return `${Math.round(meters)}m`;
+}
+// ============================================
+// LIMITE DE VELOCIDADE
+// ============================================
+
+const LIMITS_TTL = 30 * 60_000;
+const LIMITS_MAX = 100;
+const LIMITS_MIN_SPACING = 15; // metros entre pontos enviados ao Valhalla (rota longa vira consulta enorme)
+const limitsCache = new Map<string, { expires: number; segments: Promise<SpeedLimitSegment[]> }>();
+
+// Pontos a pelo menos 15 m um do outro, sempre com o primeiro e o último
+export function thinLine(line: Coordinates[], spacing = LIMITS_MIN_SPACING): Coordinates[] {
+  if (line.length <= 2) return line;
+  const thinned = [line[0]];
+  for (let i = 1; i < line.length - 1; i++) {
+    if (distanceMeters(thinned[thinned.length - 1], line[i]) >= spacing) thinned.push(line[i]);
+  }
+  thinned.push(line[line.length - 1]);
+  return thinned;
+}
+
+export async function speedLimitsAlong(line: Coordinates[]): Promise<SpeedLimitSegment[]> {
+  const shape = thinLine(line);
+  const point = (c: Coordinates) => `${c.lat.toFixed(5)},${c.lng.toFixed(5)}`;
+  const key = `${shape.length}|${point(shape[0])}|${point(shape[Math.floor(shape.length / 2)])}|${point(shape[shape.length - 1])}`;
+
+  const cached = limitsCache.get(key);
+  if (cached && cached.expires > Date.now()) return cached.segments;
+
+  const segments = valhallaSpeedLimits(shape);
+  limitsCache.set(key, { expires: Date.now() + LIMITS_TTL, segments });
+  segments.catch(() => limitsCache.delete(key));
+  for (const [oldKey, old] of limitsCache) {
+    if (limitsCache.size <= LIMITS_MAX && old.expires > Date.now()) break;
+    limitsCache.delete(oldKey);
+  }
+  return segments;
 }

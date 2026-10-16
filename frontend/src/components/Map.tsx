@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Map as MapGL, Marker, Popup, Source, Layer, NavigationControl, MapRef } from '@vis.gl/react-maplibre';
-import type { FillLayerSpecification, LineLayerSpecification } from 'maplibre-gl';
+import { Map as MapGL, Marker, Popup, MapRef } from '@vis.gl/react-maplibre';
 import '../map/maplibre';
 import {
   Ambulance,
@@ -16,28 +15,26 @@ import {
 } from '../types';
 import { useMapStyle } from '../map/useMapStyle';
 import { DATA_ATTRIBUTION } from '../map/attribution';
-import { MAP_BACKGROUND, ROUTE_COLORS } from '../map/mapStyle';
+import { ALT_ROUTE_COLORS, MAP_BACKGROUND, ROUTE_COLORS } from '../map/mapStyle';
 import { useTheme } from '../theme/theme';
 import { RouteLayer } from '../map/RouteLayer';
+import { ROUTE_OPTIONS_LAYER, RouteOptionsLayer } from '../map/RouteOptionsLayer';
 import { boundsOf, toLngLat } from '../map/geojson';
 import { AmbulanceMarker, BaseMarker, CallMarker, IncidentMarker } from '../map/Markers';
 import { IncidentLayer } from '../map/IncidentLayer';
-import { EFFECT_META, INCIDENT_LABEL, expiryLabel, sourceLabel } from '../map/incidents';
-import { circlePolygon } from '../crew/navigation/geo';
+import { EFFECT_META, expiryLabel, incidentTypeLabel, sourceLabel } from '../map/incidents';
 import { PRIORITY_META } from '../utils/calls';
-import { getTimeAgo } from '../services/api';
-import { AddLocationIcon, ExpandLessIcon, ExpandMoreIcon } from '../ui/icons';
+import { getTimeAgo, reversePlace } from '../services/api';
+import { ExpandLessIcon, ExpandMoreIcon, LocationIcon, PinDropIcon } from '../ui/icons';
 import { Avatar } from '../ui/Avatar';
-import type { IncidentDraft } from './Incidents';
+import { MapControls } from './MapControls';
+import RoutePlanner, { PlannerField } from './RoutePlanner';
+import { useRoutePlanner } from './useRoutePlanner';
+import type { PlaceValue } from './AddressSearch';
 import styles from './Map.module.css';
 
 // Sorocaba
 const INITIAL_VIEW = { longitude: -47.4526, latitude: -23.5015, zoom: 13 };
-
-// Prévia da área sendo marcada pela central
-const DRAFT_COLOR = '#2563eb';
-const DRAFT_FILL: FillLayerSpecification['paint'] = { 'fill-color': DRAFT_COLOR, 'fill-opacity': 0.12 };
-const DRAFT_OUTLINE: LineLayerSpecification['paint'] = { 'line-color': DRAFT_COLOR, 'line-width': 2, 'line-dasharray': [2, 1.5] };
 
 type Selection = { kind: 'ambulance' | 'call' | 'base' | 'incident'; id: string } | null;
 
@@ -49,10 +46,6 @@ interface MapProps {
   selectedCall?: EmergencyCall | null;
   routeGeometry?: Coordinates[] | null;
   onCallSelect?: (call: EmergencyCall) => void;
-  // Nova ocorrência em andamento: o clique no mapa marca o local
-  draft?: IncidentDraft | null;
-  onPickLocation?: (location: Coordinates) => void;
-  onCloseIncident?: (incident: Incident) => Promise<void>;
   // Pedido para mostrar uma ocorrência (a cada pedido muda o `at`)
   focusIncident?: { id: string; at: number } | null;
 }
@@ -65,20 +58,20 @@ export default function Map({
   selectedCall,
   routeGeometry,
   onCallSelect,
-  draft,
-  onPickLocation,
-  onCloseIncident,
   focusIncident
 }: MapProps) {
   const mapRef = useRef<MapRef>(null);
   const fitted = useRef(false);
   const [loaded, setLoaded] = useState(false);
   const [popup, setPopup] = useState<Selection>(null);
-  const [confirmingClose, setConfirmingClose] = useState(false);
-  const [closing, setClosing] = useState(false);
   const [legendOpen, setLegendOpen] = useState(() => window.matchMedia('(min-width: 768px)').matches);
   const { theme } = useTheme();
   const mapStyle = useMapStyle(theme);
+  const planner = useRoutePlanner();
+  // Campo do painel de rotas esperando um clique no mapa
+  const [picking, setPicking] = useState<PlannerField | null>(null);
+  const plannerRoutes = planner.open ? planner.routes : [];
+  const plannerLines = useMemo(() => plannerRoutes.map(route => route.geometry), [plannerRoutes]);
 
   const allPoints = useMemo(() => [
     ...ambulances.map(amb => amb.location),
@@ -105,6 +98,37 @@ export default function Map({
     }
   }, [loaded, selectedCall?.id, routeGeometry]);
 
+  // Rotas novas do painel: enquadra todas, deixando espaço para o painel à esquerda
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!loaded || !map || plannerLines.length === 0) return;
+    const wide = window.matchMedia('(min-width: 769px)').matches;
+    const padding = wide ? { top: 60, bottom: 60, left: 440, right: 80 } : { top: 200, bottom: 40, left: 30, right: 60 };
+    map.fitBounds(boundsOf(plannerLines.flat()), { padding, duration: 600 });
+  }, [loaded, plannerLines]);
+
+  // Esc desiste de escolher o ponto no mapa
+  useEffect(() => {
+    if (!picking) return;
+    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') setPicking(null); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [picking]);
+
+  // Ponto clicado vira partida ou destino; o nome da rua chega logo depois
+  const pickPoint = async (field: PlannerField, location: Coordinates) => {
+    const set = field === 'from' ? planner.setFrom : planner.setTo;
+    const point: PlaceValue = { label: 'Ponto no mapa', location, kind: 'mapa' };
+    set(point);
+    setPicking(null);
+    try {
+      const place = await reversePlace(location);
+      if (place) set(current => (current?.location === location ? { ...point, label: place.label, detail: place.detail } : current));
+    } catch {
+      // Sem nome: fica "Ponto no mapa"
+    }
+  };
+
   // Ocorrência pedida pela lista: centraliza e abre o popup
   useEffect(() => {
     const map = mapRef.current;
@@ -114,31 +138,10 @@ export default function Map({
     setPopup({ kind: 'incident', id: incident.id });
   }, [loaded, focusIncident]);
 
-  // Outro popup aberto cancela a confirmação de encerramento
-  useEffect(() => setConfirmingClose(false), [popup?.kind, popup?.id]);
-
-  const draftArea = useMemo(() => draft?.location ? {
-    type: 'Feature' as const,
-    properties: {},
-    geometry: { type: 'Polygon' as const, coordinates: [circlePolygon(draft.location, draft.radius)] }
-  } : null, [draft?.location, draft?.radius]);
-
   const open = (kind: NonNullable<Selection>['kind'], id: string) => (event: { originalEvent: MouseEvent }) => {
     // Sem isso o clique chega ao mapa e fecha o popup na hora
     event.originalEvent.stopPropagation();
     setPopup({ kind, id });
-  };
-
-  const handleClose = async (incident: Incident) => {
-    if (!onCloseIncident) return;
-    setClosing(true);
-    try {
-      await onCloseIncident(incident);
-      setPopup(null);
-    } finally {
-      setClosing(false);
-      setConfirmingClose(false);
-    }
   };
 
   const renderPopup = () => {
@@ -232,7 +235,7 @@ export default function Map({
       offset: 18,
       content: (
         <>
-          <h3>{INCIDENT_LABEL[incident.type] ?? incident.type}</h3>
+          <h3>{incidentTypeLabel(incident.type)}</h3>
           <p>
             <span className={styles.effectPill} style={{ background: effect.color }}>{effect.label}</span> {effect.hint}
           </p>
@@ -246,29 +249,15 @@ export default function Map({
           )}
           {incident.description && <p>{incident.description}</p>}
           {incident.radius > 0 && <p><strong>Raio:</strong> {incident.radius} m</p>}
-          {onCloseIncident && (
-            <div className={styles.popupActions}>
-              {confirmingClose ? (
-                <>
-                  <button className={styles.popupDanger} disabled={closing} onClick={() => handleClose(incident)}>
-                    {closing ? 'Encerrando…' : 'Confirmar encerramento'}
-                  </button>
-                  <button className={styles.popupSecondary} disabled={closing} onClick={() => setConfirmingClose(false)}>
-                    Cancelar
-                  </button>
-                </>
-              ) : (
-                <button className={styles.popupSecondary} onClick={() => setConfirmingClose(true)}>Encerrar</button>
-              )}
-            </div>
-          )}
         </>
       )
     };
   };
 
   const activePopup = renderPopup();
-  const hasRoute = !!routeGeometry && routeGeometry.length > 1;
+  // Com rotas no painel, elas tomam o lugar da rota da análise de despacho
+  const showPlanner = plannerLines.length > 0;
+  const hasRoute = showPlanner || (!!routeGeometry && routeGeometry.length > 1);
 
   return (
     <div className={styles.wrapper}>
@@ -283,32 +272,46 @@ export default function Map({
           pitchWithRotate={false}
           touchPitch={false}
           attributionControl={{ compact: true, customAttribution: DATA_ATTRIBUTION }}
-          cursor={draft ? 'crosshair' : undefined}
+          cursor={picking ? 'crosshair' : undefined}
+          interactiveLayerIds={showPlanner ? [ROUTE_OPTIONS_LAYER] : undefined}
           onClick={event => {
-            if (draft && onPickLocation) onPickLocation({ lat: event.lngLat.lat, lng: event.lngLat.lng });
+            if (picking) {
+              pickPoint(picking, { lat: event.lngLat.lat, lng: event.lngLat.lng });
+              return;
+            }
+            // Clique numa rota cinza: ela passa a ser a escolhida
+            const index = event.features?.[0]?.properties?.index;
+            if (typeof index === 'number') planner.setSelected(index);
           }}
           onLoad={event => {
             event.target.touchZoomRotate.disableRotation();
+            // No celular os créditos abertos cobrem o zoom: começam recolhidos no "i" (um toque abre)
+            if (window.matchMedia('(max-width: 768px)').matches) {
+              event.target.getContainer().querySelector('.maplibregl-ctrl-attrib')?.classList.remove('maplibregl-compact-show');
+            }
             setLoaded(true);
           }}
         >
-          <NavigationControl position="top-left" showCompass={false} />
+          <MapControls />
 
           <IncidentLayer incidents={incidents} onSelect={(incident, event) => open('incident', incident.id)(event)} />
 
-          {draftArea && draft?.location && (
-            <>
-              <Source id="incident-draft" type="geojson" data={draftArea}>
-                <Layer id="incident-draft-fill" type="fill" paint={DRAFT_FILL} />
-                <Layer id="incident-draft-outline" type="line" paint={DRAFT_OUTLINE} />
-              </Source>
-              <Marker longitude={draft.location.lng} latitude={draft.location.lat} anchor="bottom">
-                <span className={styles.draftPin}><AddLocationIcon /></span>
-              </Marker>
-            </>
+          {showPlanner ? (
+            <RouteOptionsLayer routes={plannerLines} selected={planner.selected} theme={theme} />
+          ) : (
+            routeGeometry && routeGeometry.length > 1 && <RouteLayer line={routeGeometry} theme={theme} />
           )}
 
-          {routeGeometry && routeGeometry.length > 1 && <RouteLayer line={routeGeometry} theme={theme} />}
+          {planner.open && planner.from && (
+            <Marker longitude={planner.from.location.lng} latitude={planner.from.location.lat}>
+              <span className={styles.plannerOrigin} title={`Partida: ${planner.from.label}`} />
+            </Marker>
+          )}
+          {planner.open && planner.to && (
+            <Marker longitude={planner.to.location.lng} latitude={planner.to.location.lat} anchor="bottom">
+              <span className={styles.plannerDestination} title={`Destino: ${planner.to.label}`}><LocationIcon /></span>
+            </Marker>
+          )}
 
           {bases.map(base => (
             <Marker key={base.id} longitude={base.location.lng} latitude={base.location.lat} onClick={open('base', base.id)}>
@@ -370,9 +373,18 @@ export default function Map({
         <div className={styles.placeholder} style={{ background: MAP_BACKGROUND[theme] }} aria-label="Carregando mapa" />
       )}
 
-      {draft && (
+      {mapStyle && (
+        <RoutePlanner
+          planner={planner}
+          ambulances={ambulances}
+          bases={bases}
+          onPickOnMap={field => setPicking(field)}
+        />
+      )}
+
+      {picking && (
         <div className={styles.pickHint} role="status">
-          <AddLocationIcon /> {draft.location ? 'Toque de novo para mudar o local' : 'Toque no mapa para marcar o local da ocorrência'}
+          <PinDropIcon /> Clique no mapa para escolher {picking === 'from' ? 'a partida' : 'o destino'} (Esc cancela)
         </div>
       )}
 
@@ -396,6 +408,7 @@ export default function Map({
             <li><span className={styles.legendIcon}><IncidentMarker type={IncidentType.VIA_BLOQUEADA} effect={IncidentEffect.BLOQUEIO} /></span> Bloqueio (rota desvia)</li>
             <li><span className={styles.legendIcon}><IncidentMarker type={IncidentType.ALAGAMENTO} effect={IncidentEffect.RISCO} /></span> Risco na via</li>
             {hasRoute && <li><span className={styles.legendIcon}><span className={styles.legendRoute} style={{ background: ROUTE_COLORS[theme].line, boxShadow: `0 0 0 2px ${ROUTE_COLORS[theme].casing}` }} /></span> Rota selecionada</li>}
+            {plannerLines.length > 1 && <li><span className={styles.legendIcon}><span className={styles.legendRoute} style={{ background: ALT_ROUTE_COLORS[theme].line, boxShadow: `0 0 0 2px ${ALT_ROUTE_COLORS[theme].casing}` }} /></span> Rota alternativa</li>}
           </ul>
         )}
       </div>

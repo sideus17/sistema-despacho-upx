@@ -42,6 +42,10 @@ export { default as WindIcon } from '~icons/material-symbols/air-rounded';
 export { default as HeavyRainIcon } from '~icons/material-symbols/rainy-heavy-rounded';
 export { default as CarCrashIcon } from '~icons/material-symbols/car-crash-rounded';
 export { default as OfficialAlertIcon } from '~icons/material-symbols/campaign-rounded';
+export { default as ConstructionIcon } from '~icons/material-symbols/construction-rounded';
+export { default as TrafficJamIcon } from '~icons/material-symbols/traffic-jam';
+export { default as StalledVehicleIcon } from '~icons/material-symbols/car-repair-rounded';
+export { default as TrafficLightIcon } from '~icons/material-symbols/traffic-rounded';
 export { default as AddLocationIcon } from '~icons/material-symbols/add-location-alt-rounded';
 export { default as ReportIcon } from '~icons/material-symbols/report-rounded';
 
@@ -57,6 +61,14 @@ export { default as NightIcon } from '~icons/material-symbols/dark-mode-rounded'
 // Navegação do motorista
 export { default as NavigateIcon } from '~icons/material-symbols/navigation-rounded';
 export { default as MyLocationIcon } from '~icons/material-symbols/my-location-rounded';
+export { default as DirectionsIcon } from '~icons/material-symbols/directions-rounded';
+export { default as SwapVertIcon } from '~icons/material-symbols/swap-vert-rounded';
+export { default as RemoveIcon } from '~icons/material-symbols/remove-rounded';
+export { default as SearchIcon } from '~icons/material-symbols/search-rounded';
+export { default as PinDropIcon } from '~icons/material-symbols/pin-drop-rounded';
+export { default as FlagIcon } from '~icons/material-symbols/flag-rounded';
+export { default as BoltIcon } from '~icons/material-symbols/bolt-rounded';
+export { default as BasePinIcon } from '~icons/material-symbols/home-pin-rounded';
 export { default as VolumeOnIcon } from '~icons/material-symbols/volume-up-rounded';
 export { default as VolumeOffIcon } from '~icons/material-symbols/volume-off-rounded';
 export { default as ArrivalIcon } from '~icons/material-symbols/sports-score-rounded';

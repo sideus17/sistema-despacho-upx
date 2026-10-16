@@ -31,7 +31,12 @@ export enum IncidentType {
   ACIDENTE = 'ACIDENTE',
   VENTOS_FORTES = 'VENTOS_FORTES',
   CHUVA_FORTE = 'CHUVA_FORTE',
-  ALERTA_OFICIAL = 'ALERTA_OFICIAL'
+  ALERTA_OFICIAL = 'ALERTA_OFICIAL',
+  OBRAS = 'OBRAS',
+  CONGESTIONAMENTO = 'CONGESTIONAMENTO',
+  PERIGO_NA_VIA = 'PERIGO_NA_VIA',
+  VEICULO_PARADO = 'VEICULO_PARADO',
+  SEMAFORO_QUEBRADO = 'SEMAFORO_QUEBRADO'
 }
 
 export enum IncidentSource {
@@ -148,6 +153,7 @@ export interface RouteInfo {
   incidentsOnRoute: RouteIncident[]; // a rota atravessa (aviso, risco aceito ou bloqueio sem alternativa)
   avoided: RouteIncident[]; // a rota desviou
   warnings: string[];
+  alternatives?: RouteInfo[]; // outros caminhos, só quando pedidos
 }
 
 // Manobra no formato do OSRM; o texto em português é montado no app

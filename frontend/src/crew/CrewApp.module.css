@@ -267,6 +267,56 @@
   font-size: 15px;
 }
 
+/* Rotas para escolher antes de sair */
+.routeChoices {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.routeChoice {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: baseline;
+  gap: 8px;
+  min-height: 48px;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.routeChoice strong {
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.routeChoice span {
+  overflow: hidden;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.routeChoice em {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--tint-green-bg);
+  color: var(--tint-green-text);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.routeChoiceSelected {
+  border-color: #1d8cf8;
+  box-shadow: inset 4px 0 0 #1d8cf8;
+}
+
 .idle {
   padding: 20px 16px;
   border-radius: var(--radius);
@@ -429,4 +479,60 @@
 .pickerItem:disabled {
   opacity: 0.6;
   cursor: wait;
+}
+
+/* Celular deitado: coluna de informações e botões à esquerda (rola), mapa à direita na altura toda */
+.shellLandscape {
+  flex-direction: row;
+  max-width: none;
+}
+
+.sideColumn {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 min(400px, 42%);
+  min-width: 0;
+  border-right: 1px solid var(--color-border);
+}
+
+.shellLandscape .header {
+  padding: calc(env(safe-area-inset-top) + 8px) 12px 8px calc(env(safe-area-inset-left) + 12px);
+}
+
+.shellLandscape .headerCode {
+  margin-bottom: 2px;
+  font-size: 17px;
+}
+
+.shellLandscape .main {
+  gap: 10px;
+  padding: 10px 12px 10px calc(env(safe-area-inset-left) + 12px);
+}
+
+.shellLandscape .callCard {
+  padding: 12px;
+}
+
+.shellLandscape .address {
+  font-size: 17px;
+}
+
+.shellLandscape .actionBar {
+  gap: 6px;
+  padding: 8px 12px calc(env(safe-area-inset-bottom) + 8px) calc(env(safe-area-inset-left) + 12px);
+}
+
+.shellLandscape .navigate,
+.shellLandscape .mapsLink,
+.shellLandscape .finish,
+.shellLandscape .finishConfirm,
+.shellLandscape .secondaryButton {
+  min-height: 44px;
+}
+
+.shellLandscape .mapWrap {
+  flex: 1;
+  min-height: 0;
+  border-radius: 0;
+  box-shadow: none;
 }

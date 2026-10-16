@@ -10,8 +10,18 @@ export const INCIDENT_LABEL: Record<IncidentType, string> = {
   [IncidentType.ACIDENTE]: 'Acidente',
   [IncidentType.VENTOS_FORTES]: 'Ventos fortes',
   [IncidentType.CHUVA_FORTE]: 'Chuva forte',
-  [IncidentType.ALERTA_OFICIAL]: 'Alerta oficial'
+  [IncidentType.ALERTA_OFICIAL]: 'Alerta oficial',
+  [IncidentType.OBRAS]: 'Obras',
+  [IncidentType.CONGESTIONAMENTO]: 'Congestionamento',
+  [IncidentType.PERIGO_NA_VIA]: 'Perigo na pista',
+  [IncidentType.VEICULO_PARADO]: 'Veículo parado',
+  [IncidentType.SEMAFORO_QUEBRADO]: 'Semáforo quebrado'
 };
+
+// Nome do tipo, mesmo que o backend mande um tipo que esta versão do app ainda não conhece
+export function incidentTypeLabel(type: IncidentType): string {
+  return INCIDENT_LABEL[type] ?? 'Ocorrência';
+}
 
 export const SOURCE_LABEL: Record<IncidentSource, string> = {
   [IncidentSource.CENTRAL]: 'Central',
@@ -25,24 +35,6 @@ export const EFFECT_META: Record<IncidentEffect, { label: string; color: string;
   [IncidentEffect.RISCO]: { label: 'Risco', color: '#f59e0b', hint: 'A rota evita se houver alternativa', order: 1 },
   [IncidentEffect.AVISO]: { label: 'Aviso', color: '#8b5cf6', hint: 'Só informa, não muda a rota', order: 2 }
 };
-
-export interface CentralDefaults {
-  effect: IncidentEffect;
-  radius: number; // metros
-  durationMinutes: number | null; // null = até encerrar
-}
-
-// Os mesmos padrões do backend: o formulário da central já vem preenchido pelo tipo
-export const CENTRAL_DEFAULTS: Partial<Record<IncidentType, CentralDefaults>> = {
-  [IncidentType.ALAGAMENTO]: { effect: IncidentEffect.BLOQUEIO, radius: 200, durationMinutes: 120 },
-  [IncidentType.VIA_BLOQUEADA]: { effect: IncidentEffect.BLOQUEIO, radius: 100, durationMinutes: null },
-  [IncidentType.QUEDA_ARVORE]: { effect: IncidentEffect.RISCO, radius: 100, durationMinutes: 360 },
-  [IncidentType.ACIDENTE]: { effect: IncidentEffect.RISCO, radius: 100, durationMinutes: 60 },
-  [IncidentType.VENTOS_FORTES]: { effect: IncidentEffect.AVISO, radius: 500, durationMinutes: 120 },
-  [IncidentType.CHUVA_FORTE]: { effect: IncidentEffect.AVISO, radius: 1000, durationMinutes: 120 }
-};
-
-export const CENTRAL_TYPES = Object.keys(CENTRAL_DEFAULTS) as IncidentType[];
 
 // Bloqueios primeiro, depois riscos e avisos; dentro de cada um, os mais recentes
 export function sortIncidents(incidents: Incident[]): Incident[] {
@@ -61,7 +53,7 @@ export function sourceLabel(incident: Pick<Incident, 'source' | 'ambulance'>): s
 
 // "Alagamento (Equipe USB-01)"
 export function incidentName(incident: Described): string {
-  return `${INCIDENT_LABEL[incident.type] ?? incident.type} (${sourceLabel(incident)})`;
+  return `${incidentTypeLabel(incident.type)} (${sourceLabel(incident)})`;
 }
 
 function clock(iso: string): string {

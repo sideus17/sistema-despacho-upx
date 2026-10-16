@@ -3,12 +3,15 @@ import { createPortal } from 'react-dom';
 import { Map as MapLibreMap, Marker, GeoJSONSource } from 'maplibre-gl';
 import type { LayerSpecification, StyleSpecification } from 'maplibre-gl';
 import '../../map/maplibre';
-import { Ambulance, Coordinates, EmergencyCall, Incident, RouteInfo } from '../../types';
-import { calculateRoute, getErrorMessage, updateAmbulanceLocation, voteIncident } from '../../services/api';
+import { Ambulance, Coordinates, EmergencyCall, Incident, RouteInfo, SpeedLimitSegment } from '../../types';
+import { calculateRoute, getErrorMessage, getSpeedLimits, updateAmbulanceLocation, voteIncident } from '../../services/api';
 import { useToast } from '../../components/Toast';
 import { useAuth } from '../../auth/AuthContext';
 import { useGeolocation, useSimulatedGeolocation } from './useGeolocation';
 import { useNavigation } from './useNavigation';
+import { overLimit, speedLimitAt, toKmh } from './speed';
+import { PanelHandle, usePanelCollapsed } from '../PanelHandle';
+import { LANDSCAPE_PHONE, useMediaQuery } from '../../ui/useMediaQuery';
 import { formatNavDistance, maneuverIcon, maneuverText, spokenInstruction } from './instructions';
 import { googleMapsUrl } from './mapsLink';
 import { useMapStyle } from '../../map/useMapStyle';
@@ -21,11 +24,11 @@ import {
   DASHED_OUTLINE_FILTER,
   EFFECT_META,
   INCIDENT_FILL,
-  INCIDENT_LABEL,
   INCIDENT_OUTLINE,
   INCIDENT_OUTLINE_DASHED,
   SOLID_OUTLINE_FILTER,
   incidentAreas,
+  incidentTypeLabel,
   sourceLabel
 } from '../../map/incidents';
 import { IncidentIcon } from '../../ui/IncidentIcon';
@@ -110,7 +113,29 @@ export default function NavigationView({
   const fix = simulate ? sim.fix : real.fix;
   const nav = useNavigation(route, call.location, fix);
 
+  // Limites de velocidade da rota atual (início e cada recálculo); sem resposta, a placa não aparece
+  const [limits, setLimits] = useState<SpeedLimitSegment[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    setLimits([]);
+    getSpeedLimits(route.geometry)
+      .then(segments => { if (!cancelled) setLimits(segments); })
+      .catch(() => { /* sem limites: só o velocímetro */ });
+    return () => { cancelled = true; };
+  }, [route]);
+  const speedKmh = toKmh(fix?.speed);
+  const speedLimit = speedLimitAt(limits, nav.travelled);
+
   const containerRef = useRef<HTMLDivElement>(null);
+  const screenRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLElement>(null);
+  // Deitado, o painel vira uma coluna à esquerda e começa recolhido; em pé, ele pode descer
+  const landscape = useMediaQuery(LANDSCAPE_PHONE);
+  const [panelCollapsed, setPanelCollapsed] = usePanelCollapsed(landscape);
+  // Ao chegar, o painel abre sozinho para o "Finalizar atendimento"
+  const collapsed = panelCollapsed && !nav.arrived;
+  const landscapeRef = useRef(landscape);
+  landscapeRef.current = landscape;
   const mapRef = useRef<MapLibreMap | null>(null);
   const vehicleRef = useRef<Marker | null>(null);
   const routeLineRef = useRef<Coordinates[]>(initialRoute.geometry);
@@ -150,6 +175,10 @@ export default function NavigationView({
       attributionControl: { compact: true, customAttribution: DATA_ATTRIBUTION }
     });
     mapRef.current = map;
+    // Créditos abertos cobririam o velocímetro: começam recolhidos no "i" (um toque abre)
+    map.once('load', () => {
+      map.getContainer().querySelector('.maplibregl-ctrl-attrib')?.classList.remove('maplibregl-compact-show');
+    });
 
     // Mexer no mapa com o dedo desliga o "seguir o carro" (zoom não desliga)
     const stopFollowing = (event: { originalEvent?: unknown }) => {
@@ -211,11 +240,23 @@ export default function NavigationView({
         pitch: 50,
         duration: 1000,
         easing: t => t,
-        // Carro no terço de baixo da tela, como nos apps de navegação
-        padding: { top: map.getContainer().clientHeight * 0.35, bottom: 0, left: 0, right: 0 }
+        // Carro no terço de baixo da tela, como nos apps de navegação; deitado, à direita do painel
+        padding: landscapeRef.current
+          ? { top: map.getContainer().clientHeight * 0.3, bottom: 0, left: (panelRef.current?.offsetWidth ?? 0) + 20, right: 0 }
+          : { top: map.getContainer().clientHeight * 0.35, bottom: 0, left: 0, right: 0 }
       });
     }
   }, [nav.position, nav.remaining, heading, following]);
+
+  // Altura do painel numa variável CSS: os botões flutuantes e os créditos do mapa ficam logo acima dele
+  useEffect(() => {
+    const panel = panelRef.current;
+    const screen = screenRef.current;
+    if (!panel || !screen || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => screen.style.setProperty('--panel-h', `${panel.offsetHeight}px`));
+    observer.observe(panel);
+    return () => observer.disconnect();
+  }, []);
 
   // Recalcula a partir de onde o carro está (o backend desvia das ocorrências ativas)
   const reroute = useCallback((message: string, minInterval: number) => {
@@ -364,7 +405,7 @@ export default function NavigationView({
   const ThemeIcon = themeOption.Icon;
 
   return (
-    <div className={styles.screen} data-theme={theme}>
+    <div ref={screenRef} className={styles.screen} data-theme={theme}>
       <div ref={containerRef} className={styles.map} />
       {createPortal(<CallMarker priority={call.priority} />, destinationEl)}
 
@@ -402,7 +443,7 @@ export default function NavigationView({
             <span className={styles.incidentAlertIcon}><IncidentIcon type={alerts.alert.incident.type} /></span>
             <p>
               <strong>
-                {INCIDENT_LABEL[alerts.alert.incident.type]}
+                {incidentTypeLabel(alerts.alert.incident.type)}
                 {alerts.alert.distance !== null && ` em ${formatAlertDistance(alerts.alert.distance)}`}
               </strong>
               <span>
@@ -421,6 +462,25 @@ export default function NavigationView({
         <button className={styles.report} onClick={() => setReporting(true)}><ReportIcon /> Reportar</button>
       )}
 
+      {/* Placa do limite da via e velocímetro, como no Waze (só informa: em atendimento a viatura pode passar do limite) */}
+      {!nav.arrived && (speedLimit !== null || speedKmh !== null) && (
+        <div className={styles.speed}>
+          {speedLimit !== null && (
+            <span className={styles.speedLimit} role="img" aria-label={`Limite da via: ${speedLimit} km/h`}>{speedLimit}</span>
+          )}
+          {speedKmh !== null && (
+            <span
+              className={`${styles.speedometer} ${overLimit(speedKmh, speedLimit) ? styles.speeding : ''}`}
+              role="img"
+              aria-label={`Velocidade: ${speedKmh} km/h`}
+            >
+              <strong>{speedKmh}</strong>
+              <small>km/h</small>
+            </span>
+          )}
+        </div>
+      )}
+
       {reporting && (
         <ReportSheet
           getPosition={async () => fixRef.current?.position ?? null}
@@ -434,7 +494,8 @@ export default function NavigationView({
         <button className={styles.recenter} onClick={recenter}><MyLocationIcon /> Recentralizar</button>
       )}
 
-      <footer className={styles.panel}>
+      <footer ref={panelRef} className={`${styles.panel} ${collapsed ? styles.collapsed : ''}`}>
+        {!nav.arrived && <PanelHandle collapsed={collapsed} onChange={setPanelCollapsed} label="painel da navegação" />}
         {nav.arrived ? (
           <button className={styles.finish} disabled={finishing} onClick={handleFinish}>
             {finishing ? 'Finalizando…' : <><CheckCircleIcon /> Finalizar atendimento</>}
@@ -446,7 +507,7 @@ export default function NavigationView({
           </div>
         )}
 
-        <div className={styles.actions}>
+        {!collapsed && <div className={styles.actions}>
           <button
             className={styles.iconButton}
             onClick={toggleVoice}
@@ -469,7 +530,7 @@ export default function NavigationView({
             <button className={styles.iconButton} onClick={sim.deviate} title="Simular saída da rota" aria-label="Simular saída da rota"><DetourIcon /></button>
           )}
           <button className={styles.exitButton} onClick={onExit}>Sair</button>
-        </div>
+        </div>}
       </footer>
     </div>
   );

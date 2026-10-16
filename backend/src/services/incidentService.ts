@@ -15,32 +15,28 @@ export class IncidentError extends Error {
 interface Defaults {
   effect: IncidentEffect;
   radius: number; // metros
-  duration: number | null; // ms; null = até a central encerrar
+  duration: number; // ms
 }
 
-// Padrões da central: o operador pode trocar efeito, raio e duração na hora de marcar
-export const CENTRAL_DEFAULTS: Partial<Record<IncidentType, Defaults>> = {
-  [IncidentType.ALAGAMENTO]: { effect: IncidentEffect.BLOQUEIO, radius: 200, duration: 2 * HOUR },
-  [IncidentType.VIA_BLOQUEADA]: { effect: IncidentEffect.BLOQUEIO, radius: 100, duration: null },
-  [IncidentType.QUEDA_ARVORE]: { effect: IncidentEffect.RISCO, radius: 100, duration: 6 * HOUR },
-  [IncidentType.ACIDENTE]: { effect: IncidentEffect.RISCO, radius: 100, duration: HOUR },
-  [IncidentType.VENTOS_FORTES]: { effect: IncidentEffect.AVISO, radius: 500, duration: 2 * HOUR },
-  [IncidentType.CHUVA_FORTE]: { effect: IncidentEffect.AVISO, radius: 1000, duration: 2 * HOUR }
-};
-
-// Relato da equipe (modelo Waze): vale como risco até outra equipe ou a central confirmar
+// Relato da equipe (modelo Waze): vale como risco ou aviso até outra equipe confirmar.
+// A central só acompanha: quem marca, confirma e tira do mapa são as equipes, as fontes oficiais e o vencimento.
 export const CREW_DEFAULTS: Partial<Record<IncidentType, Defaults>> = {
   [IncidentType.ALAGAMENTO]: { effect: IncidentEffect.RISCO, radius: 150, duration: 2 * HOUR },
   [IncidentType.VIA_BLOQUEADA]: { effect: IncidentEffect.RISCO, radius: 100, duration: 2 * HOUR },
   [IncidentType.QUEDA_ARVORE]: { effect: IncidentEffect.RISCO, radius: 100, duration: 6 * HOUR },
-  [IncidentType.ACIDENTE]: { effect: IncidentEffect.RISCO, radius: 100, duration: HOUR }
+  [IncidentType.ACIDENTE]: { effect: IncidentEffect.RISCO, radius: 100, duration: HOUR },
+  [IncidentType.OBRAS]: { effect: IncidentEffect.RISCO, radius: 100, duration: 24 * HOUR },
+  [IncidentType.CONGESTIONAMENTO]: { effect: IncidentEffect.RISCO, radius: 300, duration: HOUR },
+  [IncidentType.PERIGO_NA_VIA]: { effect: IncidentEffect.AVISO, radius: 50, duration: 6 * HOUR },
+  [IncidentType.VEICULO_PARADO]: { effect: IncidentEffect.AVISO, radius: 50, duration: HOUR },
+  [IncidentType.SEMAFORO_QUEBRADO]: { effect: IncidentEffect.AVISO, radius: 50, duration: 6 * HOUR }
 };
 
-// Relato destes tipos confirmado por outra equipe (ou pela central) passa a bloquear a via
+// Relato destes tipos confirmado por outra equipe passa a bloquear a via
 const BLOCKS_WHEN_CONFIRMED = new Set([IncidentType.ALAGAMENTO, IncidentType.VIA_BLOQUEADA]);
 
-// Relatos das equipes e alertas automáticos somem com dois "não está lá"; o que a central marcou, só ela encerra
-const CLOSED_BY_CREWS = new Set([IncidentSource.EQUIPE, IncidentSource.CEMADEN]);
+// Relatos das equipes, alertas automáticos e marcações antigas da central somem com dois "não está lá"
+const CLOSED_BY_CREWS = new Set([IncidentSource.EQUIPE, IncidentSource.CEMADEN, IncidentSource.CENTRAL]);
 const NEGATIVE_VOTES_TO_CLOSE = 2;
 
 // Relato do mesmo tipo a esta distância de outro ativo conta como confirmação dele
@@ -148,9 +144,6 @@ export interface CreateIncidentInput {
   type?: unknown;
   lat?: unknown;
   lng?: unknown;
-  radius?: unknown; // só a central escolhe
-  effect?: unknown; // só a central escolhe
-  durationMinutes?: unknown; // só a central escolhe; null = até encerrar
   description?: unknown;
   clientId?: unknown; // relato da equipe: id gerado no celular (reenvio sem duplicar)
   reportedAt?: unknown; // relato da equipe: hora em que foi feito (pode ter ficado na fila sem sinal)
@@ -178,63 +171,15 @@ export async function createIncident(user: AuthUser, input: CreateIncidentInput)
   if (!isFiniteNumber(lat) || !isFiniteNumber(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
     throw new IncidentError(400, 'Local inválido.');
   }
-  const description = parseNote(input.description);
+  if (user.role !== UserRole.MOTORISTA) throw new IncidentError(403, 'Só as equipes relatam ocorrências.');
 
-  return user.role === UserRole.MOTORISTA
-    ? createCrewReport(user, input, { lat, lng }, description)
-    : createCentralIncident(user, input, { lat, lng }, description);
+  return createCrewReport(user, input, { lat, lng }, parseNote(input.description));
 }
 
 async function insertIncident(fields: Record<string, unknown>): Promise<any> {
   const { data, error } = await supabase.from('incidents').insert(fields).select(SELECT).single();
   if (error) throw Object.assign(new Error(error.message), { code: error.code });
   return data;
-}
-
-async function createCentralIncident(
-  user: AuthUser,
-  input: CreateIncidentInput,
-  location: Coordinates,
-  description: string | null
-): Promise<CreateIncidentResult> {
-  const type = input.type as IncidentType;
-  const defaults = CENTRAL_DEFAULTS[type];
-  if (!defaults) throw new IncidentError(400, 'Tipo de ocorrência inválido.');
-
-  const effect = input.effect ?? defaults.effect;
-  if (!Object.values(IncidentEffect).includes(effect as IncidentEffect)) throw new IncidentError(400, 'Efeito inválido.');
-
-  const radius = input.radius ?? defaults.radius;
-  if (!Number.isInteger(radius) || (radius as number) < 50 || (radius as number) > 5000) {
-    throw new IncidentError(400, 'O raio precisa ficar entre 50 m e 5 km.');
-  }
-
-  let duration = defaults.duration;
-  if (input.durationMinutes === null) duration = null;
-  else if (input.durationMinutes !== undefined) {
-    const minutes = input.durationMinutes;
-    if (!Number.isInteger(minutes) || (minutes as number) < 15 || (minutes as number) > 7 * 24 * 60) {
-      throw new IncidentError(400, 'Duração inválida.');
-    }
-    duration = (minutes as number) * MINUTE;
-  }
-
-  const now = Date.now();
-  const row = await insertIncident({
-    type,
-    source: IncidentSource.CENTRAL,
-    effect,
-    lat: location.lat,
-    lng: location.lng,
-    radius,
-    description,
-    created_by: user.id,
-    created_at: iso(now),
-    last_confirmed_at: iso(now),
-    expires_at: duration === null ? null : iso(now + duration)
-  });
-
-  return { incident: toIncident(row, user.id), created: true, merged: false };
 }
 
 async function createCrewReport(
@@ -264,11 +209,11 @@ async function createCrewReport(
   const now = Date.now();
   let reportedAt = typeof input.reportedAt === 'string' ? Date.parse(input.reportedAt) : now;
   if (!Number.isFinite(reportedAt) || reportedAt > now) reportedAt = now;
-  if (now - reportedAt > MAX_REPORT_AGE || reportedAt + (defaults.duration ?? 0) <= now) {
+  if (now - reportedAt > MAX_REPORT_AGE || reportedAt + defaults.duration <= now) {
     throw new IncidentError(410, 'O relato ficou antigo demais sem sinal e não foi enviado.');
   }
 
-  // Mesmo tipo já marcado ali perto pela central ou por outra equipe: o relato confirma o que existe.
+  // Mesmo tipo já marcado ali perto por outra equipe (ou pela central, antes): o relato confirma o que existe.
   // Área automática (CEMADEN) é grande demais para isso: o relato no ponto exato fica separado.
   const nearby = (await listActiveIncidents(user.id)).find(incident =>
     incident.type === type &&
@@ -303,7 +248,7 @@ async function createCrewReport(
       client_id: clientId,
       created_at: iso(reportedAt),
       last_confirmed_at: iso(reportedAt),
-      expires_at: iso(reportedAt + (defaults.duration ?? 0))
+      expires_at: iso(reportedAt + defaults.duration)
     });
     return { incident: toIncident(row, user.id), created: true, merged: false };
   } catch (error: any) {
@@ -328,12 +273,8 @@ export async function voteIncident(
   const row = await getActiveRow(id);
   if (!row) throw new IncidentError(404, 'Esta ocorrência já foi encerrada.');
 
-  const isOperator = user.role === UserRole.OPERADOR;
-  if (isOperator && vote !== IncidentVote.SIM) {
-    throw new IncidentError(403, 'Para tirar a ocorrência do mapa, use Encerrar.');
-  }
-  const ambulanceId = isOperator ? null : await ambulanceOnShift(user.id);
-  if (!isOperator && !ambulanceId) throw new IncidentError(403, 'Inicie o turno para confirmar ocorrências.');
+  const ambulanceId = await ambulanceOnShift(user.id);
+  if (!ambulanceId) throw new IncidentError(403, 'Inicie o turno para confirmar ocorrências.');
 
   const now = Date.now();
   const { error } = await supabase
@@ -345,13 +286,13 @@ export async function voteIncident(
     const updates: Record<string, unknown> = { last_confirmed_at: iso(now), updated_at: iso(now) };
 
     // Confirmação renova a validade; as fontes oficiais seguem o prazo da própria fonte
-    const renewal = CREW_DEFAULTS[row.type as IncidentType]?.duration ?? CENTRAL_DEFAULTS[row.type as IncidentType]?.duration;
+    const renewal = CREW_DEFAULTS[row.type as IncidentType]?.duration;
     const manual = row.source === IncidentSource.CENTRAL || row.source === IncidentSource.EQUIPE;
     if (manual && row.expires_at && renewal) {
       updates.expires_at = iso(Math.max(Date.parse(row.expires_at), now + renewal));
     }
 
-    const fromAnotherCrew = isOperator || (ambulanceId !== row.ambulance_id && user.id !== row.created_by);
+    const fromAnotherCrew = ambulanceId !== row.ambulance_id && user.id !== row.created_by;
     if (
       row.source === IncidentSource.EQUIPE &&
       row.effect === IncidentEffect.RISCO &&
@@ -391,11 +332,6 @@ export async function voteIncident(
 
   const updated = await getActiveRow(id);
   return { incident: updated ? toIncident(updated, user.id) : null, closed: !updated };
-}
-
-export async function closeIncident(user: AuthUser, id: string): Promise<void> {
-  const closed = await closeRow(id, user.id, 'CENTRAL');
-  if (!closed) throw new IncidentError(404, 'Esta ocorrência já foi encerrada.');
 }
 
 // Viatura passando normalmente pela área de um relato de equipe (modelo Waze): conta como "não está mais lá"

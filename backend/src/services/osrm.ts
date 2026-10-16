@@ -7,6 +7,7 @@ export interface EngineRoute {
   duration: number; // segundos
   geometry: Coordinates[];
   steps: RouteStep[];
+  alternatives?: EngineRoute[]; // outros caminhos, quando pedidos
 }
 
 // Servidor público do OSRM: reserva quando o Valhalla não responde (não desvia de áreas)
@@ -45,10 +46,17 @@ export function parseOsrmRoute(route: any): EngineRoute {
   };
 }
 
-export async function osrmRoute(from: Coordinates, to: Coordinates): Promise<EngineRoute> {
+// A primeira é a principal; as outras (quando pedidas) vêm como alternativas dela
+export function parseOsrmRoutes(routes: any[]): EngineRoute {
+  const [main, ...others] = routes.map(parseOsrmRoute);
+  return others.length ? { ...main, alternatives: others } : main;
+}
+
+export async function osrmRoute(from: Coordinates, to: Coordinates, alternatives = false): Promise<EngineRoute> {
   const url = `${osrmUrl()}/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}`;
-  const response = await axios.get(url, { params: { overview: 'full', geometries: 'geojson', steps: 'true' }, timeout: 5000 });
+  const params = { overview: 'full', geometries: 'geojson', steps: 'true', ...(alternatives ? { alternatives: 'true' } : {}) };
+  const response = await axios.get(url, { params, timeout: 5000 });
 
   if (response.data.code !== 'Ok' || !response.data.routes?.length) throw new Error('OSRM: nenhuma rota encontrada');
-  return parseOsrmRoute(response.data.routes[0]);
+  return parseOsrmRoutes(response.data.routes);
 }

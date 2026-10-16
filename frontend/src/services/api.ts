@@ -5,9 +5,10 @@ import {
   EmergencyCall,
   Base,
   Incident,
-  IncidentEffect,
   IncidentType,
   OfficialSourceStatus,
+  PlaceSuggestion,
+  SpeedLimitSegment,
   DispatchRecommendation,
   RouteInfo,
   Stats,
@@ -190,9 +191,6 @@ export interface CreateIncidentRequest {
   type: IncidentType;
   lat: number;
   lng: number;
-  radius?: number; // só a central escolhe
-  effect?: IncidentEffect; // só a central escolhe
-  durationMinutes?: number | null; // só a central escolhe; null = até encerrar
   description?: string;
   clientId?: string; // relato da equipe guardado sem sinal
   reportedAt?: string;
@@ -208,10 +206,6 @@ export interface CreateIncidentResult {
 export async function createIncident(request: CreateIncidentRequest): Promise<CreateIncidentResult> {
   const response = await api.post<ApiResponse<CreateIncidentResult>>('/incidents', request);
   return response.data.data!;
-}
-
-export async function closeIncident(id: string): Promise<void> {
-  await api.post(`/incidents/${id}/close`);
 }
 
 export async function voteIncident(id: string, vote: 'SIM' | 'NAO'): Promise<{ incident: Incident | null; closed: boolean }> {
@@ -261,12 +255,36 @@ export async function executeDispatch(callId: string, ambulanceId: string): Prom
 // ROUTES
 // ============================================
 
-export async function calculateRoute(from: Coordinates, to: Coordinates): Promise<RouteInfo> {
+// `alternatives`: traz também até 2 caminhos diferentes em `route.alternatives`
+export async function calculateRoute(
+  from: Coordinates,
+  to: Coordinates,
+  options: { alternatives?: boolean } = {}
+): Promise<RouteInfo> {
   const response = await api.post<ApiResponse<RouteInfo>>('/routes/calculate', {
     from,
-    to
+    to,
+    ...(options.alternatives ? { alternatives: true } : {})
   });
   return response.data.data!;
+}
+
+// Limites de velocidade ao longo da rota (placa na navegação); sem dado, a placa não aparece
+export async function getSpeedLimits(geometry: Coordinates[]): Promise<SpeedLimitSegment[]> {
+  const response = await api.post<ApiResponse<SpeedLimitSegment[]>>('/routes/limits', { geometry });
+  return response.data.data ?? [];
+}
+
+// Autocompletar de endereços e locais da região de Sorocaba
+export async function searchPlaces(query: string, signal?: AbortSignal): Promise<PlaceSuggestion[]> {
+  const response = await api.get<ApiResponse<PlaceSuggestion[]>>('/geocode/search', { params: { q: query }, signal });
+  return response.data.data ?? [];
+}
+
+// Nome do lugar mais próximo de um ponto (escolhido no mapa)
+export async function reversePlace(point: Coordinates): Promise<PlaceSuggestion | null> {
+  const response = await api.get<ApiResponse<PlaceSuggestion | null>>('/geocode/reverse', { params: point });
+  return response.data.data ?? null;
 }
 
 // ============================================

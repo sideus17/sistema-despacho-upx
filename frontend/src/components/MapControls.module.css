@@ -1,0 +1,67 @@
+/* Canto inferior direito, acima dos créditos do mapa */
+.controls {
+  position: absolute;
+  right: 12px;
+  bottom: 36px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.zoom {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 999px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.button {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border: none;
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 22px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+}
+
+.zoom .button {
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.zoom .button + .button {
+  border-top: 1px solid var(--color-border);
+}
+
+@media (hover: hover) {
+  .button:hover {
+    background: var(--color-surface-hover);
+  }
+}
+
+.button:focus-visible {
+  outline: 3px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Mapa com metade da tela no celular: botões menores */
+@media (max-width: 768px) {
+  .controls {
+    right: 8px;
+    gap: 8px;
+  }
+
+  .button {
+    width: 38px;
+    height: 38px;
+    font-size: 20px;
+  }
+}

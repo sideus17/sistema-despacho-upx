@@ -7,7 +7,12 @@ const TYPE_LABEL: Record<IncidentType, string> = {
   [IncidentType.ACIDENTE]: 'Acidente',
   [IncidentType.VENTOS_FORTES]: 'Ventos fortes',
   [IncidentType.CHUVA_FORTE]: 'Chuva forte',
-  [IncidentType.ALERTA_OFICIAL]: 'Alerta oficial'
+  [IncidentType.ALERTA_OFICIAL]: 'Alerta oficial',
+  [IncidentType.OBRAS]: 'Obras',
+  [IncidentType.CONGESTIONAMENTO]: 'Congestionamento',
+  [IncidentType.PERIGO_NA_VIA]: 'Perigo na pista',
+  [IncidentType.VEICULO_PARADO]: 'Veículo parado',
+  [IncidentType.SEMAFORO_QUEBRADO]: 'Semáforo quebrado'
 };
 
 const SOURCE_LABEL: Record<IncidentSource, string> = {

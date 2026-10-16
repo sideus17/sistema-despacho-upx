@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Coordinates, Incident, IncidentEffect, IncidentSource, RouteInfo } from '../../types';
-import { INCIDENT_LABEL } from '../../map/incidents';
+import { incidentTypeLabel } from '../../map/incidents';
 import { circleEntryAlong, cumulativeDistances, distance } from '../navigation/geo';
 import { stillThereQuestion } from './StillTherePrompt';
 
@@ -98,7 +98,7 @@ export function useIncidentAlerts({ incidents, route, remaining, position, meId,
 
     alerted.current.add(next.incident.id);
     show({ incident: next.incident, distance: next.along });
-    speak(`Atenção: ${INCIDENT_LABEL[next.incident.type].toLowerCase()} ${spokenDistance(next.along)}`);
+    speak(`Atenção: ${incidentTypeLabel(next.incident.type).toLowerCase()} ${spokenDistance(next.along)}`);
   }, [active, ahead, incidents, blockedAhead, meId, show, speak]);
 
   // "Ainda está lá?"

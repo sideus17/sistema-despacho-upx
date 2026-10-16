@@ -1,0 +1,25 @@
+/* Área de toque larga, traço discreto no meio (como as folhas do Android e do iOS) */
+.handle {
+  display: grid;
+  width: 100%;
+  height: 24px;
+  margin: -6px 0 -4px;
+  place-items: center;
+  border: none;
+  background: none;
+  cursor: grab;
+  touch-action: none;
+}
+
+.grabber {
+  width: 44px;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(107, 114, 128, 0.55);
+}
+
+.handle:focus-visible {
+  outline: 3px solid var(--color-primary);
+  outline-offset: -2px;
+  border-radius: 8px;
+}

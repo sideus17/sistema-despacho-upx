@@ -1,7 +1,7 @@
 import { useState, useCallback, lazy, Suspense } from 'react';
 import CallList from './components/CallList';
 import DispatchAnalysis from './components/DispatchAnalysis';
-import Incidents, { IncidentDraft } from './components/Incidents';
+import Incidents from './components/Incidents';
 import NewCallForm from './components/NewCallForm';
 import Fleet from './components/Fleet';
 import { useToast } from './components/Toast';
@@ -11,7 +11,6 @@ import {
   Ambulance,
   EmergencyCall,
   Base,
-  Coordinates,
   Incident,
   DispatchRecommendation,
   Stats
@@ -21,10 +20,6 @@ import {
   getPendingCalls,
   getBases,
   getIncidents,
-  createIncident,
-  closeIncident,
-  voteIncident,
-  CreateIncidentRequest,
   analyzeDispatch,
   executeDispatch,
   finishDispatch,
@@ -32,7 +27,6 @@ import {
   getStats,
   getErrorMessage
 } from './services/api';
-import { INCIDENT_LABEL } from './map/incidents';
 import { AddIcon, AmbulanceIcon, AnalyticsIcon, CallIcon, WarningIcon } from './ui/icons';
 import { AccountMenu } from './components/AccountMenu';
 import './styles/index.css';
@@ -49,7 +43,6 @@ function App() {
   const [calls, setCalls] = useState<EmergencyCall[]>([]);
   const [bases, setBases] = useState<Base[]>([]);
   const [incidents, setIncidents] = useState<Incident[]>([]);
-  const [incidentDraft, setIncidentDraft] = useState<IncidentDraft | null>(null);
   const [focusIncident, setFocusIncident] = useState<{ id: string; at: number } | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
   const [selectedRouteIndex, setSelectedRouteIndex] = useState<number>(0);
@@ -58,7 +51,7 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [routeLoadingId, setRouteLoadingId] = useState<string | null>(null);
   const [connection, setConnection] = useState<Connection>('connecting');
-  const [activeTab, setActiveTabState] = useState<Tab>('calls');
+  const [activeTab, setActiveTab] = useState<Tab>('calls');
   const toast = useToast();
   const { signOut } = useAuth();
 
@@ -88,59 +81,6 @@ function App() {
 
   // Atualiza a cada 30s; se falhar (ex.: servidor acordando), tenta de novo em 10s
   usePolling(loadData, 30000, 10000);
-
-  // Sair da aba de ocorrências desiste da marcação em andamento
-  const setActiveTab = (tab: Tab) => {
-    if (tab !== 'incidents') setIncidentDraft(null);
-    setActiveTabState(tab);
-  };
-
-  const refreshIncidents = useCallback(async () => {
-    try {
-      const [incidentData, statsData] = await Promise.all([getIncidents(), getStats()]);
-      setIncidents(incidentData);
-      setStats(statsData);
-    } catch {
-      // O polling tenta de novo
-    }
-  }, []);
-
-  const handlePickLocation = (location: Coordinates) => {
-    setIncidentDraft(current => (current ? { ...current, location } : current));
-  };
-
-  const handleCreateIncident = async (request: CreateIncidentRequest) => {
-    try {
-      await createIncident(request);
-      toast(`${INCIDENT_LABEL[request.type]} marcado no mapa`, 'success');
-      await refreshIncidents();
-      return true;
-    } catch (error) {
-      toast(getErrorMessage(error, 'Não foi possível criar a ocorrência.'), 'error');
-      return false;
-    }
-  };
-
-  const handleCloseIncident = async (incident: Incident) => {
-    try {
-      await closeIncident(incident.id);
-      toast(`${INCIDENT_LABEL[incident.type]} encerrado`, 'success');
-    } catch (error) {
-      toast(getErrorMessage(error, 'Não foi possível encerrar a ocorrência.'), 'error');
-    }
-    await refreshIncidents();
-  };
-
-  // Relato de equipe confirmado pela central passa a bloquear a via
-  const handleConfirmIncident = async (incident: Incident) => {
-    try {
-      await voteIncident(incident.id, 'SIM');
-      toast(`${INCIDENT_LABEL[incident.type]} confirmado: a rota passa a desviar`, 'success');
-    } catch (error) {
-      toast(getErrorMessage(error, 'Não foi possível confirmar a ocorrência.'), 'error');
-    }
-    await refreshIncidents();
-  };
 
   // Seleciona o chamado no mapa sem abrir a análise
   const handleFocusCall = (call: EmergencyCall) => {
@@ -267,9 +207,6 @@ function App() {
               selectedCall={selectedCall}
               routeGeometry={recommendation?.recommendations[selectedRouteIndex]?.route?.geometry}
               onCallSelect={handleAnalyze}
-              draft={incidentDraft}
-              onPickLocation={handlePickLocation}
-              onCloseIncident={handleCloseIncident}
               focusIncident={focusIncident}
             />
           </Suspense>
@@ -375,11 +312,6 @@ function App() {
             {activeTab === 'incidents' && (
               <Incidents
                 incidents={incidents}
-                draft={incidentDraft}
-                onDraftChange={setIncidentDraft}
-                onCreate={handleCreateIncident}
-                onClose={handleCloseIncident}
-                onConfirm={handleConfirmIncident}
                 onFocus={incident => setFocusIncident({ id: incident.id, at: Date.now() })}
               />
             )}
