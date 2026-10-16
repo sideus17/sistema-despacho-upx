@@ -33,15 +33,18 @@ import {
   getHospitals,
   setCallHospital
 } from './services/api';
-import { AddIcon, AmbulanceIcon, AnalyticsIcon, CallIcon, WarningIcon } from './ui/icons';
+import { AddIcon, AmbulanceIcon, AnalyticsIcon, BackIcon, CallIcon, ManagementIcon, WarningIcon } from './ui/icons';
 import { AccountMenu } from './components/AccountMenu';
 import './styles/index.css';
 
 // O mapa (MapLibre) é o maior pacote do app: carrega à parte, sem atrasar a primeira tela
 const Map = lazy(() => import('./components/Map'));
+// A gestão só carrega quando aberta
+const ManagementPage = lazy(() => import('./components/management/ManagementPage'));
 
 type Connection = 'connecting' | 'online' | 'error';
 type Tab = 'calls' | 'new-call' | 'analysis' | 'fleet' | 'incidents';
+type View = 'operacao' | 'gestao';
 
 function App() {
   // State
@@ -61,6 +64,8 @@ function App() {
   const [routeLoadingId, setRouteLoadingId] = useState<string | null>(null);
   const [connection, setConnection] = useState<Connection>('connecting');
   const [activeTab, setActiveTab] = useState<Tab>('calls');
+  // Na gestão a operação continua montada: o polling e o alerta de chamado novo seguem valendo
+  const [view, setView] = useState<View>('operacao');
   const toast = useToast();
   const { signOut } = useAuth();
 
@@ -230,8 +235,30 @@ function App() {
       {/* Header */}
       <header className="header">
         <div className="header-content">
-          <h1 className="header-brand"><img src="/ambulance.svg" alt="" className="header-logo" /> SAMU Despacho</h1>
-          <AccountMenu onSignOut={signOut} />
+          <h1 className="header-brand">
+            <img src="/ambulance.svg" alt="" className="header-logo" /> <span className="header-brand-name">SAMU Despacho</span>
+          </h1>
+          <div className="header-actions">
+            {view === 'operacao' ? (
+              <button type="button" className="header-view" onClick={() => setView('gestao')}>
+                <ManagementIcon /> Gestão
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="header-view"
+                aria-label={stats?.pendingCalls ? `Voltar à operação (${stats.pendingCalls} aguardando despacho)` : 'Voltar à operação'}
+                onClick={() => setView('operacao')}
+              >
+                <BackIcon /> <span className="header-view-long">Voltar à operação</span>
+                <span className="header-view-short">Operação</span>
+                {!!stats?.pendingCalls && (
+                  <span className="header-view-badge" title={`${stats.pendingCalls} aguardando despacho`}>{stats.pendingCalls}</span>
+                )}
+              </button>
+            )}
+            <AccountMenu onSignOut={signOut} />
+          </div>
         </div>
       </header>
 
@@ -250,8 +277,14 @@ function App() {
         </div>
       )}
 
+      {view === 'gestao' && (
+        <Suspense fallback={<div className="loading"><div className="spinner" /></div>}>
+          <ManagementPage ambulances={ambulances} hospitals={hospitals} bases={bases} />
+        </Suspense>
+      )}
+
       {/* Main Content */}
-      <div className="main-content">
+      <div className="main-content" hidden={view === 'gestao'}>
         {/* Map */}
         <div className="map-container">
           <Suspense fallback={<div className="map-loading" />}>

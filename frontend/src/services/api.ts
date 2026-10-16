@@ -22,6 +22,11 @@ import {
   CallOutcome,
   Hospital,
   Me,
+  Indicators,
+  HistoryFilters,
+  HistoryPage,
+  HeatPoint,
+  ManagementScope,
   AvatarIcon,
   AvatarColor,
   UserRole
@@ -325,6 +330,32 @@ export async function reversePlace(point: Coordinates): Promise<PlaceSuggestion 
 
 export async function getStats(): Promise<Stats> {
   const response = await api.get<ApiResponse<Stats>>('/stats');
+  return response.data.data!;
+}
+
+// ============================================
+// GESTÃO (só a central)
+// ============================================
+
+// Demonstração só vai quando incluída (o servidor deixa de fora por padrão)
+const scopeParams = (scope: ManagementScope) => ({ from: scope.from, to: scope.to, ...(scope.demo ? { demo: 'true' } : {}) });
+
+export async function getIndicators(scope: ManagementScope, signal?: AbortSignal): Promise<Indicators> {
+  const response = await api.get<ApiResponse<Indicators>>('/management/indicators', { params: scopeParams(scope), signal });
+  return response.data.data!;
+}
+
+export async function getHistory(scope: ManagementScope, filters: HistoryFilters, page: number, signal?: AbortSignal): Promise<HistoryPage> {
+  const params = { ...scopeParams(scope), ...filters, page };
+  const response = await api.get<ApiResponse<HistoryPage>>('/management/calls', { params, signal });
+  return response.data.data!;
+}
+
+export async function getHeatmap(scope: ManagementScope, signal?: AbortSignal): Promise<{ points: HeatPoint[]; truncated: boolean }> {
+  const response = await api.get<ApiResponse<{ points: HeatPoint[]; truncated: boolean }>>('/management/heatmap', {
+    params: scopeParams(scope),
+    signal
+  });
   return response.data.data!;
 }
 

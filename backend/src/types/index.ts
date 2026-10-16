@@ -119,6 +119,7 @@ export interface EmergencyCall {
   times?: CallTimes; // horários do atendimento (só os que já aconteceram)
   hospitalId?: string; // hospital de destino (escolhido ou onde a viatura chegou)
   outcome?: CallOutcome;
+  demo?: true; // histórico de demonstração (npm run demo:gerar)
 }
 
 // Etapas do atendimento: despacho e fim pelas rotas; as do meio, pelo GPS da viatura

@@ -126,10 +126,11 @@ describe('chamado repetido', () => {
     assert.ok(matches[0].distance! > 90 && matches[0].distance! < 110);
   });
 
-  it('cancelados e os de mais de 2 h ficam de fora; sem local, a distância é nula', () => {
+  it('cancelados, demonstração e os de mais de 2 h ficam de fora; sem local, a distância é nula', () => {
     const matches = recentMatches(
       [
         row('cancelado', 10, { caller_phone: '15991234567', status: CallStatus.CANCELADO }),
+        row('demo-1', 20, { caller_phone: '15991234567', status: CallStatus.FINALIZADO, demo: true }),
         row('antigo', 121, { caller_phone: '15991234567' }),
         row('finalizado', 100, { caller_phone: '15991234567', status: CallStatus.FINALIZADO })
       ],
@@ -149,4 +150,9 @@ test('horários do atendimento: só os que aconteceram; hospital e desfecho junt
   assert.equal(call.hospitalId, 'hosp-chs');
   assert.equal('outcome' in call, false);
   assert.equal('times' in toCall(ROW, UserRole.OPERADOR), false);
+});
+
+test('chamado de demonstração leva o selo; os reais não', () => {
+  assert.equal(toCall({ ...ROW, demo: true }, UserRole.OPERADOR).demo, true);
+  assert.equal('demo' in toCall({ ...ROW, demo: false }, UserRole.OPERADOR), false);
 });

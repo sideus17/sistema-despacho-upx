@@ -15,6 +15,9 @@ import { officialStatus, triggerOfficialRefresh } from '../services/official/ref
 import { trafficTile, trafficTileAllowed } from '../services/trafficTiles';
 import { resolveOutcome } from '../services/attendance';
 import { listHospitals, trackCallProgress } from '../services/attendanceService';
+import { RESPONSE_TARGETS, computeIndicators } from '../services/indicators';
+import { parseHistoryQuery, parseIncludeDemo, parsePeriod, parsePriorityFilter } from '../services/history';
+import { heatPoints, historyPage, indicatorRows } from '../services/managementService';
 import {
   CallError,
   RECENT_WINDOW_MS,
@@ -831,10 +834,10 @@ router.get('/traffic/flow/:z/:x/:y.pbf', async (req: Request, res: Response) => 
 
 router.get('/stats', requireRole(UserRole.OPERADOR), async (req: Request, res: Response) => {
   try {
-    // Para simplificar, buscamos todos os dados para contar
-    const [ambRes, callsRes, activeIncidents] = await Promise.all([
+    // Os chamados só são contados (com o histórico, trazer a tabela seria pesado)
+    const [ambRes, pendingRes, activeIncidents] = await Promise.all([
       supabase.from('ambulances').select('id, status, driver_id'),
-      supabase.from('calls').select('id, status'),
+      supabase.from('calls').select('id', { count: 'exact', head: true }).eq('status', CallStatus.PENDENTE),
       countActiveIncidents()
     ]);
 
@@ -842,13 +845,65 @@ router.get('/stats', requireRole(UserRole.OPERADOR), async (req: Request, res: R
       totalAmbulances: ambRes.data?.length || 0,
       // Disponível de verdade = livre e com motorista em turno para receber o chamado
       availableAmbulances: ambRes.data?.filter(a => a.status === 'DISPONIVEL' && a.driver_id).length || 0,
-      pendingCalls: callsRes.data?.filter(c => c.status === 'PENDENTE').length || 0,
+      pendingCalls: pendingRes.count ?? 0,
       activeIncidents
     };
 
     res.json({ success: true, data: stats, timestamp: new Date().toISOString() });
   } catch (error) {
      res.status(500).json({ success: false, error: 'Failed to fetch stats', timestamp: new Date().toISOString() });
+  }
+});
+
+// ============================================
+// GESTÃO (indicadores, histórico e mapa de calor; só a central)
+// ============================================
+
+const failManagement = (res: Response, error: unknown, fallback: string) => {
+  if (error instanceof CallError) return fail(res, error.status, error.message);
+  console.error(`${fallback}:`, error);
+  return fail(res, 500, fallback);
+};
+
+// Tempos de cada etapa, tempo-resposta por cor com a meta e distribuições do período
+router.get('/management/indicators', requireRole(UserRole.OPERADOR), async (req: Request, res: Response) => {
+  try {
+    const period = parsePeriod(req.query);
+    const includeDemo = parseIncludeDemo(req.query);
+    const { rows, truncated } = await indicatorRows(period, includeDemo);
+    res.json({
+      success: true,
+      data: { period, includeDemo, targets: RESPONSE_TARGETS, truncated, ...computeIndicators(rows, period) },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    failManagement(res, error, 'Não foi possível calcular os indicadores.');
+  }
+});
+
+// Histórico com busca e filtros, em páginas
+router.get('/management/calls', requireRole(UserRole.OPERADOR), async (req: Request, res: Response) => {
+  try {
+    const query = parseHistoryQuery(req.query);
+    const { rows, total } = await historyPage(query);
+    res.json({
+      success: true,
+      data: { items: rows.map(row => toCall(row, req.user!.role)), total, page: query.page, pageSize: query.pageSize },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    failManagement(res, error, 'Não foi possível buscar o histórico.');
+  }
+});
+
+// Pontos dos chamados para o mapa de calor: [lat, lng, cor]
+router.get('/management/heatmap', requireRole(UserRole.OPERADOR), async (req: Request, res: Response) => {
+  try {
+    const period = parsePeriod(req.query);
+    const result = await heatPoints(period, parseIncludeDemo(req.query), parsePriorityFilter(req.query.priority));
+    res.json({ success: true, data: result, timestamp: new Date().toISOString() });
+  } catch (error) {
+    failManagement(res, error, 'Não foi possível carregar o mapa de calor.');
   }
 });
 
