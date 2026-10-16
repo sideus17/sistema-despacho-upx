@@ -29,6 +29,7 @@ export { default as DetourIcon } from '~icons/material-symbols/alt-route-rounded
 export { default as StarIcon } from '~icons/material-symbols/star-rounded';
 export { default as CheckCircleIcon } from '~icons/material-symbols/check-circle-rounded';
 export { default as BellIcon } from '~icons/material-symbols/notifications-active-rounded';
+export { default as BellOffIcon } from '~icons/material-symbols/notifications-off-rounded';
 
 // Prioridades
 export { default as EmergencyIcon } from '~icons/material-symbols/e911-emergency-rounded';

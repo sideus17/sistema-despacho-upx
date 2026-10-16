@@ -77,6 +77,33 @@ describe('campo de endereço com autocompletar', () => {
     expect(onPick).toHaveBeenCalled();
   });
 
+  it('CEP sugere a rua: escolher só completa o texto e deixa digitar o número', async () => {
+    vi.mocked(searchPlaces).mockResolvedValue([{ label: 'Rua da Penha', detail: 'Centro, Sorocaba · CEP 18010-003', fill: 'Rua da Penha, ' }]);
+    const onChange = vi.fn();
+    renderWithAuth(<Field onChange={onChange} />);
+    const user = userEvent.setup();
+    const input = screen.getByRole('combobox', { name: 'Destino' });
+    await user.type(input, '18010-003');
+    await user.click(await screen.findByRole('option', { name: /Rua da Penha/ }));
+
+    expect(input).toHaveValue('Rua da Penha, ');
+    expect(input).toHaveFocus();
+    expect(onChange).not.toHaveBeenCalled();
+    await user.type(input, '890');
+    expect(input).toHaveValue('Rua da Penha, 890');
+  });
+
+  it('voltar a digitar num endereço escolhido mantém o texto', async () => {
+    vi.mocked(searchPlaces).mockResolvedValue([HOSPITAL]);
+    renderWithAuth(<Field />);
+    const user = userEvent.setup();
+    const input = screen.getByRole('combobox', { name: 'Destino' });
+    await user.type(input, 'hospital');
+    await user.click(await screen.findByRole('option', { name: /Hospital Regional/ }));
+    await user.type(input, ' x');
+    expect(input).toHaveValue('Hospital Regional de Sorocaba x');
+  });
+
   it('busca fora do ar avisa e deixa escolher no mapa', async () => {
     vi.mocked(searchPlaces).mockRejectedValue(new Error('fora'));
     renderWithAuth(<Field />);

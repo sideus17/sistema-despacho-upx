@@ -33,6 +33,13 @@ export function isValidCellphone(value: string): boolean {
   return phone.length === 11 && DDDS.has(Number(phone.slice(0, 2))) && phone[2] === '9';
 }
 
+// Celular (11 dígitos, com o 9) ou fixo (10 dígitos, começando de 2 a 5): o telefone de quem liga ao SAMU
+export function isValidPhone(value: string): boolean {
+  const phone = onlyDigits(value);
+  if (!DDDS.has(Number(phone.slice(0, 2)))) return false;
+  return phone.length === 11 ? phone[2] === '9' : phone.length === 10 && /[2-5]/.test(phone[2]);
+}
+
 export class ProfileError extends Error {}
 
 export function parseName(input: unknown): string {

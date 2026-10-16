@@ -1,4 +1,4 @@
-// CPF e celular: mesmas regras do backend (backend/src/services/profile.ts), para avisar antes de enviar
+// CPF e telefones: mesmas regras do backend (backend/src/services/profile.ts), para avisar antes de enviar
 
 const DDDS = new Set([
   11, 12, 13, 14, 15, 16, 17, 18, 19, 21, 22, 24, 27, 28, 31, 32, 33, 34, 35, 37, 38,
@@ -26,6 +26,13 @@ export function isValidCellphone(value: string): boolean {
   return phone.length === 11 && DDDS.has(Number(phone.slice(0, 2))) && phone[2] === '9';
 }
 
+// Celular (11 dígitos, com o 9) ou fixo (10 dígitos, começando de 2 a 5): o telefone de quem liga ao SAMU
+export function isValidPhone(value: string): boolean {
+  const phone = onlyDigits(value);
+  if (!DDDS.has(Number(phone.slice(0, 2)))) return false;
+  return phone.length === 11 ? phone[2] === '9' : phone.length === 10 && /[2-5]/.test(phone[2]);
+}
+
 // Máscaras aplicadas enquanto a pessoa digita
 export function formatCpf(value: string): string {
   const d = onlyDigits(value).slice(0, 11);
@@ -35,12 +42,15 @@ export function formatCpf(value: string): string {
   return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`;
 }
 
+// Celular (começa com 9) em 5-4 e fixo em 4-4: (15) 99123-4567, (15) 3232-1234
 export function formatPhone(value: string): string {
-  const d = onlyDigits(value).slice(0, 11);
+  const mobile = onlyDigits(value)[2] === '9';
+  const d = onlyDigits(value).slice(0, mobile ? 11 : 10);
+  const split = mobile ? 7 : 6;
   if (d.length === 0) return '';
   if (d.length <= 2) return `(${d}`;
-  if (d.length <= 7) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
-  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+  if (d.length <= split) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
+  return `(${d.slice(0, 2)}) ${d.slice(2, split)}-${d.slice(split)}`;
 }
 
 // CPF escondido como no gov.br: ***.982.247-**

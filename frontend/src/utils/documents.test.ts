@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatCpf, formatPhone, isValidCellphone, isValidCpf, maskCpf } from './documents';
+import { formatCpf, formatPhone, isValidCellphone, isValidCpf, isValidPhone, maskCpf } from './documents';
 
 describe('CPF', () => {
   it('confere os dígitos verificadores', () => {
@@ -34,5 +34,21 @@ describe('celular', () => {
     expect(formatPhone('15')).toBe('(15');
     expect(formatPhone('15991')).toBe('(15) 991');
     expect(formatPhone('15991234567')).toBe('(15) 99123-4567');
+  });
+
+  it('fixo em 4-4, sem passar de 10 dígitos', () => {
+    expect(formatPhone('153232')).toBe('(15) 3232');
+    expect(formatPhone('1532321234')).toBe('(15) 3232-1234');
+    expect(formatPhone('15323212345')).toBe('(15) 3232-1234');
+  });
+});
+
+describe('telefone de quem liga', () => {
+  it('aceita celular com 9 e fixo de 2 a 5', () => {
+    expect(isValidPhone('(15) 99123-4567')).toBe(true);
+    expect(isValidPhone('(15) 3232-1234')).toBe(true);
+    expect(isValidPhone('(15) 9123-4567')).toBe(false);
+    expect(isValidPhone('(20) 3232-1234')).toBe(false);
+    expect(isValidPhone('(15) 3232-123')).toBe(false);
   });
 });

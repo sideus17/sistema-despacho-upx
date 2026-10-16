@@ -1,27 +1,144 @@
-import { useState } from 'react';
-import { CallPriority, EmergencyCall } from '../types';
-import { createCall, getErrorMessage } from '../services/api';
+import { CSSProperties, useEffect, useMemo, useState } from 'react';
+import { Ambulance, CallPriority, Coordinates, EmergencyCall, RecentCallMatch } from '../types';
+import { createCall, getErrorMessage, getRecentCalls, getTimeAgo, reversePlace } from '../services/api';
+import { CALL_STATUS_LABEL, PRIORITIES_BY_SEVERITY, PRIORITY_META } from '../utils/calls';
+import { formatPhone, isValidPhone, onlyDigits } from '../utils/documents';
+import { TRIAGE_SIGNALS, suggestPriority } from '../utils/triage';
+import { LocationIcon, WarningIcon } from '../ui/icons';
+import AddressSearch, { PlaceValue, SearchAction } from './AddressSearch';
 import { useToast } from './Toast';
 import styles from './NewCallForm.module.css';
 
 interface NewCallFormProps {
   onCallCreated: (call: EmergencyCall) => void;
+  // "Escolher no mapa": o mapa da central avisa o ponto clicado
+  picking?: boolean;
+  onPickOnMap?: (onPick: (location: Coordinates) => void) => void;
+  onCancelPick?: () => void;
+  // Local escolhido, para o pino de prévia no mapa
+  onDraftChange?: (location: Coordinates | null) => void;
+  // Aviso de chamado repetido: viatura de cada um e "Ver no mapa"
+  ambulances?: Ambulance[];
+  onShowCall?: (call: EmergencyCall) => void;
 }
 
-export default function NewCallForm({ onCallCreated }: NewCallFormProps) {
+const REPEAT_CHECK_DELAY_MS = 300;
+
+function repeatReason({ reasons, distance }: RecentCallMatch): string {
+  if (reasons.length === 2) return 'Mesmo telefone e mesmo local';
+  if (reasons[0] === 'telefone') return 'Mesmo telefone';
+  return distance ? `Mesmo local (a ${distance} m)` : 'Mesmo local';
+}
+
+const MAP_POINT = 'Ponto marcado no mapa';
+
+// Texto gravado no chamado: nome e bairro/cidade da sugestão; ponto sem nome leva as coordenadas
+function addressOf(place: PlaceValue): string {
+  if (place.label === MAP_POINT) return `${MAP_POINT} (${place.location.lat.toFixed(5)}, ${place.location.lng.toFixed(5)})`;
+  return [place.label, place.detail].filter(Boolean).join(' - ');
+}
+
+// Sinais agrupados pela cor que sugerem (o azul não tem sinal: é escolha do operador)
+const SIGNAL_GROUPS = PRIORITIES_BY_SEVERITY
+  .map(priority => ({ priority, signals: TRIAGE_SIGNALS.filter(signal => signal.priority === priority) }))
+  .filter(group => group.signals.length > 0);
+
+export default function NewCallForm({
+  onCallCreated,
+  picking = false,
+  onPickOnMap,
+  onCancelPick,
+  onDraftChange,
+  ambulances = [],
+  onShowCall
+}: NewCallFormProps) {
+  const [phone, setPhone] = useState('');
+  const [phoneBlurred, setPhoneBlurred] = useState(false);
+  const [repeats, setRepeats] = useState<RecentCallMatch[]>([]);
   const [age, setAge] = useState('');
   const [gender, setGender] = useState('M');
-  const [address, setAddress] = useState('');
+  // Local escolhido (sugestão ou mapa) ou só o texto digitado, que o servidor procura
+  const [place, setPlace] = useState<PlaceValue | null>(null);
+  const [addressText, setAddressText] = useState('');
+  const [addressKey, setAddressKey] = useState(0);
+  const [reference, setReference] = useState('');
   const [description, setDescription] = useState('');
-  const [priority, setPriority] = useState<CallPriority>(CallPriority.URGENTE);
+  const [signals, setSignals] = useState<string[]>([]);
+  // Cor escolhida pelo operador; sem escolha, vale a sugerida pelos sinais
+  const [chosen, setChosen] = useState<CallPriority | null>(null);
   const [loading, setLoading] = useState(false);
   const toast = useToast();
+
+  const suggested = suggestPriority(signals);
+  const priority = chosen ?? suggested;
+  const milder = !!(priority && suggested && PRIORITY_META[priority].order > PRIORITY_META[suggested].order);
+
+  const phoneDigits = onlyDigits(phone);
+  const phoneOk = isValidPhone(phoneDigits);
+  const phoneInvalid = phoneDigits.length > 0 && !phoneOk && (phoneBlurred || phoneDigits.length >= 11);
+
+  // Mesmo telefone ou mesmo local nas últimas 2 h: avisa, sem impedir o chamado novo
+  const repeatPhone = phoneOk ? phoneDigits : undefined;
+  const repeatLocation = place?.location;
+  useEffect(() => {
+    setRepeats([]);
+    if (!repeatPhone && !repeatLocation) return;
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      getRecentCalls({ phone: repeatPhone, location: repeatLocation }, controller.signal)
+        .then(setRepeats)
+        .catch(() => {
+          // Sem a checagem o chamado abre do mesmo jeito
+        });
+    }, REPEAT_CHECK_DELAY_MS);
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, [repeatPhone, repeatLocation?.lat, repeatLocation?.lng]);
+
+  // Pino de prévia no mapa; ao sair do formulário, some junto com a escolha no mapa
+  useEffect(() => onDraftChange?.(place?.location ?? null), [place]);
+  useEffect(() => () => {
+    onDraftChange?.(null);
+    onCancelPick?.();
+  }, []);
+
+  const mapAction = useMemo<SearchAction[]>(() => (onPickOnMap
+    ? [{
+        id: 'mapa',
+        label: 'Escolher no mapa',
+        kind: 'mapa',
+        run: () => onPickOnMap(async location => {
+          const point: PlaceValue = { label: MAP_POINT, location, kind: 'mapa' };
+          setPlace(point);
+          try {
+            const found = await reversePlace(location);
+            if (found) setPlace(current => (current?.location === location ? { ...point, label: found.label, detail: found.detail } : current));
+          } catch {
+            // Sem nome: fica o ponto com as coordenadas
+          }
+        })
+      }]
+    : []), [onPickOnMap]);
+
+  const toggleSignal = (code: string) =>
+    setSignals(current => (current.includes(code) ? current.filter(item => item !== code) : [...current, code]));
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
-    if (!address.trim() || !description.trim()) {
-      toast('Preencha a localização e a descrição do chamado.', 'error');
+    if (phoneDigits && !phoneOk) {
+      setPhoneBlurred(true);
+      toast('Telefone inválido. Use DDD + número, ex.: (15) 3232-1234 ou (15) 99999-9999.', 'error');
+      return;
+    }
+    if ((!place && !addressText.trim()) || !description.trim()) {
+      toast('Preencha o endereço e o que aconteceu.', 'error');
+      return;
+    }
+    if (!priority) {
+      toast('Escolha a classificação de risco.', 'error');
       return;
     }
 
@@ -31,18 +148,28 @@ export default function NewCallForm({ onCallCreated }: NewCallFormProps) {
       const newCall = await createCall({
         age: age ? Number(age) : undefined,
         gender,
-        address,
+        address: place ? addressOf(place) : addressText.trim(),
+        location: place?.location,
+        reference: reference.trim() || undefined,
+        callerPhone: phoneDigits || undefined,
         description,
-        priority
+        priority,
+        triage: signals.length > 0 ? { signals, suggested } : undefined
       });
 
       toast('Chamado criado. Analisando despacho…', 'success');
 
+      setPhone('');
+      setPhoneBlurred(false);
       setAge('');
       setGender('M');
-      setAddress('');
+      setPlace(null);
+      setAddressText('');
+      setAddressKey(key => key + 1);
+      setReference('');
       setDescription('');
-      setPriority(CallPriority.URGENTE);
+      setSignals([]);
+      setChosen(null);
 
       onCallCreated(newCall);
     } catch (error: any) {
@@ -57,50 +184,97 @@ export default function NewCallForm({ onCallCreated }: NewCallFormProps) {
       <h2 className={styles.title}>Novo Chamado</h2>
 
       <p className={styles.intro}>
-        Simulação da abertura de chamado por um usuário. O endereço será convertido em coordenadas para aparecer no mapa e entrar no cálculo de distância.
+        Registre o chamado enquanto fala com quem ligou. No endereço, escolha uma sugestão (rua e número, local ou CEP) ou marque no mapa.
       </p>
 
       <form onSubmit={handleSubmit} className={styles.form}>
         <div>
-          <label className={styles.label}>Idade</label>
+          <label className={styles.label} htmlFor="call-phone">Telefone de quem ligou <span className={styles.optional}>(opcional)</span></label>
           <input
-            type="number"
+            id="call-phone"
+            type="tel"
             inputMode="numeric"
-            min="0"
-            value={age}
-            onChange={(e) => setAge(e.target.value)}
-            placeholder="Ex: 65"
+            autoComplete="off"
+            value={phone}
+            onChange={(e) => setPhone(formatPhone(e.target.value))}
+            onBlur={() => setPhoneBlurred(true)}
+            placeholder="(15) 99999-9999"
+            aria-invalid={phoneInvalid}
+            aria-describedby={phoneInvalid ? 'call-phone-error' : undefined}
             className={styles.input}
           />
+          {phoneInvalid && <p id="call-phone-error" className={styles.fieldError}>Telefone incompleto ou inválido.</p>}
+        </div>
+
+        <div className={styles.address}>
+          <label className={styles.label} htmlFor="call-address">Endereço</label>
+          <AddressSearch
+            key={addressKey}
+            id="call-address"
+            label="Endereço"
+            placeholder="Rua e número, local ou CEP"
+            value={place}
+            onChange={setPlace}
+            onTextChange={setAddressText}
+            actions={mapAction}
+          />
+          {picking ? (
+            <p className={styles.placeHint}>Clique no mapa para marcar o local do chamado.</p>
+          ) : place?.approximate ? (
+            <p className={`${styles.placeHint} ${styles.placeApproximate}`}>
+              <LocationIcon /> Ponto aproximado: achamos a rua, não o número. Confira o pino ou use “Escolher no mapa”.
+            </p>
+          ) : place ? (
+            <p className={styles.placeHint}><LocationIcon /> {place.kind === 'mapa' ? 'Marcado no mapa' : 'Local confirmado'}{place.detail ? ` · ${place.detail}` : ''}</p>
+          ) : addressText.trim().length >= 3 ? (
+            <p className={styles.placeHint}>Sem sugestão escolhida: o endereço será procurado ao abrir o chamado.</p>
+          ) : null}
         </div>
 
         <div>
-          <label className={styles.label}>Sexo</label>
-          <select
-            value={gender}
-            onChange={(e) => setGender(e.target.value)}
-            className={styles.input}
-          >
-            <option value="M">Masculino</option>
-            <option value="F">Feminino</option>
-            <option value="OUTRO">Outro / Não informado</option>
-          </select>
-        </div>
-
-        <div>
-          <label className={styles.label}>Localização / Endereço</label>
+          <label className={styles.label} htmlFor="call-reference">Ponto de referência <span className={styles.optional}>(opcional)</span></label>
           <input
+            id="call-reference"
             type="text"
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            placeholder="Ex: Rua da Penha, 890 - Sorocaba"
+            maxLength={200}
+            value={reference}
+            onChange={(e) => setReference(e.target.value)}
+            placeholder="Ex: em frente à padaria, portão azul"
             className={styles.input}
           />
         </div>
 
+        {repeats.length > 0 && (
+          <div className={styles.repeat} role="status">
+            <p className={styles.repeatTitle}><WarningIcon /> Possível chamado repetido</p>
+            <ul className={styles.repeatList}>
+              {repeats.map(match => {
+                const ambulance = ambulances.find(item => item.id === match.call.ambulance_id);
+                return (
+                  <li key={match.call.id}>
+                    <div className={styles.repeatText}>
+                      <strong>{repeatReason(match)} · {getTimeAgo(match.call.timestamp)}</strong>
+                      <span>{match.call.address}</span>
+                      <span>
+                        {PRIORITY_META[match.call.priority]?.name ?? match.call.priority} · {CALL_STATUS_LABEL[match.call.status] ?? match.call.status}
+                        {ambulance ? ` · ${ambulance.code}` : ''}
+                      </span>
+                    </div>
+                    {onShowCall && (
+                      <button type="button" className={styles.repeatShow} onClick={() => onShowCall(match.call)}>Ver no mapa</button>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+            <small>Confira antes de abrir outro. O aviso não impede abrir o chamado.</small>
+          </div>
+        )}
+
         <div>
-          <label className={styles.label}>Descrição</label>
+          <label className={styles.label} htmlFor="call-description">O que aconteceu</label>
           <textarea
+            id="call-description"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Descreva o que está acontecendo com o paciente..."
@@ -109,18 +283,85 @@ export default function NewCallForm({ onCallCreated }: NewCallFormProps) {
           />
         </div>
 
-        <div>
-          <label className={styles.label}>Urgência</label>
-          <select
-            value={priority}
-            onChange={(e) => setPriority(e.target.value as CallPriority)}
-            className={styles.input}
-          >
-            <option value={CallPriority.EMERGENCIA}>Emergência</option>
-            <option value={CallPriority.URGENTE}>Urgente</option>
-            <option value={CallPriority.PRIORITARIO}>Prioritário</option>
-          </select>
+        <div className={styles.row}>
+          <div>
+            <label className={styles.label} htmlFor="call-age">Idade</label>
+            <input
+              id="call-age"
+              type="number"
+              inputMode="numeric"
+              min="0"
+              value={age}
+              onChange={(e) => setAge(e.target.value)}
+              placeholder="Ex: 65"
+              className={styles.input}
+            />
+          </div>
+
+          <div>
+            <label className={styles.label} htmlFor="call-gender">Sexo</label>
+            <select id="call-gender" value={gender} onChange={(e) => setGender(e.target.value)} className={styles.input}>
+              <option value="M">Masculino</option>
+              <option value="F">Feminino</option>
+              <option value="OUTRO">Outro / Não informado</option>
+            </select>
+          </div>
         </div>
+
+        <fieldset className={styles.triage}>
+          <legend className={styles.label}>Classificação de risco</legend>
+          <p className={styles.hint}>Marque os sinais de alerta que quem ligou relatar.</p>
+
+          {SIGNAL_GROUPS.map(group => (
+            <div
+              key={group.priority}
+              className={styles.signalGroup}
+              style={{ '--risk-color': PRIORITY_META[group.priority].color, '--risk-on-color': PRIORITY_META[group.priority].onColor } as CSSProperties}
+            >
+              <span className={styles.groupName}>{PRIORITY_META[group.priority].name}</span>
+              <div className={styles.chips}>
+                {group.signals.map(signal => (
+                  <button
+                    key={signal.code}
+                    type="button"
+                    className={styles.chip}
+                    aria-pressed={signals.includes(signal.code)}
+                    onClick={() => toggleSignal(signal.code)}
+                  >
+                    {signal.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+
+          <p className={styles.suggestion} role="status">
+            {suggested ? <>Sugerida pelos sinais: <strong>{PRIORITY_META[suggested].name}</strong></> : 'Sem sinais marcados: escolha a cor.'}
+          </p>
+
+          <div className={styles.colors} role="radiogroup" aria-label="Classificação de risco">
+            {PRIORITIES_BY_SEVERITY.map(option => {
+              const meta = PRIORITY_META[option];
+              return (
+                <button
+                  key={option}
+                  type="button"
+                  role="radio"
+                  aria-checked={priority === option}
+                  className={styles.color}
+                  style={{ '--risk-color': meta.color, '--risk-on-color': meta.onColor } as CSSProperties}
+                  onClick={() => setChosen(option)}
+                >
+                  <strong>{meta.name}</strong>
+                  <span>{meta.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {milder && <p className={styles.warning}>A cor escolhida é menos grave que a sugerida pelos sinais.</p>}
+          <small className={styles.hint}>Classificação inicial — a final é do médico regulador.</small>
+        </fieldset>
 
         <button type="submit" disabled={loading} className={styles.submit}>
           {loading ? 'Criando chamado...' : 'Abrir Chamado'}

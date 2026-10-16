@@ -3,10 +3,22 @@
 }
 
 /* Filtros */
+/* Filtros à esquerda, botão dos alertas à direita */
+/* Os filtros vêm primeiro; sem espaço na mesma linha (lateral de 400 px), "Alertas" desce para a direita */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
 .filters {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 100%;
   display: flex;
   gap: 6px;
-  margin-bottom: 16px;
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -125,10 +137,25 @@
   line-height: 1.4;
 }
 
+.reference {
+  margin-bottom: 4px;
+  color: var(--color-text-soft);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
 .description {
   color: var(--color-text-soft);
   font-size: 13px;
   line-height: 1.5;
+}
+
+/* Sinais de alerta da triagem */
+.signals {
+  color: var(--color-text);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
 }
 
 .patient {
@@ -215,4 +242,54 @@
   color: var(--tint-orange-text);
   font-size: 12px;
   font-weight: 700;
+}
+
+/* Som e notificação de chamado novo e de espera longa */
+.alerts {
+  flex-shrink: 0;
+  display: inline-flex;
+  margin-left: auto;
+  align-items: center;
+  gap: 4px;
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.alertsOn {
+  border-color: var(--tint-blue-border);
+  background: var(--tint-blue-bg);
+  color: var(--tint-blue-text);
+}
+
+/* Cronômetro de espera do chamado pendente */
+.wait {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.wait_atencao {
+  border: 1px solid var(--tint-yellow-border);
+  background: var(--tint-yellow-bg);
+  color: var(--tint-yellow-text);
+}
+
+.wait_critico {
+  border: 1px solid var(--tint-red-border);
+  background: var(--tint-red-bg-strong);
+  color: var(--tint-red-text);
 }

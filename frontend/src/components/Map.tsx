@@ -26,7 +26,10 @@ import { IncidentLayer } from '../map/IncidentLayer';
 import { TrafficLayer } from '../map/TrafficLayer';
 import { TRAFFIC_COLORS, useTrafficEnabled } from '../map/traffic';
 import { EFFECT_META, expiryLabel, incidentTypeLabel, sourceLabel } from '../map/incidents';
-import { PRIORITY_META } from '../utils/calls';
+import { PRIORITIES_BY_SEVERITY, PRIORITY_META } from '../utils/calls';
+import { signalsText } from '../utils/triage';
+import { PriorityLabel } from '../ui/PriorityLabel';
+import { formatPhone } from '../utils/documents';
 import { getTimeAgo, reversePlace, withAuthRequest } from '../services/api';
 import { ExpandLessIcon, ExpandMoreIcon, LocationIcon, PinDropIcon } from '../ui/icons';
 import { Avatar } from '../ui/Avatar';
@@ -51,6 +54,10 @@ interface MapProps {
   onCallSelect?: (call: EmergencyCall) => void;
   // Pedido para mostrar uma ocorrência (a cada pedido muda o `at`)
   focusIncident?: { id: string; at: number } | null;
+  // "Escolher no mapa" do formulário de chamado: o próximo clique vira o local
+  callPick?: { onPick: (location: Coordinates) => void; onCancel: () => void } | null;
+  // Local do chamado sendo aberto (pino de prévia)
+  callDraft?: Coordinates | null;
 }
 
 export default function Map({
@@ -61,7 +68,9 @@ export default function Map({
   selectedCall,
   routeGeometry,
   onCallSelect,
-  focusIncident
+  focusIncident,
+  callPick,
+  callDraft
 }: MapProps) {
   const mapRef = useRef<MapRef>(null);
   const fitted = useRef(false);
@@ -112,11 +121,28 @@ export default function Map({
 
   // Esc desiste de escolher o ponto no mapa
   useEffect(() => {
-    if (!picking) return;
-    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') setPicking(null); };
+    if (!picking && !callPick) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      if (callPick) callPick.onCancel();
+      else setPicking(null);
+    };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [picking]);
+  }, [picking, callPick]);
+
+  // O formulário de chamado pediu o mapa: a escolha do painel de rotas fica para depois
+  useEffect(() => {
+    if (callPick) setPicking(null);
+  }, [!!callPick]);
+
+  // Local do chamado escolhido: o mapa vai até ele se estiver fora da tela ou longe demais
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!loaded || !map || !callDraft) return;
+    if (map.getZoom() >= 15 && map.getBounds().contains(toLngLat(callDraft))) return;
+    map.flyTo({ center: toLngLat(callDraft), zoom: Math.max(map.getZoom(), 16), duration: 600 });
+  }, [loaded, callDraft?.lat, callDraft?.lng]);
 
   // Ponto clicado vira partida ou destino; o nome da rua chega logo depois
   const pickPoint = async (field: PlannerField, location: Coordinates) => {
@@ -200,13 +226,12 @@ export default function Map({
         content: (
           <>
             <h3>Chamado de Emergência</h3>
-            <p>
-              <strong>Prioridade:</strong>{' '}
-              <span style={{ color: PRIORITY_META[call.priority]?.color, fontWeight: 'bold' }}>{call.priority}</span>
-            </p>
+            <p><PriorityLabel priority={call.priority} /></p>
             <p><strong>Endereço:</strong> {call.address}</p>
+            {call.reference && <p><strong>Referência:</strong> {call.reference}</p>}
+            {call.callerPhone && <p><strong>Telefone:</strong> {formatPhone(call.callerPhone)}</p>}
             <p><strong>Descrição:</strong> {call.description}</p>
-            <p><strong>Sintomas:</strong> {call.patientInfo.symptoms}</p>
+            {call.triage?.signals.length ? <p><strong>Sinais:</strong> {signalsText(call.triage.signals)}</p> : null}
             {call.patientInfo.age && <p><strong>Idade:</strong> {call.patientInfo.age} anos</p>}
           </>
         )
@@ -279,9 +304,13 @@ export default function Map({
           touchPitch={false}
           attributionControl={{ compact: true, customAttribution: DATA_ATTRIBUTION }}
           transformRequest={withAuthRequest}
-          cursor={picking ? 'crosshair' : undefined}
+          cursor={picking || callPick ? 'crosshair' : undefined}
           interactiveLayerIds={showPlanner ? [ROUTE_OPTIONS_LAYER] : undefined}
           onClick={event => {
+            if (callPick) {
+              callPick.onPick({ lat: event.lngLat.lat, lng: event.lngLat.lng });
+              return;
+            }
             if (picking) {
               pickPoint(picking, { lat: event.lngLat.lat, lng: event.lngLat.lng });
               return;
@@ -318,6 +347,12 @@ export default function Map({
           {planner.open && planner.to && (
             <Marker longitude={planner.to.location.lng} latitude={planner.to.location.lat} anchor="bottom">
               <span className={styles.plannerDestination} title={`Destino: ${planner.to.label}`}><LocationIcon /></span>
+            </Marker>
+          )}
+
+          {callDraft && (
+            <Marker longitude={callDraft.lng} latitude={callDraft.lat} anchor="bottom" style={{ zIndex: 3 }}>
+              <span className={styles.plannerDestination} title="Local do chamado"><LocationIcon /></span>
             </Marker>
           )}
 
@@ -390,7 +425,12 @@ export default function Map({
         />
       )}
 
-      {picking && (
+      {callPick ? (
+        <div className={`${styles.pickHint} ${styles.pickHintAction}`} role="status">
+          <PinDropIcon /> Clique no mapa para marcar o local do chamado
+          <button type="button" onClick={callPick.onCancel}>Cancelar</button>
+        </div>
+      ) : picking && (
         <div className={styles.pickHint} role="status">
           <PinDropIcon /> Clique no mapa para escolher {picking === 'from' ? 'a partida' : 'o destino'} (Esc cancela)
         </div>
@@ -411,7 +451,12 @@ export default function Map({
             <li><span className={styles.legendIcon}><AmbulanceMarker status={AmbulanceStatus.EM_ATENDIMENTO} /></span> Em atendimento</li>
             <li><span className={styles.legendIcon}><AmbulanceMarker status={AmbulanceStatus.INDISPONIVEL} /></span> Indisponível</li>
             <li><span className={styles.legendIcon}><AmbulanceMarker status={AmbulanceStatus.DISPONIVEL} hasDriver={false} /></span> Sem motorista</li>
-            <li><span className={`${styles.legendIcon} ${styles.legendPin}`}><CallMarker priority={CallPriority.EMERGENCIA} /></span> Chamado</li>
+            <li>
+              <span className={`${styles.legendIcon} ${styles.legendPin}`}><CallMarker priority={CallPriority.EMERGENCIA} /></span> Chamado
+              <span className={styles.legendRisk} aria-label="cores: vermelho, amarelo, verde e azul">
+                {PRIORITIES_BY_SEVERITY.map(priority => <i key={priority} style={{ background: PRIORITY_META[priority].color }} title={PRIORITY_META[priority].name} />)}
+              </span>
+            </li>
             <li><span className={styles.legendIcon}><BaseMarker /></span> Base</li>
             <li><span className={styles.legendIcon}><IncidentMarker type={IncidentType.VIA_BLOQUEADA} effect={IncidentEffect.BLOQUEIO} /></span> Bloqueio (rota desvia)</li>
             <li><span className={styles.legendIcon}><IncidentMarker type={IncidentType.ALAGAMENTO} effect={IncidentEffect.RISCO} /></span> Risco na via</li>

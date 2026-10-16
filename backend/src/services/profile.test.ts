@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { UserRole } from '../types';
-import { duplicateMessage, isValidCellphone, isValidCpf, missingFields, profileUpdate, ProfileError } from './profile';
+import { duplicateMessage, isValidCellphone, isValidCpf, isValidPhone, missingFields, profileUpdate, ProfileError } from './profile';
 
 test('CPF: dígitos verificadores', () => {
   assert.ok(isValidCpf('529.982.247-25'));
@@ -38,4 +38,12 @@ test('cadastro incompleto e duplicados', () => {
   assert.equal(duplicateMessage({ code: '23505', message: 'duplicate key value violates unique constraint "profiles_cpf_key"' }),
     'Este CPF já está cadastrado em outra conta.');
   assert.equal(duplicateMessage({ code: '42703', message: 'column does not exist' }), null);
+});
+
+test('telefone de quem liga: celular com 9 ou fixo de 2 a 5, com DDD existente', () => {
+  assert.equal(isValidPhone('(15) 99123-4567'), true);
+  assert.equal(isValidPhone('(15) 3232-1234'), true);
+  assert.equal(isValidPhone('(15) 9123-4567'), false); // 10 dígitos começando com 9: celular sem o 9 da frente
+  assert.equal(isValidPhone('(15) 3232-12345'), false);
+  assert.equal(isValidPhone('(20) 3232-1234'), false);
 });

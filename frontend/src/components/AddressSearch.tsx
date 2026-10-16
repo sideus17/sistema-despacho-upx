@@ -1,5 +1,5 @@
 import { KeyboardEvent, ReactNode, useEffect, useId, useMemo, useRef, useState } from 'react';
-import { Coordinates } from '../types';
+import { Coordinates, FillSuggestion } from '../types';
 import { searchPlaces } from '../services/api';
 import { normalizeText } from '../utils/routes';
 import { AmbulanceIcon, BasePinIcon, CloseIcon, LocationIcon, MyLocationIcon, PinDropIcon } from '../ui/icons';
@@ -12,6 +12,7 @@ export interface PlaceValue {
   detail?: string;
   location: Coordinates;
   kind: PlaceKind;
+  approximate?: boolean; // ponto da rua, não do número digitado
 }
 
 // Atalhos no topo da lista: "Minha localização", "Escolher no mapa"
@@ -23,16 +24,18 @@ export interface SearchAction {
 }
 
 interface AddressSearchProps {
+  id?: string; // para um <label htmlFor> visível
   label: string; // nome do campo para leitores de tela ("Ponto de partida")
   placeholder: string;
-  marker: ReactNode; // bolinha da partida ou pino do destino
+  marker?: ReactNode; // bolinha da partida ou pino do destino
   value: PlaceValue | null;
   onChange: (value: PlaceValue | null) => void;
+  onTextChange?: (text: string) => void; // texto digitado, para quem aceita endereço sem sugestão
   localPlaces?: PlaceValue[]; // viaturas e bases, filtradas aqui mesmo
   actions?: SearchAction[];
 }
 
-type Option = { id: string; place: PlaceValue } | { id: string; action: SearchAction };
+type Option = { id: string; place: PlaceValue } | { id: string; action: SearchAction } | { id: string; fill: FillSuggestion };
 
 const DEBOUNCE_MS = 300;
 const MIN_REMOTE_LENGTH = 3;
@@ -47,20 +50,42 @@ const KIND_ICON: Record<PlaceKind, ReactNode> = {
 };
 
 /**
- * Campo de endereço com autocompletar (combobox): viaturas e bases na hora, endereços do Photon
- * depois de 300 ms parado. Setas escolhem, Enter confirma, Esc fecha a lista.
+ * Campo de endereço com autocompletar (combobox): viaturas e bases na hora, endereços depois de
+ * 300 ms parado (um CEP sugere a rua para completar com o número). Setas escolhem, Enter confirma,
+ * Esc fecha a lista.
  */
-export default function AddressSearch({ label, placeholder, marker, value, onChange, localPlaces = [], actions = [] }: AddressSearchProps) {
+export default function AddressSearch({
+  id,
+  label,
+  placeholder,
+  marker,
+  value,
+  onChange,
+  onTextChange,
+  localPlaces = [],
+  actions = []
+}: AddressSearchProps) {
   const listId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
-  const [query, setQuery] = useState(value?.label ?? '');
+  const [query, setQueryState] = useState(value?.label ?? '');
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
-  const [remote, setRemote] = useState<PlaceValue[]>([]);
+  const [remote, setRemote] = useState<Array<PlaceValue | FillSuggestion>>([]);
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
 
-  // Valor trocado por fora (inverter, ponto escolhido no mapa): o texto acompanha
-  useEffect(() => setQuery(value?.label ?? ''), [value]);
+  const setQuery = (text: string) => {
+    setQueryState(text);
+    onTextChange?.(text);
+  };
+
+  // Valor trocado por fora (inverter, ponto escolhido no mapa): o texto acompanha. Valor apagado
+  // porque a pessoa voltou a digitar: o que ela digitou fica
+  const lastLabel = useRef(value?.label);
+  useEffect(() => {
+    if (value) setQuery(value.label);
+    else if (query === lastLabel.current) setQuery('');
+    lastLabel.current = value?.label;
+  }, [value]);
 
   const typed = normalizeText(query);
   const searching = open && !!query && query !== value?.label;
@@ -77,7 +102,7 @@ export default function AddressSearch({ label, placeholder, marker, value, onCha
     const timer = window.setTimeout(() => {
       searchPlaces(query, controller.signal)
         .then(places => {
-          setRemote(places.map(place => ({ ...place, kind: 'endereco' as const })));
+          setRemote(places.map(place => ('fill' in place ? place : { ...place, kind: 'endereco' as const })));
           setStatus('idle');
         })
         .catch(() => {
@@ -95,13 +120,19 @@ export default function AddressSearch({ label, placeholder, marker, value, onCha
     const local = (searching ? localPlaces.filter(place => normalizeText(`${place.label} ${place.detail ?? ''}`).includes(typed)) : localPlaces)
       .slice(0, searching ? MAX_LOCAL : localPlaces.length)
       .map((place, index) => ({ id: `${listId}-local-${index}`, place }));
-    const found = remote.map((place, index) => ({ id: `${listId}-remote-${index}`, place }));
+    const found = remote.map((item, index) => ('fill' in item ? { id: `${listId}-remote-${index}`, fill: item } : { id: `${listId}-remote-${index}`, place: item }));
     return searching ? [...local, ...found, ...actionOptions] : [...actionOptions, ...local];
   }, [actions, localPlaces, remote, searching, typed, listId]);
 
   useEffect(() => setActive(-1), [options]);
 
   const choose = (option: Option) => {
+    if ('fill' in option) {
+      // Rua do CEP: o texto fica "Rua da Penha, " e o cursor continua no campo para o número
+      setQuery(option.fill.fill);
+      inputRef.current?.focus();
+      return;
+    }
     setOpen(false);
     if ('action' in option) {
       option.action.run();
@@ -132,7 +163,7 @@ export default function AddressSearch({ label, placeholder, marker, value, onCha
 
   const clear = () => {
     setQuery('');
-    onChange(null);
+    if (value) onChange(null);
     setOpen(true);
     inputRef.current?.focus();
   };
@@ -140,10 +171,11 @@ export default function AddressSearch({ label, placeholder, marker, value, onCha
   const showList = open && (options.length > 0 || status !== 'idle' || (searching && typed.length >= MIN_REMOTE_LENGTH));
 
   return (
-    <div className={styles.field}>
-      <span className={styles.marker} aria-hidden>{marker}</span>
+    <div className={`${styles.field} ${marker ? '' : styles.bare}`}>
+      {marker && <span className={styles.marker} aria-hidden>{marker}</span>}
       <input
         ref={inputRef}
+        id={id}
         className={styles.input}
         role="combobox"
         aria-label={label}
@@ -173,8 +205,9 @@ export default function AddressSearch({ label, placeholder, marker, value, onCha
       {showList && (
         <ul id={listId} className={styles.list} role="listbox" aria-label={label}>
           {options.map((option, index) => {
-            const place = 'place' in option ? option.place : null;
-            const kind = place?.kind ?? ('action' in option ? option.action.kind : 'endereco');
+            const place = 'place' in option ? option.place : 'fill' in option ? option.fill : null;
+            const kind = 'place' in option ? option.place.kind : 'action' in option ? option.action.kind : 'endereco';
+            const detail = [place?.detail, 'place' in option && option.place.approximate ? 'ponto aproximado' : null].filter(Boolean).join(' · ');
             return (
               <li
                 key={option.id}
@@ -189,7 +222,7 @@ export default function AddressSearch({ label, placeholder, marker, value, onCha
                 <span className={styles.optionIcon}>{KIND_ICON[kind]}</span>
                 <span className={styles.optionText}>
                   <strong>{place ? place.label : 'action' in option ? option.action.label : ''}</strong>
-                  {place?.detail && <small>{place.detail}</small>}
+                  {detail && <small>{detail}</small>}
                 </span>
               </li>
             );

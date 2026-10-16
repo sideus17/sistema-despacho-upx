@@ -13,13 +13,23 @@ import {
 } from '../services/incidentService';
 import { officialStatus, triggerOfficialRefresh } from '../services/official/refresh';
 import { trafficTile, trafficTileAllowed } from '../services/trafficTiles';
+import {
+  CallError,
+  RECENT_WINDOW_MS,
+  parseCallLocation,
+  parseCallerPhone,
+  parsePriority,
+  parseReference,
+  parseTriage,
+  recentMatches,
+  toCall
+} from '../services/calls';
 import { invalidateProfile, requireAuth, requireRole } from '../middleware/auth';
 import { duplicateMessage, parseCpf, parsePhone, profileUpdate, ProfileError, toMe } from '../services/profile';
 import {
   AmbulanceStatus,
   CallStatus,
   Coordinates,
-  EmergencyCall,
   ApiResponse,
   Stats,
   UserRole
@@ -337,31 +347,15 @@ router.patch('/ambulances/:id/location', requireRole(UserRole.MOTORISTA), async 
 // ============================================
 
 router.get('/calls', async (req: Request, res: Response) => {
-  const { data, error } = await supabase.from('calls').select('*, ambulance_id');
+  const { data, error } = await supabase.from('calls').select('*');
 
   if (error) {
     return res.status(500).json({ success: false, error: error.message, timestamp: new Date().toISOString() });
   }
 
-  const formattedCalls = data.map(call => ({
-    id: call.id,
-    ambulance_id: call.ambulance_id,
-    location: { lat: call.lat, lng: call.lng },
-    address: call.address,
-    priority: call.priority,
-    status: call.status,
-    description: call.description,
-    patientInfo: {
-      age: call.patient_age,
-      gender: call.patient_gender,
-      symptoms: call.patient_symptoms
-    },
-    timestamp: call.timestamp
-  }));
-
   res.json({
     success: true,
-    data: formattedCalls,
+    data: data.map(row => toCall(row, req.user!.role)),
     timestamp: new Date().toISOString()
   });
 });
@@ -376,40 +370,57 @@ router.get('/calls/pending', async (req: Request, res: Response) => {
     return res.status(500).json({ success: false, error: error.message, timestamp: new Date().toISOString() });
   }
 
-  const formattedCalls = data.map(call => ({
-    id: call.id,
-    ambulance_id: call.ambulance_id,
-    location: { lat: call.lat, lng: call.lng },
-    address: call.address,
-    priority: call.priority,
-    status: call.status,
-    description: call.description,
-    patientInfo: {
-      age: call.patient_age,
-      gender: call.patient_gender,
-      symptoms: call.patient_symptoms
-    },
-    timestamp: call.timestamp
-  }));
-
   res.json({
     success: true,
-    data: formattedCalls,
+    data: data.map(row => toCall(row, req.user!.role)),
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Aviso de chamado repetido no formulário: mesmo telefone ou mesmo local nas últimas 2 h
+const MAX_RECENT = 5;
+router.get('/calls/recent', requireRole(UserRole.OPERADOR), async (req: Request, res: Response) => {
+  let phone: string | null;
+  try {
+    phone = parseCallerPhone(typeof req.query.phone === 'string' ? req.query.phone : null);
+  } catch (error) {
+    return fail(res, 400, (error as Error).message);
+  }
+  const location = req.query.lat == null ? null : parseCoordinates({ lat: Number(req.query.lat), lng: Number(req.query.lng) });
+  if (req.query.lat != null && !location) return fail(res, 400, 'Coordenadas inválidas.');
+  if (!phone && !location) return fail(res, 400, 'Informe o telefone ou o local.');
+
+  const since = new Date(Date.now() - RECENT_WINDOW_MS).toISOString();
+  const { data, error } = await supabase.from('calls').select('*').gte('timestamp', since).neq('status', CallStatus.CANCELADO);
+  if (error) return fail(res, 500, error.message);
+
+  const matches = recentMatches(data, { phone, location }).slice(0, MAX_RECENT);
+  res.json({
+    success: true,
+    data: matches.map(match => ({ call: toCall(match.row, req.user!.role), reasons: match.reasons, distance: match.distance })),
     timestamp: new Date().toISOString()
   });
 });
 
 router.post('/calls', requireRole(UserRole.OPERADOR), async (req: Request, res: Response) => {
   try {
-    const { age, gender, address, description, priority } = req.body;
+    const { age, gender, address, description } = req.body ?? {};
 
-    if (!address || !description || !priority) {
-      return res.status(400).json({ success: false, error: 'Endereço, descrição e urgência são obrigatórios.', timestamp: new Date().toISOString() });
+    if (!address || !description) {
+      return res.status(400).json({ success: false, error: 'Endereço e descrição são obrigatórios.', timestamp: new Date().toISOString() });
     }
+    const priority = parsePriority(req.body.priority);
+    const triage = parseTriage(req.body.triage);
+    const reference = parseReference(req.body.reference);
+    const callerPhone = parseCallerPhone(req.body.callerPhone);
 
-    const location = await geocodeAddress(address);
+    // Ponto escolhido (sugestão ou mapa) vale como está; só texto livre é procurado aqui
+    const chosen = parseCallLocation(req.body.location);
+    const location = chosen ?? (await geocodeAddress(address));
+    if (!location) throw new CallError(422, 'Não encontramos esse endereço. Escolha uma sugestão ou marque no mapa.');
+
     const callId = `call-${Date.now()}`;
-    const formattedAddress = address.toLowerCase().includes('sorocaba') ? address : `${address}, Sorocaba/SP`;
+    const formattedAddress = chosen || address.toLowerCase().includes('sorocaba') ? address : `${address}, Sorocaba/SP`;
 
     const { data, error } = await supabase
       .from('calls')
@@ -418,35 +429,23 @@ router.post('/calls', requireRole(UserRole.OPERADOR), async (req: Request, res: 
         lat: location.lat,
         lng: location.lng,
         address: formattedAddress,
-        priority: priority,
+        priority,
         status: CallStatus.PENDENTE,
         description: description,
         patient_age: age ? Number(age) : null,
         patient_gender: gender || null,
-        patient_symptoms: description
+        patient_symptoms: description,
+        ...(triage && { triage }),
+        ...(reference && { reference_point: reference }),
+        ...(callerPhone && { caller_phone: callerPhone })
       }])
       .select();
 
     if (error) throw new Error(error.message);
 
-    const createdCall: EmergencyCall = {
-      id: data[0].id,
-      location: { lat: data[0].lat, lng: data[0].lng },
-      address: data[0].address,
-      priority: data[0].priority,
-      status: data[0].status,
-      description: data[0].description,
-      patientInfo: {
-        age: data[0].patient_age,
-        gender: data[0].patient_gender,
-        symptoms: data[0].patient_symptoms
-      },
-      timestamp: data[0].timestamp
-    };
-
-    res.status(201).json({ success: true, data: createdCall, timestamp: new Date().toISOString() });
+    res.status(201).json({ success: true, data: toCall(data[0], req.user!.role), timestamp: new Date().toISOString() });
   } catch (error) {
-    res.status(400).json({
+    res.status(error instanceof CallError ? error.status : 400).json({
       success: false,
       error: error instanceof Error ? error.message : 'Erro ao criar chamado.',
       timestamp: new Date().toISOString()

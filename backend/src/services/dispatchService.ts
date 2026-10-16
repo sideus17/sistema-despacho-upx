@@ -151,7 +151,8 @@ function calculateTypeScore(type: string, priority: string): number {
   const scoreMatrix: Record<string, Record<string, number>> = {
     [CallPriority.EMERGENCIA]: { [AmbulanceType.USA]: 100, [AmbulanceType.USB]: 70, [AmbulanceType.MOTOLANCIA]: 50 },
     [CallPriority.URGENTE]: { [AmbulanceType.USB]: 100, [AmbulanceType.USA]: 90, [AmbulanceType.MOTOLANCIA]: 60 },
-    [CallPriority.PRIORITARIO]: { [AmbulanceType.MOTOLANCIA]: 100, [AmbulanceType.USB]: 80, [AmbulanceType.USA]: 70 }
+    [CallPriority.PRIORITARIO]: { [AmbulanceType.MOTOLANCIA]: 100, [AmbulanceType.USB]: 80, [AmbulanceType.USA]: 70 },
+    [CallPriority.NAO_URGENTE]: { [AmbulanceType.MOTOLANCIA]: 100, [AmbulanceType.USB]: 80, [AmbulanceType.USA]: 70 }
   };
   return scoreMatrix[priority]?.[type] || 0;
 }

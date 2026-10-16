@@ -13,10 +13,12 @@ export enum AmbulanceStatus {
   INDISPONIVEL = 'INDISPONIVEL'
 }
 
+// Classificação de risco em 4 cores: vermelho, amarelo, verde e azul (ver PRIORITY_META)
 export enum CallPriority {
   EMERGENCIA = 'EMERGENCIA',
   URGENTE = 'URGENTE',
-  PRIORITARIO = 'PRIORITARIO'
+  PRIORITARIO = 'PRIORITARIO',
+  NAO_URGENTE = 'NAO_URGENTE'
 }
 
 export enum CallStatus {
@@ -124,6 +126,15 @@ export interface EmergencyCall {
     symptoms: string;
   };
   timestamp: string;
+  callerPhone?: string; // só a central recebe
+  reference?: string; // ponto de referência
+  triage?: CallTriage;
+}
+
+// Sinais de alerta marcados e a cor que eles sugeriram (a escolhida é a priority)
+export interface CallTriage {
+  signals: string[];
+  suggested: CallPriority | null;
 }
 
 export interface Base {
@@ -188,11 +199,26 @@ export interface SpeedLimitSegment {
   kmh: number;
 }
 
-// Sugestão da busca de endereço (Photon, pelo backend)
+// Sugestão da busca de endereço (Photon e TomTom, pelo backend)
 export interface PlaceSuggestion {
   label: string;
   detail: string;
   location: Coordinates;
+  approximate?: boolean; // o número digitado não foi achado: o ponto é o da rua
+}
+
+// Chamado das últimas 2 h parecido com o que está sendo aberto (aviso de repetido)
+export interface RecentCallMatch {
+  call: EmergencyCall;
+  reasons: Array<'telefone' | 'local'>;
+  distance: number | null; // metros até o local escolhido
+}
+
+// Sugestão que só completa o texto (rua do CEP): a pessoa ainda digita o número
+export interface FillSuggestion {
+  label: string;
+  detail: string;
+  fill: string;
 }
 
 export interface RouteStep {

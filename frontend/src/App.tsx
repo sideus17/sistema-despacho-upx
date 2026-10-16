@@ -1,4 +1,4 @@
-import { useState, useCallback, lazy, Suspense } from 'react';
+import { useState, useCallback, useMemo, useRef, lazy, Suspense } from 'react';
 import CallList from './components/CallList';
 import DispatchAnalysis from './components/DispatchAnalysis';
 import Incidents from './components/Incidents';
@@ -7,13 +7,15 @@ import Fleet from './components/Fleet';
 import { useToast } from './components/Toast';
 import { useAuth } from './auth/AuthContext';
 import { usePolling } from './hooks/usePolling';
+import { useCallAlerts } from './hooks/useCallAlerts';
 import {
   Ambulance,
   EmergencyCall,
   Base,
   Incident,
   DispatchRecommendation,
-  Stats
+  Stats,
+  Coordinates
 } from './types';
 import {
   getAmbulances,
@@ -79,8 +81,38 @@ function App() {
     }
   }, []);
 
-  // Atualiza a cada 30s; se falhar (ex.: servidor acordando), tenta de novo em 10s
-  usePolling(loadData, 30000, 10000);
+  // Atualiza a cada 10 s, como o app da equipe: chamado novo aparece (e alerta) logo; se falhar, tenta de novo em 10 s
+  usePolling(loadData, 10000, 10000);
+
+  // Chamados abertos nesta tela não disparam o alerta de "novo chamado"
+  const ownCallIds = useRef(new Set<string>());
+  useCallAlerts(calls, ownCallIds, toast);
+
+  // "Escolher no mapa" do formulário de chamado: o próximo clique no mapa vira o local
+  const callPickHandler = useRef<((location: Coordinates) => void) | null>(null);
+  const [pickingCall, setPickingCall] = useState(false);
+  const [callDraft, setCallDraft] = useState<Coordinates | null>(null);
+
+  const startCallPick = useCallback((onPick: (location: Coordinates) => void) => {
+    callPickHandler.current = onPick;
+    setPickingCall(true);
+  }, []);
+  const cancelCallPick = useCallback(() => {
+    callPickHandler.current = null;
+    setPickingCall(false);
+  }, []);
+  const callPick = useMemo(
+    () => (pickingCall
+      ? {
+          onPick: (location: Coordinates) => {
+            callPickHandler.current?.(location);
+            cancelCallPick();
+          },
+          onCancel: cancelCallPick
+        }
+      : null),
+    [pickingCall, cancelCallPick]
+  );
 
   // Seleciona o chamado no mapa sem abrir a análise
   const handleFocusCall = (call: EmergencyCall) => {
@@ -110,6 +142,7 @@ function App() {
   };
 
   const handleCallCreated = (call: EmergencyCall) => {
+    ownCallIds.current.add(call.id);
     loadData();
     handleAnalyze(call);
   };
@@ -208,6 +241,8 @@ function App() {
               routeGeometry={recommendation?.recommendations[selectedRouteIndex]?.route?.geometry}
               onCallSelect={handleAnalyze}
               focusIncident={focusIncident}
+              callPick={callPick}
+              callDraft={callDraft}
             />
           </Suspense>
         </div>
@@ -287,7 +322,15 @@ function App() {
             )}
 
             {activeTab === 'new-call' && (
-              <NewCallForm onCallCreated={handleCallCreated} />
+              <NewCallForm
+                onCallCreated={handleCallCreated}
+                picking={pickingCall}
+                onPickOnMap={startCallPick}
+                onCancelPick={cancelCallPick}
+                onDraftChange={setCallDraft}
+                ambulances={ambulances}
+                onShowCall={handleFocusCall}
+              />
             )}
 
             {activeTab === 'analysis' && (
