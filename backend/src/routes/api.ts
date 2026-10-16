@@ -14,7 +14,7 @@ import {
 import { officialStatus, triggerOfficialRefresh } from '../services/official/refresh';
 import { trafficTile, trafficTileAllowed } from '../services/trafficTiles';
 import { invalidateProfile, requireAuth, requireRole } from '../middleware/auth';
-import { duplicateMessage, parseCnh, parseCpf, parsePhone, profileUpdate, ProfileError, toMe } from '../services/profile';
+import { duplicateMessage, parseCpf, parsePhone, profileUpdate, ProfileError, toMe } from '../services/profile';
 import {
   AmbulanceStatus,
   CallStatus,
@@ -74,27 +74,19 @@ router.post('/auth/signup', async (req: Request, res: Response) => {
     return fail(res, 403, 'Código da central inválido.');
   }
 
-  // CPF e celular para todos; CNH só para motorista
+  // CPF e celular para todos (a CNH deixou de ser pedida)
   const documents: Record<string, string> = {};
   try {
     documents.cpf = parseCpf(req.body.cpf);
     documents.phone = parsePhone(req.body.phone);
-    if (role === UserRole.MOTORISTA) {
-      const cnh = parseCnh(req.body.cnh);
-      Object.assign(documents, { cnh_number: cnh.number, cnh_category: cnh.category, cnh_expires_on: cnh.expiresOn });
-    }
   } catch (error) {
     if (error instanceof ProfileError) return fail(res, 400, error.message);
     throw error;
   }
 
   // Avisa antes de criar a conta (o índice único do banco garante em cadastros simultâneos)
-  const { data: taken } = await supabase
-    .from('profiles')
-    .select('cpf, cnh_number')
-    .or(documents.cnh_number ? `cpf.eq.${documents.cpf},cnh_number.eq.${documents.cnh_number}` : `cpf.eq.${documents.cpf}`);
-  if (taken?.some(p => p.cpf === documents.cpf)) return fail(res, 409, 'Este CPF já está cadastrado em outra conta.');
-  if (taken?.length) return fail(res, 409, 'Esta CNH já está cadastrada em outra conta.');
+  const { data: taken } = await supabase.from('profiles').select('id').eq('cpf', documents.cpf);
+  if (taken?.length) return fail(res, 409, 'Este CPF já está cadastrado em outra conta.');
 
   const { data, error } = await supabase.auth.admin.createUser({
     email,
@@ -126,7 +118,7 @@ router.post('/auth/signup', async (req: Request, res: Response) => {
 // Daqui para baixo, tudo exige login com MFA concluído
 router.use(requireAuth);
 
-// Perfil completo da própria pessoa (CPF, celular e CNH não saem para outras)
+// Perfil completo da própria pessoa (CPF e celular não saem para outras)
 router.get('/me', async (req: Request, res: Response) => {
   const { data, error } = await supabase.from('profiles').select('*').eq('id', req.user!.id).single();
   if (error || !data) return fail(res, 500, 'Não foi possível carregar o perfil.');
@@ -136,7 +128,7 @@ router.get('/me', async (req: Request, res: Response) => {
 router.patch('/me', async (req: Request, res: Response) => {
   let update: Record<string, unknown>;
   try {
-    update = profileUpdate(req.body ?? {}, req.user!.role);
+    update = profileUpdate(req.body ?? {});
   } catch (error) {
     if (error instanceof ProfileError) return fail(res, 400, error.message);
     throw error;

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { UserRole } from '../types';
-import { duplicateMessage, isValidCellphone, isValidCnh, isValidCpf, missingFields, parseCnh, profileUpdate, ProfileError } from './profile';
+import { duplicateMessage, isValidCellphone, isValidCpf, missingFields, profileUpdate, ProfileError } from './profile';
 
 test('CPF: dígitos verificadores', () => {
   assert.ok(isValidCpf('529.982.247-25'));
@@ -18,43 +18,24 @@ test('celular: DDD existente e 9 na frente', () => {
   assert.ok(!isValidCellphone('15 8912-34567'));
 });
 
-test('CNH: dígitos verificadores', () => {
-  assert.ok(isValidCnh('52601815980'));
-  assert.ok(isValidCnh('08301661350'));
-  assert.ok(!isValidCnh('52601815981'));
-  assert.ok(!isValidCnh('00000000000'));
-  // Base em que o segundo dígito ficaria negativo: nenhum número com ela é válido
-  for (let dv = 0; dv < 100; dv++) assert.ok(!isValidCnh(`987654321${String(dv).padStart(2, '0')}`));
-});
-
-test('CNH: categoria e validade', () => {
-  assert.deepEqual(parseCnh({ number: '526.018.159-80', category: 'ab', expiresOn: '2030-05-31' }), {
-    number: '52601815980',
-    category: 'AB',
-    expiresOn: '2030-05-31'
-  });
-  assert.throws(() => parseCnh({ number: '52601815980', category: 'F', expiresOn: '2030-05-31' }), ProfileError);
-  assert.throws(() => parseCnh({ number: '52601815980', category: 'B', expiresOn: '2030-02-30' }), ProfileError);
-});
-
-test('PATCH /me: só os campos enviados, CNH só para motorista', () => {
-  assert.deepEqual(profileUpdate({ phone: '(15) 99123-4567', theme: 'night' }, UserRole.OPERADOR), {
+test('PATCH /me: só os campos enviados; a CNH não é mais pedida', () => {
+  assert.deepEqual(profileUpdate({ phone: '(15) 99123-4567', theme: 'night' }), {
     phone: '15991234567',
     theme: 'night'
   });
-  assert.throws(() => profileUpdate({ cnh: { number: '52601815980', category: 'B', expiresOn: '2030-01-01' } }, UserRole.OPERADOR), ProfileError);
-  assert.throws(() => profileUpdate({ cpf: null }, UserRole.MOTORISTA), ProfileError);
-  assert.throws(() => profileUpdate({ avatar: 'robo' }, UserRole.MOTORISTA), ProfileError);
-  assert.deepEqual(profileUpdate({ avatar: null, avatarColor: 'verde' }, UserRole.MOTORISTA), { avatar: null, avatar_color: 'verde' });
-  assert.throws(() => profileUpdate({}, UserRole.MOTORISTA), ProfileError);
+  assert.throws(() => profileUpdate({ cnh: { number: '52601815980', category: 'B', expiresOn: '2030-01-01' } }), /não é mais pedida/);
+  assert.throws(() => profileUpdate({ cpf: null }), ProfileError);
+  assert.throws(() => profileUpdate({ avatar: 'robo' }), ProfileError);
+  assert.deepEqual(profileUpdate({ avatar: null, avatarColor: 'verde' }), { avatar: null, avatar_color: 'verde' });
+  assert.throws(() => profileUpdate({}), ProfileError);
 });
 
 test('cadastro incompleto e duplicados', () => {
   const base = { id: 'x', full_name: 'Ana Souza' };
   assert.deepEqual(missingFields({ ...base, role: UserRole.OPERADOR }), ['cpf', 'phone']);
-  assert.deepEqual(missingFields({ ...base, role: UserRole.MOTORISTA, cpf: '52998224725', phone: '15991234567' }), ['cnh']);
+  // Motorista com CPF e celular já está completo (a CNH deixou de ser pedida)
+  assert.deepEqual(missingFields({ ...base, role: UserRole.MOTORISTA, cpf: '52998224725', phone: '15991234567' }), []);
   assert.equal(duplicateMessage({ code: '23505', message: 'duplicate key value violates unique constraint "profiles_cpf_key"' }),
     'Este CPF já está cadastrado em outra conta.');
-  assert.equal(duplicateMessage({ code: '23505', message: '... "profiles_cnh_number_key"' }), 'Esta CNH já está cadastrada em outra conta.');
   assert.equal(duplicateMessage({ code: '42703', message: 'column does not exist' }), null);
 });

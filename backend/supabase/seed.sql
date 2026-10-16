@@ -16,17 +16,16 @@ insert into public.ambulances (id, code, type, status, lat, lng, base_id, crew_d
 -- O segredo do TOTP é fixo: cadastre uma vez no app autenticador e ele vale depois de cada reset.
 --   operador@samu.local   QEXMSYXBWYAJ6H4IYEFVDR7LPT2QHC5E
 --   motorista@samu.local  KG7MTCZNIKS3IYLEUCXYYOIJ3S2M5TSC
--- CPF, celular e CNH são fictícios (só os dígitos verificadores batem).
+-- CPF e celular são fictícios (só os dígitos verificadores batem).
 create temporary table test_users (
-  id uuid, email text, full_name text, role text, cpf text, phone text,
-  cnh_number text, cnh_category text, cnh_expires_on date, totp_secret text
+  id uuid, email text, full_name text, role text, cpf text, phone text, totp_secret text
 );
 
 insert into test_users values
   ('c6727385-d17e-4c22-8019-c2c2fadaf06d', 'operador@samu.local', 'Operador de Teste', 'OPERADOR',
-   '52998224725', '15991110001', null, null, null, 'QEXMSYXBWYAJ6H4IYEFVDR7LPT2QHC5E'),
+   '52998224725', '15991110001', 'QEXMSYXBWYAJ6H4IYEFVDR7LPT2QHC5E'),
   ('b3c16b3d-3099-498a-8c3b-d8ff46bf8aea', 'motorista@samu.local', 'Motorista de Teste', 'MOTORISTA',
-   '39053344705', '15991110002', '01234567807', 'D', '2031-12-31', 'KG7MTCZNIKS3IYLEUCXYYOIJ3S2M5TSC');
+   '39053344705', '15991110002', 'KG7MTCZNIKS3IYLEUCXYYOIJ3S2M5TSC');
 
 insert into auth.users (
   instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -50,8 +49,8 @@ insert into auth.mfa_factors (id, user_id, friendly_name, factor_type, status, s
 select gen_random_uuid(), id, 'SAMU Despacho', 'totp', 'verified', totp_secret, now(), now()
 from test_users;
 
-insert into public.profiles (id, full_name, role, cpf, phone, cnh_number, cnh_category, cnh_expires_on)
-select id, full_name, role, cpf, phone, cnh_number, cnh_category, cnh_expires_on
+insert into public.profiles (id, full_name, role, cpf, phone)
+select id, full_name, role, cpf, phone
 from test_users;
 
 drop table test_users;

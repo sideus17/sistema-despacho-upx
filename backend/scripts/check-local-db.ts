@@ -108,7 +108,7 @@ async function main() {
   const me = await backend('/me', { token: operatorToken });
   check(me.status === 200 && me.body.data.role === 'OPERADOR' && me.body.data.missing.length === 0, 'backend carrega o perfil completo do operador');
   const driverMe = await backend('/me', { token: driverToken });
-  check(driverMe.status === 200 && driverMe.body.data.cnh?.category === 'D', 'backend carrega a CNH do motorista');
+  check(driverMe.status === 200 && driverMe.body.data.missing.length === 0, 'backend carrega o perfil completo do motorista (sem CNH)');
   const ambulances = await backend('/ambulances', { token: operatorToken });
   check(ambulances.status === 200 && ambulances.body.data.length === 4, 'backend lista as 4 viaturas');
 
@@ -120,8 +120,7 @@ async function main() {
       password: 'cadastro-ci-123',
       role: 'MOTORISTA',
       cpf: '111.444.777-35',
-      phone: '(15) 99111-0003',
-      cnh: { number: '24681357982', category: 'B', expiresOn: '2030-01-31' }
+      phone: '(15) 99111-0003'
     })
   });
   check(signup.status === 201, `cadastro pelo backend (${signup.status} ${signup.body.error ?? ''})`);

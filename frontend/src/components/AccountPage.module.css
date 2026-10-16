@@ -82,8 +82,7 @@
   font-weight: 700;
 }
 
-.missing,
-.warning {
+.missing {
   padding: 10px 12px;
   border: 1px solid var(--tint-yellow-border);
   border-radius: 10px;
@@ -195,12 +194,6 @@
   outline: 2px solid var(--color-primary);
   outline-offset: 1px;
   border-color: transparent;
-}
-
-.row {
-  display: grid;
-  grid-template-columns: 1fr 1.4fr;
-  gap: 12px;
 }
 
 .hint {

@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { changePassword, getMe } from '../services/api';
@@ -15,11 +15,10 @@ vi.mock('../services/api', async importOriginal => ({
 const DRIVER: Me = {
   ...OPERATOR,
   fullName: 'Lucas Martins',
-  role: UserRole.MOTORISTA,
-  cnh: { number: '52601815980', category: 'B', expiresOn: '2020-01-31' }
+  role: UserRole.MOTORISTA
 };
 
-// A página busca o perfil completo ao abrir (CPF e CNH não ficam no aparelho)
+// A página busca o perfil completo ao abrir (o CPF não fica no aparelho)
 async function openPage(profile: Me = OPERATOR) {
   vi.mocked(getMe).mockResolvedValue(profile);
   const onClose = vi.fn();
@@ -81,16 +80,10 @@ describe('Minha conta', () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
-  it('motorista vê a CNH e o aviso de vencida', async () => {
+  it('motorista não vê mais a CNH (o grupo decidiu que não é pedida)', async () => {
     await openPage(DRIVER);
-    const cnh = screen.getByRole('region', { name: 'CNH' });
-    expect(within(cnh).getByDisplayValue('52601815980')).toBeInTheDocument();
-    expect(within(cnh).getByText(/CNH está vencida/)).toBeInTheDocument();
-  });
-
-  it('operador não vê CNH', async () => {
-    await openPage();
     expect(screen.queryByRole('region', { name: 'CNH' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/CNH/)).not.toBeInTheDocument();
   });
 
   it('troca de senha confere a confirmação antes de enviar', async () => {

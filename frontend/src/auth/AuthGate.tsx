@@ -33,8 +33,8 @@ function readCachedProfile(): Me | null {
 
 function cacheProfile(profile: Me | null) {
   try {
-    // CPF e CNH não ficam no aparelho: a página "Minha conta" busca do servidor
-    if (profile) localStorage.setItem(PROFILE_KEY, JSON.stringify({ ...profile, cpf: undefined, cnh: undefined }));
+    // O CPF não fica no aparelho: a página "Minha conta" busca do servidor
+    if (profile) localStorage.setItem(PROFILE_KEY, JSON.stringify({ ...profile, cpf: undefined }));
     else localStorage.removeItem(PROFILE_KEY);
   } catch {
     // Sem armazenamento: o app só não abre offline

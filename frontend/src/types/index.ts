@@ -70,23 +70,16 @@ export enum UserRole {
 export type AvatarIcon = 'medico' | 'medica' | 'enfermagem' | 'socorrista' | 'homem' | 'mulher' | 'pessoa';
 export type AvatarColor = 'azul' | 'verde' | 'vermelho' | 'laranja' | 'roxo' | 'turquesa' | 'rosa' | 'grafite';
 // Dados que contas antigas ainda não preencheram
-export type ProfileField = 'cpf' | 'phone' | 'cnh';
-
-export interface Cnh {
-  number: string;
-  category: string;
-  expiresOn: string; // AAAA-MM-DD
-}
+export type ProfileField = 'cpf' | 'phone';
 
 export interface Me {
   id: string;
   fullName: string;
   role: UserRole;
-  // Vêm do servidor; o perfil salvo no aparelho pode ser de antes deles (ou sem CPF e CNH, que não ficam salvos)
+  // Vêm do servidor; o perfil salvo no aparelho pode ser de antes deles (ou sem o CPF, que não fica salvo)
   email?: string | null;
   cpf?: string | null;
   phone?: string | null;
-  cnh?: Cnh | null;
   avatar?: AvatarIcon | null;
   avatarColor?: AvatarColor | null;
   theme?: 'auto' | 'day' | 'night';
