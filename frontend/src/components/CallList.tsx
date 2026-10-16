@@ -3,6 +3,7 @@ import { EmergencyCall, CallStatus, Ambulance } from '../types';
 import { getTimeAgo } from '../services/api';
 import { PRIORITY_META, sortCallsByPriority, formatGender } from '../utils/calls';
 import { PriorityLabel } from '../ui/PriorityLabel';
+import { signalsText } from '../utils/triage';
 import { AmbulanceIcon, CheckCircleIcon, LocationIcon, PersonIcon } from '../ui/icons';
 import styles from './CallList.module.css';
 
@@ -78,7 +79,7 @@ export default function CallList({ calls, ambulances, selectedCallId, onFocus, o
                 key={call.id}
                 role="button"
                 tabIndex={0}
-                aria-label={`Chamado ${meta?.label} em ${call.address}`}
+                aria-label={`Chamado ${meta ? `${meta.name} · ${meta.label}` : call.priority} em ${call.address}`}
                 className={[
                   styles.card,
                   isActive ? styles.cardActive : '',
@@ -100,6 +101,7 @@ export default function CallList({ calls, ambulances, selectedCallId, onFocus, o
 
                 <p className={styles.address}><LocationIcon /> {call.address}</p>
                 <p className={styles.description}>{call.description}</p>
+                {call.triage?.signals.length ? <p className={styles.signals}>Sinais: {signalsText(call.triage.signals)}</p> : null}
 
                 {(call.patientInfo.age || gender) && (
                   <div className={styles.patient}>

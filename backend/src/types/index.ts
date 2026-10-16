@@ -11,10 +11,12 @@ export enum AmbulanceStatus {
   INDISPONIVEL = 'INDISPONIVEL'
 }
 
+// Classificação de risco em 4 cores (Regulação Médica das Urgências, Ministério da Saúde)
 export enum CallPriority {
-  EMERGENCIA = 'EMERGENCIA',
-  URGENTE = 'URGENTE',
-  PRIORITARIO = 'PRIORITARIO'
+  EMERGENCIA = 'EMERGENCIA', // vermelho: prioridade absoluta
+  URGENTE = 'URGENTE', // amarelo: prioridade moderada
+  PRIORITARIO = 'PRIORITARIO', // verde: prioridade baixa
+  NAO_URGENTE = 'NAO_URGENTE' // azul: prioridade mínima (orientação)
 }
 
 export enum CallStatus {
@@ -102,6 +104,15 @@ export interface EmergencyCall {
     symptoms: string;
   };
   timestamp: string;
+  callerPhone?: string; // só para a central
+  reference?: string; // ponto de referência ("em frente à padaria")
+  triage?: CallTriage;
+}
+
+// Sinais de alerta marcados na triagem e a cor que eles sugeriram (a escolhida é a priority)
+export interface CallTriage {
+  signals: string[];
+  suggested: CallPriority | null;
 }
 
 export interface Base {

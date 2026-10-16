@@ -15,6 +15,8 @@ import {
   Stats,
   ApiResponse,
   Coordinates,
+  CallPriority,
+  CallTriage,
   Me,
   AvatarIcon,
   AvatarColor,
@@ -167,7 +169,8 @@ export interface CreateCallRequest {
   gender: string;
   address: string;
   description: string;
-  priority: string;
+  priority: CallPriority;
+  triage?: CallTriage;
 }
 
 export async function createCall(call: CreateCallRequest): Promise<EmergencyCall> {

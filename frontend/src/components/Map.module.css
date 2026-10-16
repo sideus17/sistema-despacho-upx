@@ -159,3 +159,16 @@
 .plannerDestination svg {
   vertical-align: 0;
 }
+
+/* As 4 cores da classificação ao lado de "Chamado" */
+.legendRisk {
+  display: inline-flex;
+  gap: 3px;
+  margin-left: 2px;
+}
+
+.legendRisk i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}

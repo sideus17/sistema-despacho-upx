@@ -1,11 +1,19 @@
 import { CallPriority, EmergencyCall } from '../types';
 import { EmergencyIcon, IconComponent, InfoIcon, WarningIcon } from '../ui/icons';
 
-export const PRIORITY_META: Record<CallPriority, { label: string; color: string; icon: IconComponent; order: number }> = {
-  [CallPriority.EMERGENCIA]: { label: 'Emergência', color: '#dc2626', icon: EmergencyIcon, order: 0 },
-  [CallPriority.URGENTE]: { label: 'Urgente', color: '#f59e0b', icon: WarningIcon, order: 1 },
-  [CallPriority.PRIORITARIO]: { label: 'Prioritário', color: '#3b82f6', icon: InfoIcon, order: 2 }
+// Classificação de risco em 4 cores (Regulação Médica das Urgências, Ministério da Saúde).
+// `color` pinta o selo, o pino e a borda; `onColor` é o texto sobre ela (o amarelo pede texto escuro).
+export const PRIORITY_META: Record<CallPriority, { name: string; label: string; color: string; onColor: string; icon: IconComponent; order: number }> = {
+  [CallPriority.EMERGENCIA]: { name: 'Vermelho', label: 'Emergência', color: '#dc2626', onColor: '#ffffff', icon: EmergencyIcon, order: 0 },
+  [CallPriority.URGENTE]: { name: 'Amarelo', label: 'Urgência', color: '#eab308', onColor: '#422006', icon: WarningIcon, order: 1 },
+  [CallPriority.PRIORITARIO]: { name: 'Verde', label: 'Pouco urgente', color: '#16a34a', onColor: '#ffffff', icon: InfoIcon, order: 2 },
+  [CallPriority.NAO_URGENTE]: { name: 'Azul', label: 'Não urgente', color: '#2563eb', onColor: '#ffffff', icon: InfoIcon, order: 3 }
 };
+
+// Ordem do mais grave para o menos grave (vermelho, amarelo, verde, azul)
+export const PRIORITIES_BY_SEVERITY = (Object.keys(PRIORITY_META) as CallPriority[]).sort(
+  (a, b) => PRIORITY_META[a].order - PRIORITY_META[b].order
+);
 
 // Mais grave primeiro; dentro da mesma prioridade, quem espera há mais tempo
 export function sortCallsByPriority(calls: EmergencyCall[]): EmergencyCall[] {

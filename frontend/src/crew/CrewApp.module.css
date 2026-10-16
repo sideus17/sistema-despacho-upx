@@ -225,6 +225,14 @@
   line-height: 1.5;
 }
 
+/* Sinais de alerta da triagem: ajudam a equipe a se preparar */
+.signals {
+  margin-top: 4px;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
 .patient {
   margin-top: 8px;
   color: var(--color-text-muted);

@@ -62,3 +62,122 @@ textarea.input {
   background-color: #9ca3af;
   cursor: not-allowed;
 }
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: 10px;
+}
+
+.hint {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.warning {
+  padding: 8px 10px;
+  border: 1px solid var(--tint-yellow-border);
+  border-radius: 8px;
+  background: var(--tint-yellow-bg);
+  color: var(--tint-yellow-text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Classificação de risco: sinais por cor e a escolha final */
+.triage {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+}
+
+.triage legend {
+  margin-bottom: 0;
+  padding: 0 4px;
+}
+
+.signalGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-left: 10px;
+  border-left: 4px solid var(--risk-color);
+}
+
+.groupName {
+  color: var(--color-text-soft);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip {
+  padding: 6px 10px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.chip[aria-pressed='true'] {
+  border-color: var(--risk-color);
+  background: var(--risk-color);
+  color: var(--risk-on-color);
+  font-weight: 700;
+}
+
+.suggestion {
+  color: var(--color-text-soft);
+  font-size: 13px;
+}
+
+.colors {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.color {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-height: var(--touch-target);
+  padding: 6px 4px;
+  border: 2px solid var(--risk-color);
+  border-radius: 8px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.color strong {
+  font-size: 13px;
+}
+
+.color[aria-checked='true'] {
+  background: var(--risk-color);
+  color: var(--risk-on-color);
+  box-shadow: 0 0 0 2px var(--color-surface), 0 0 0 4px var(--risk-color);
+}
+
+@media (max-width: 380px) {
+  .colors {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

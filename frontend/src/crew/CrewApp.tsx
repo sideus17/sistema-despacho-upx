@@ -20,6 +20,7 @@ import { useToast } from '../components/Toast';
 import { PRIORITY_META, formatGender } from '../utils/calls';
 import { fastestIndex, routeOptions, routeVia, trafficNote } from '../utils/routes';
 import { PriorityLabel } from '../ui/PriorityLabel';
+import { signalsText } from '../utils/triage';
 import { AmbulanceTypeIcon } from '../ui/AmbulanceTypeIcon';
 import { BellIcon, CheckCircleIcon, DistanceIcon, NavigateIcon, ReportIcon, TimerIcon } from '../ui/icons';
 import RouteNotes from '../components/RouteNotes';
@@ -493,6 +494,7 @@ export default function CrewApp() {
         <p className={styles.priority}><PriorityLabel priority={activeCall.priority} /></p>
         <h1 className={styles.address}>{activeCall.address}</h1>
         <p className={styles.description}>{activeCall.description}</p>
+        {activeCall.triage?.signals.length ? <p className={styles.signals}>Sinais: {signalsText(activeCall.triage.signals)}</p> : null}
         <p className={styles.patient}>
           {[activeCall.patientInfo.age && `${activeCall.patientInfo.age} anos`, gender, `aberto ${getTimeAgo(activeCall.timestamp)}`]
             .filter(Boolean)

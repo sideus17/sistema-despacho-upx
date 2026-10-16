@@ -131,6 +131,14 @@
   line-height: 1.5;
 }
 
+/* Sinais de alerta da triagem */
+.signals {
+  color: var(--color-text);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
 .patient {
   display: flex;
   gap: 12px;

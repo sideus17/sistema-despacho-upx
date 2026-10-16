@@ -26,7 +26,9 @@ import { IncidentLayer } from '../map/IncidentLayer';
 import { TrafficLayer } from '../map/TrafficLayer';
 import { TRAFFIC_COLORS, useTrafficEnabled } from '../map/traffic';
 import { EFFECT_META, expiryLabel, incidentTypeLabel, sourceLabel } from '../map/incidents';
-import { PRIORITY_META } from '../utils/calls';
+import { PRIORITIES_BY_SEVERITY, PRIORITY_META } from '../utils/calls';
+import { signalsText } from '../utils/triage';
+import { PriorityLabel } from '../ui/PriorityLabel';
 import { getTimeAgo, reversePlace, withAuthRequest } from '../services/api';
 import { ExpandLessIcon, ExpandMoreIcon, LocationIcon, PinDropIcon } from '../ui/icons';
 import { Avatar } from '../ui/Avatar';
@@ -200,13 +202,10 @@ export default function Map({
         content: (
           <>
             <h3>Chamado de Emergência</h3>
-            <p>
-              <strong>Prioridade:</strong>{' '}
-              <span style={{ color: PRIORITY_META[call.priority]?.color, fontWeight: 'bold' }}>{call.priority}</span>
-            </p>
+            <p><PriorityLabel priority={call.priority} /></p>
             <p><strong>Endereço:</strong> {call.address}</p>
             <p><strong>Descrição:</strong> {call.description}</p>
-            <p><strong>Sintomas:</strong> {call.patientInfo.symptoms}</p>
+            {call.triage?.signals.length ? <p><strong>Sinais:</strong> {signalsText(call.triage.signals)}</p> : null}
             {call.patientInfo.age && <p><strong>Idade:</strong> {call.patientInfo.age} anos</p>}
           </>
         )
@@ -411,7 +410,12 @@ export default function Map({
             <li><span className={styles.legendIcon}><AmbulanceMarker status={AmbulanceStatus.EM_ATENDIMENTO} /></span> Em atendimento</li>
             <li><span className={styles.legendIcon}><AmbulanceMarker status={AmbulanceStatus.INDISPONIVEL} /></span> Indisponível</li>
             <li><span className={styles.legendIcon}><AmbulanceMarker status={AmbulanceStatus.DISPONIVEL} hasDriver={false} /></span> Sem motorista</li>
-            <li><span className={`${styles.legendIcon} ${styles.legendPin}`}><CallMarker priority={CallPriority.EMERGENCIA} /></span> Chamado</li>
+            <li>
+              <span className={`${styles.legendIcon} ${styles.legendPin}`}><CallMarker priority={CallPriority.EMERGENCIA} /></span> Chamado
+              <span className={styles.legendRisk} aria-label="cores: vermelho, amarelo, verde e azul">
+                {PRIORITIES_BY_SEVERITY.map(priority => <i key={priority} style={{ background: PRIORITY_META[priority].color }} title={PRIORITY_META[priority].name} />)}
+              </span>
+            </li>
             <li><span className={styles.legendIcon}><BaseMarker /></span> Base</li>
             <li><span className={styles.legendIcon}><IncidentMarker type={IncidentType.VIA_BLOQUEADA} effect={IncidentEffect.BLOQUEIO} /></span> Bloqueio (rota desvia)</li>
             <li><span className={styles.legendIcon}><IncidentMarker type={IncidentType.ALAGAMENTO} effect={IncidentEffect.RISCO} /></span> Risco na via</li>
