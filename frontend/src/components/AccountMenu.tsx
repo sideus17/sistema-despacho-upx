@@ -151,7 +151,7 @@ export function AccountMenu({ onSignOut, blockedReason, shift }: AccountMenuProp
               A sugestão de viatura soma distância (40%), disponibilidade (30%), tipo de viatura (20%)
               e ocorrências na rota (10%).
             </p>
-            <p>Rotas: Valhalla. Alertas: CEMADEN/MCTI, Defesa Civil e SGB/CPRM. Mapa: OpenFreeMap, OpenMapTiles e OpenStreetMap.</p>
+            <p>Rotas: Valhalla. Alertas: CEMADEN/MCTI, Defesa Civil e SGB/CPRM. Trânsito: © TomTom. Mapa: OpenFreeMap, OpenMapTiles e OpenStreetMap.</p>
           </details>
         </div>
       )}

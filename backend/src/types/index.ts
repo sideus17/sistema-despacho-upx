@@ -43,7 +43,8 @@ export enum IncidentSource {
   CENTRAL = 'CENTRAL',
   EQUIPE = 'EQUIPE',
   CEMADEN = 'CEMADEN',
-  DEFESA_CIVIL = 'DEFESA_CIVIL'
+  DEFESA_CIVIL = 'DEFESA_CIVIL',
+  TOMTOM = 'TOMTOM' // trânsito; só na memória, nunca no banco
 }
 
 // O que a ocorrência faz com a rota
@@ -124,7 +125,7 @@ export interface Incident {
   lastConfirmedAt: string | null;
   createdBy: { id: string; name: string } | null;
   ambulance: { id: string; code: string } | null; // viatura que relatou
-  geometry: unknown | null; // polígono GeoJSON, só para exibir
+  geometry: unknown | null; // polígono GeoJSON (ou o trecho, no TomTom), só para exibir
   votes: { yes: number; no: number }; // "não está lá" contados desde a última confirmação
   myVote: IncidentVote | null;
 }

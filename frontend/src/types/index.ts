@@ -1,4 +1,4 @@
-import type { MultiPolygon, Polygon } from 'geojson';
+import type { LineString, MultiPolygon, Polygon } from 'geojson';
 
 // Enums
 export enum AmbulanceType {
@@ -45,7 +45,8 @@ export enum IncidentSource {
   CENTRAL = 'CENTRAL',
   EQUIPE = 'EQUIPE',
   CEMADEN = 'CEMADEN',
-  DEFESA_CIVIL = 'DEFESA_CIVIL'
+  DEFESA_CIVIL = 'DEFESA_CIVIL',
+  TOMTOM = 'TOMTOM' // trânsito ao vivo
 }
 
 // O que a ocorrência faz com a rota
@@ -153,7 +154,7 @@ export interface Incident {
   lastConfirmedAt: string | null;
   createdBy: { id: string; name: string } | null;
   ambulance: { id: string; code: string } | null;
-  geometry: Polygon | MultiPolygon | null; // contorno da área (fontes oficiais), só para exibir
+  geometry: Polygon | MultiPolygon | LineString | null; // contorno da área (fontes oficiais) ou trecho de rua (TomTom), só para exibir
   votes: { yes: number; no: number };
   myVote: IncidentVote | null;
 }
@@ -234,7 +235,7 @@ export interface ApiResponse<T> {
 }
 
 export interface OfficialSourceStatus {
-  id: 'cemaden' | 'defesaCivil';
+  id: 'cemaden' | 'defesaCivil' | 'tomtom';
   name: string;
   enabled: boolean;
   lastAttempt: string | null;

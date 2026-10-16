@@ -24,8 +24,11 @@ import {
   DASHED_OUTLINE_FILTER,
   EFFECT_META,
   INCIDENT_FILL,
+  INCIDENT_LINE,
+  INCIDENT_LINE_LAYOUT,
   INCIDENT_OUTLINE,
   INCIDENT_OUTLINE_DASHED,
+  LINE_FILTER,
   SOLID_OUTLINE_FILTER,
   incidentAreas,
   incidentTypeLabel,
@@ -55,7 +58,8 @@ const EMPTY_STYLE: StyleSpecification = { version: 8, sources: {}, layers: [] };
 const INCIDENT_LAYERS: LayerSpecification[] = [
   { id: 'incident-fill', type: 'fill', source: 'incidents', paint: INCIDENT_FILL },
   { id: 'incident-outline', type: 'line', source: 'incidents', filter: SOLID_OUTLINE_FILTER, paint: INCIDENT_OUTLINE },
-  { id: 'incident-outline-dashed', type: 'line', source: 'incidents', filter: DASHED_OUTLINE_FILTER, paint: INCIDENT_OUTLINE_DASHED }
+  { id: 'incident-outline-dashed', type: 'line', source: 'incidents', filter: DASHED_OUTLINE_FILTER, paint: INCIDENT_OUTLINE_DASHED },
+  { id: 'incident-line', type: 'line', source: 'incidents', filter: LINE_FILTER, paint: INCIDENT_LINE, layout: INCIDENT_LINE_LAYOUT }
 ];
 
 function routeLayers(theme: MapTheme): LayerSpecification[] {

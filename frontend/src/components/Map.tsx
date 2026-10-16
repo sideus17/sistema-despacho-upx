@@ -10,6 +10,7 @@ import {
   CallPriority,
   CallStatus,
   IncidentEffect,
+  IncidentSource,
   IncidentType,
   Coordinates
 } from '../types';
@@ -229,7 +230,9 @@ export default function Map({
     const incident = incidents.find(i => i.id === popup.id);
     if (!incident) return null;
     const effect = EFFECT_META[incident.effect];
-    const confirmed = incident.lastConfirmedAt && incident.lastConfirmedAt !== incident.createdAt;
+    // O TomTom informa um trecho de rua e se atualiza sozinho: raio interno e "confirmada" não dizem nada
+    const tomtom = incident.source === IncidentSource.TOMTOM;
+    const confirmed = !tomtom && incident.lastConfirmedAt && incident.lastConfirmedAt !== incident.createdAt;
     return {
       location: incident.location,
       offset: 18,
@@ -248,7 +251,7 @@ export default function Map({
             </p>
           )}
           {incident.description && <p>{incident.description}</p>}
-          {incident.radius > 0 && <p><strong>Raio:</strong> {incident.radius} m</p>}
+          {incident.radius > 0 && !tomtom && <p><strong>Raio:</strong> {incident.radius} m</p>}
         </>
       )
     };

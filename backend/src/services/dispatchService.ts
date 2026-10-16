@@ -7,7 +7,8 @@ import {
   CallPriority,
   Coordinates,
   Incident,
-  IncidentEffect
+  IncidentEffect,
+  IncidentSource
 } from '../types';
 import { calculateRoute } from './routingService';
 import { listActiveIncidents } from './incidentService';
@@ -167,6 +168,8 @@ function calculateIncidentPenalty(from: Coordinates, to: Coordinates, incidents:
   const nearby = incidents.filter(incident => {
     // Alerta sem área (vale para a cidade toda) pesa igual para todas as viaturas
     if (incident.radius <= 0) return false;
+    // Trânsito do TomTom está espalhado pela cidade: pesaria em quase todas; ele entra pelo tempo da rota
+    if (incident.source === IncidentSource.TOMTOM) return false;
     const edge = (point: Coordinates) => distanceMeters(point, incident.location) - incident.radius;
     return edge(from) <= INCIDENT_PENALTY_DISTANCE || edge(to) <= INCIDENT_PENALTY_DISTANCE;
   });

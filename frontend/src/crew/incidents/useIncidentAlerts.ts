@@ -106,8 +106,10 @@ export function useIncidentAlerts({ incidents, route, remaining, position, meId,
     if (!active || !position || prompt) return;
     if (prompted.current.size >= MAX_PROMPTS || Date.now() - lastPromptAt.current < PROMPT_INTERVAL_MS) return;
 
+    // Defesa Civil e TomTom não passam por voto das equipes: a própria fonte mantém ou tira
     const candidate = incidents.find(incident =>
       incident.source !== IncidentSource.DEFESA_CIVIL &&
+      incident.source !== IncidentSource.TOMTOM &&
       incident.effect !== IncidentEffect.AVISO &&
       !incident.myVote &&
       incident.createdBy?.id !== meId &&
