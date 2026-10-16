@@ -14,6 +14,7 @@ export interface AvoidanceOptions {
 
 export interface AvoidanceResult {
   route: EngineRoute;
+  excluded: Incident[]; // áreas que a consulta final evitou (as alternativas também passam longe delas)
   avoided: Incident[];
   warnings: string[];
 }
@@ -130,5 +131,5 @@ export async function routeAvoiding(
   // Evitada de fato: estava no caminho e a rota final não passa mais por ela
   const cumulative = cumulativeDistances(route.geometry);
   const avoided = excluded.filter(incident => circleEntryAlong(route.geometry, cumulative, incident.location, incident.radius) === null);
-  return { route, avoided, warnings };
+  return { route, excluded, avoided, warnings };
 }

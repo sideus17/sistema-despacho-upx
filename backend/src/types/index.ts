@@ -153,6 +153,7 @@ export interface RouteInfo {
   incidentsOnRoute: RouteIncident[]; // a rota atravessa (aviso, risco aceito ou bloqueio sem alternativa)
   avoided: RouteIncident[]; // a rota desviou
   warnings: string[];
+  alternatives?: RouteInfo[]; // outros caminhos, só quando pedidos
 }
 
 // Manobra no formato do OSRM; o texto em português é montado no app

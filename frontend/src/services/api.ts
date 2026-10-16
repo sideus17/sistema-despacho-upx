@@ -7,6 +7,7 @@ import {
   Incident,
   IncidentType,
   OfficialSourceStatus,
+  PlaceSuggestion,
   DispatchRecommendation,
   RouteInfo,
   Stats,
@@ -253,12 +254,30 @@ export async function executeDispatch(callId: string, ambulanceId: string): Prom
 // ROUTES
 // ============================================
 
-export async function calculateRoute(from: Coordinates, to: Coordinates): Promise<RouteInfo> {
+// `alternatives`: traz também até 2 caminhos diferentes em `route.alternatives`
+export async function calculateRoute(
+  from: Coordinates,
+  to: Coordinates,
+  options: { alternatives?: boolean } = {}
+): Promise<RouteInfo> {
   const response = await api.post<ApiResponse<RouteInfo>>('/routes/calculate', {
     from,
-    to
+    to,
+    ...(options.alternatives ? { alternatives: true } : {})
   });
   return response.data.data!;
+}
+
+// Autocompletar de endereços e locais da região de Sorocaba
+export async function searchPlaces(query: string, signal?: AbortSignal): Promise<PlaceSuggestion[]> {
+  const response = await api.get<ApiResponse<PlaceSuggestion[]>>('/geocode/search', { params: { q: query }, signal });
+  return response.data.data ?? [];
+}
+
+// Nome do lugar mais próximo de um ponto (escolhido no mapa)
+export async function reversePlace(point: Coordinates): Promise<PlaceSuggestion | null> {
+  const response = await api.get<ApiResponse<PlaceSuggestion | null>>('/geocode/reverse', { params: point });
+  return response.data.data ?? null;
 }
 
 // ============================================

@@ -182,6 +182,14 @@ export interface RouteInfo {
   incidentsOnRoute: RouteIncident[];
   avoided: RouteIncident[];
   warnings: string[];
+  alternatives?: RouteInfo[]; // outros caminhos, só quando pedidos
+}
+
+// Sugestão da busca de endereço (Photon, pelo backend)
+export interface PlaceSuggestion {
+  label: string;
+  detail: string;
+  location: Coordinates;
 }
 
 export interface RouteStep {

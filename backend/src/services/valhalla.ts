@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { Coordinates } from '../types';
-import { EngineRoute, parseOsrmRoute } from './osrm';
+import { EngineRoute, parseOsrmRoutes } from './osrm';
 
 // Servidor público do Valhalla (FOSSGIS). O motor é MIT: em produção comercial, um servidor próprio no lugar
 const valhallaUrl = () => process.env.VALHALLA_URL || 'https://valhalla1.openstreetmap.de';
@@ -13,7 +13,13 @@ export const maxExcludePerimeter = () => Number(process.env.VALHALLA_MAX_EXCLUDE
 // Não existe caminho sem passar pelas áreas evitadas
 export class NoRouteError extends Error {}
 
-export async function valhallaRoute(from: Coordinates, to: Coordinates, exclude: [number, number][][] = []): Promise<EngineRoute> {
+// `alternates`: quantos caminhos diferentes pedir além do principal
+export async function valhallaRoute(
+  from: Coordinates,
+  to: Coordinates,
+  exclude: [number, number][][] = [],
+  alternates = 0
+): Promise<EngineRoute> {
   try {
     const response = await axios.post(
       `${valhallaUrl()}/route`,
@@ -24,13 +30,14 @@ export async function valhallaRoute(from: Coordinates, to: Coordinates, exclude:
         // Mesmo formato do OSRM: passos e manobras que o app já entende
         format: 'osrm',
         shape_format: 'geojson',
-        ...(exclude.length ? { exclude_polygons: exclude } : {})
+        ...(exclude.length ? { exclude_polygons: exclude } : {}),
+        ...(alternates > 0 ? { alternates } : {})
       },
       { timeout: 8000, headers: { 'X-Client-Id': clientId() } }
     );
 
     if (!response.data.routes?.length) throw new Error('Valhalla: nenhuma rota encontrada');
-    return parseOsrmRoute(response.data.routes[0]);
+    return parseOsrmRoutes(response.data.routes);
   } catch (error) {
     if (axios.isAxiosError(error) && error.response?.data?.code === 'NoRoute') {
       throw new NoRouteError(error.response.data.message || 'Sem caminho');

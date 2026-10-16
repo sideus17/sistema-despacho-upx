@@ -2,7 +2,7 @@ import { createVerifierClient, supabase } from '../config/supabase';
 import { Router, Request, Response } from 'express';
 import { analyzeDispatch } from '../services/dispatchService';
 import { calculateRoute } from '../services/routingService';
-import { geocodeAddress } from '../services/geocodingService';
+import { geocodeAddress, reversePlace, searchPlaces } from '../services/geocodingService';
 import {
   IncidentError,
   countActiveIncidents,
@@ -17,6 +17,7 @@ import { duplicateMessage, parseCnh, parseCpf, parsePhone, profileUpdate, Profil
 import {
   AmbulanceStatus,
   CallStatus,
+  Coordinates,
   EmergencyCall,
   ApiResponse,
   Stats,
@@ -697,35 +698,54 @@ router.post('/dispatch/finish', async (req: Request, res: Response) => {
 // ROUTES
 // ============================================
 
+// Ponto {lat, lng} com números de verdade (0 é válido; texto não)
+function parseCoordinates(value: unknown): Coordinates | null {
+  const point = value as { lat?: unknown; lng?: unknown } | null;
+  const lat = point?.lat;
+  const lng = point?.lng;
+  if (typeof lat !== 'number' || typeof lng !== 'number' || !Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
+  return { lat, lng };
+}
+
+// `alternatives: true` traz também até 2 caminhos diferentes (painel de rotas e prévia da equipe)
 router.post('/routes/calculate', async (req: Request, res: Response) => {
+  const from = parseCoordinates(req.body?.from);
+  const to = parseCoordinates(req.body?.to);
+  if (!from || !to) return fail(res, 400, 'Coordenadas inválidas.');
+
   try {
-    const { from, to } = req.body;
-    
-    if (!from || !to || !from.lat || !from.lng || !to.lat || !to.lng) {
-      const response: ApiResponse<null> = {
-        success: false,
-        error: 'Invalid coordinates',
-        timestamp: new Date().toISOString()
-      };
-      return res.status(400).json(response);
-    }
-
-    const route = await calculateRoute(from, to);
-
-    const response: ApiResponse<typeof route> = {
-      success: true,
-      data: route,
-      timestamp: new Date().toISOString()
-    };
-    res.json(response);
-
+    const route = await calculateRoute(from, to, { alternatives: req.body?.alternatives === true });
+    res.json({ success: true, data: route, timestamp: new Date().toISOString() });
   } catch (error) {
-    const response: ApiResponse<null> = {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-      timestamp: new Date().toISOString()
-    };
-    res.status(500).json(response);
+    console.error('Erro ao calcular rota:', error);
+    fail(res, 500, 'Não foi possível calcular a rota.');
+  }
+});
+
+// Endereços e locais para o autocompletar (Photon, região de Sorocaba)
+router.get('/geocode/search', async (req: Request, res: Response) => {
+  const query = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+  if (query.length < 3 || query.length > 120) return fail(res, 400, 'Digite de 3 a 120 caracteres.');
+
+  try {
+    res.json({ success: true, data: await searchPlaces(query), timestamp: new Date().toISOString() });
+  } catch (error) {
+    console.warn('Busca de endereço falhou:', error instanceof Error ? error.message : error);
+    fail(res, 502, 'A busca de endereços não respondeu. Tente de novo ou escolha no mapa.');
+  }
+});
+
+// Nome do ponto escolhido no mapa
+router.get('/geocode/reverse', async (req: Request, res: Response) => {
+  const point = parseCoordinates({ lat: Number(req.query.lat), lng: Number(req.query.lng) });
+  if (!point) return fail(res, 400, 'Coordenadas inválidas.');
+
+  try {
+    res.json({ success: true, data: await reversePlace(point), timestamp: new Date().toISOString() });
+  } catch (error) {
+    console.warn('Busca reversa falhou:', error instanceof Error ? error.message : error);
+    res.json({ success: true, data: null, timestamp: new Date().toISOString() });
   }
 });
 

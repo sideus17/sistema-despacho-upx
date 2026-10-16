@@ -61,6 +61,14 @@ export { default as NightIcon } from '~icons/material-symbols/dark-mode-rounded'
 // Navegação do motorista
 export { default as NavigateIcon } from '~icons/material-symbols/navigation-rounded';
 export { default as MyLocationIcon } from '~icons/material-symbols/my-location-rounded';
+export { default as DirectionsIcon } from '~icons/material-symbols/directions-rounded';
+export { default as SwapVertIcon } from '~icons/material-symbols/swap-vert-rounded';
+export { default as RemoveIcon } from '~icons/material-symbols/remove-rounded';
+export { default as SearchIcon } from '~icons/material-symbols/search-rounded';
+export { default as PinDropIcon } from '~icons/material-symbols/pin-drop-rounded';
+export { default as FlagIcon } from '~icons/material-symbols/flag-rounded';
+export { default as BoltIcon } from '~icons/material-symbols/bolt-rounded';
+export { default as BasePinIcon } from '~icons/material-symbols/home-pin-rounded';
 export { default as VolumeOnIcon } from '~icons/material-symbols/volume-up-rounded';
 export { default as VolumeOffIcon } from '~icons/material-symbols/volume-off-rounded';
 export { default as ArrivalIcon } from '~icons/material-symbols/sports-score-rounded';

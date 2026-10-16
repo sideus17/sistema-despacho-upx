@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Map as MapGL, Marker, Popup, NavigationControl, MapRef } from '@vis.gl/react-maplibre';
+import { Map as MapGL, Marker, Popup, MapRef } from '@vis.gl/react-maplibre';
 import '../map/maplibre';
 import {
   Ambulance,
@@ -15,17 +15,22 @@ import {
 } from '../types';
 import { useMapStyle } from '../map/useMapStyle';
 import { DATA_ATTRIBUTION } from '../map/attribution';
-import { MAP_BACKGROUND, ROUTE_COLORS } from '../map/mapStyle';
+import { ALT_ROUTE_COLORS, MAP_BACKGROUND, ROUTE_COLORS } from '../map/mapStyle';
 import { useTheme } from '../theme/theme';
 import { RouteLayer } from '../map/RouteLayer';
+import { ROUTE_OPTIONS_LAYER, RouteOptionsLayer } from '../map/RouteOptionsLayer';
 import { boundsOf, toLngLat } from '../map/geojson';
 import { AmbulanceMarker, BaseMarker, CallMarker, IncidentMarker } from '../map/Markers';
 import { IncidentLayer } from '../map/IncidentLayer';
 import { EFFECT_META, expiryLabel, incidentTypeLabel, sourceLabel } from '../map/incidents';
 import { PRIORITY_META } from '../utils/calls';
-import { getTimeAgo } from '../services/api';
-import { ExpandLessIcon, ExpandMoreIcon } from '../ui/icons';
+import { getTimeAgo, reversePlace } from '../services/api';
+import { ExpandLessIcon, ExpandMoreIcon, LocationIcon, PinDropIcon } from '../ui/icons';
 import { Avatar } from '../ui/Avatar';
+import { MapControls } from './MapControls';
+import RoutePlanner, { PlannerField } from './RoutePlanner';
+import { useRoutePlanner } from './useRoutePlanner';
+import type { PlaceValue } from './AddressSearch';
 import styles from './Map.module.css';
 
 // Sorocaba
@@ -62,6 +67,11 @@ export default function Map({
   const [legendOpen, setLegendOpen] = useState(() => window.matchMedia('(min-width: 768px)').matches);
   const { theme } = useTheme();
   const mapStyle = useMapStyle(theme);
+  const planner = useRoutePlanner();
+  // Campo do painel de rotas esperando um clique no mapa
+  const [picking, setPicking] = useState<PlannerField | null>(null);
+  const plannerRoutes = planner.open ? planner.routes : [];
+  const plannerLines = useMemo(() => plannerRoutes.map(route => route.geometry), [plannerRoutes]);
 
   const allPoints = useMemo(() => [
     ...ambulances.map(amb => amb.location),
@@ -87,6 +97,37 @@ export default function Map({
       map.flyTo({ center: toLngLat(selectedCall.location), zoom: Math.max(map.getZoom(), 15), duration: 600 });
     }
   }, [loaded, selectedCall?.id, routeGeometry]);
+
+  // Rotas novas do painel: enquadra todas, deixando espaço para o painel à esquerda
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!loaded || !map || plannerLines.length === 0) return;
+    const wide = window.matchMedia('(min-width: 769px)').matches;
+    const padding = wide ? { top: 60, bottom: 60, left: 440, right: 80 } : { top: 200, bottom: 40, left: 30, right: 60 };
+    map.fitBounds(boundsOf(plannerLines.flat()), { padding, duration: 600 });
+  }, [loaded, plannerLines]);
+
+  // Esc desiste de escolher o ponto no mapa
+  useEffect(() => {
+    if (!picking) return;
+    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') setPicking(null); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [picking]);
+
+  // Ponto clicado vira partida ou destino; o nome da rua chega logo depois
+  const pickPoint = async (field: PlannerField, location: Coordinates) => {
+    const set = field === 'from' ? planner.setFrom : planner.setTo;
+    const point: PlaceValue = { label: 'Ponto no mapa', location, kind: 'mapa' };
+    set(point);
+    setPicking(null);
+    try {
+      const place = await reversePlace(location);
+      if (place) set(current => (current?.location === location ? { ...point, label: place.label, detail: place.detail } : current));
+    } catch {
+      // Sem nome: fica "Ponto no mapa"
+    }
+  };
 
   // Ocorrência pedida pela lista: centraliza e abre o popup
   useEffect(() => {
@@ -214,7 +255,9 @@ export default function Map({
   };
 
   const activePopup = renderPopup();
-  const hasRoute = !!routeGeometry && routeGeometry.length > 1;
+  // Com rotas no painel, elas tomam o lugar da rota da análise de despacho
+  const showPlanner = plannerLines.length > 0;
+  const hasRoute = showPlanner || (!!routeGeometry && routeGeometry.length > 1);
 
   return (
     <div className={styles.wrapper}>
@@ -229,16 +272,46 @@ export default function Map({
           pitchWithRotate={false}
           touchPitch={false}
           attributionControl={{ compact: true, customAttribution: DATA_ATTRIBUTION }}
+          cursor={picking ? 'crosshair' : undefined}
+          interactiveLayerIds={showPlanner ? [ROUTE_OPTIONS_LAYER] : undefined}
+          onClick={event => {
+            if (picking) {
+              pickPoint(picking, { lat: event.lngLat.lat, lng: event.lngLat.lng });
+              return;
+            }
+            // Clique numa rota cinza: ela passa a ser a escolhida
+            const index = event.features?.[0]?.properties?.index;
+            if (typeof index === 'number') planner.setSelected(index);
+          }}
           onLoad={event => {
             event.target.touchZoomRotate.disableRotation();
+            // No celular os créditos abertos cobrem o zoom: começam recolhidos no "i" (um toque abre)
+            if (window.matchMedia('(max-width: 768px)').matches) {
+              event.target.getContainer().querySelector('.maplibregl-ctrl-attrib')?.classList.remove('maplibregl-compact-show');
+            }
             setLoaded(true);
           }}
         >
-          <NavigationControl position="top-left" showCompass={false} />
+          <MapControls />
 
           <IncidentLayer incidents={incidents} onSelect={(incident, event) => open('incident', incident.id)(event)} />
 
-          {routeGeometry && routeGeometry.length > 1 && <RouteLayer line={routeGeometry} theme={theme} />}
+          {showPlanner ? (
+            <RouteOptionsLayer routes={plannerLines} selected={planner.selected} theme={theme} />
+          ) : (
+            routeGeometry && routeGeometry.length > 1 && <RouteLayer line={routeGeometry} theme={theme} />
+          )}
+
+          {planner.open && planner.from && (
+            <Marker longitude={planner.from.location.lng} latitude={planner.from.location.lat}>
+              <span className={styles.plannerOrigin} title={`Partida: ${planner.from.label}`} />
+            </Marker>
+          )}
+          {planner.open && planner.to && (
+            <Marker longitude={planner.to.location.lng} latitude={planner.to.location.lat} anchor="bottom">
+              <span className={styles.plannerDestination} title={`Destino: ${planner.to.label}`}><LocationIcon /></span>
+            </Marker>
+          )}
 
           {bases.map(base => (
             <Marker key={base.id} longitude={base.location.lng} latitude={base.location.lat} onClick={open('base', base.id)}>
@@ -300,6 +373,21 @@ export default function Map({
         <div className={styles.placeholder} style={{ background: MAP_BACKGROUND[theme] }} aria-label="Carregando mapa" />
       )}
 
+      {mapStyle && (
+        <RoutePlanner
+          planner={planner}
+          ambulances={ambulances}
+          bases={bases}
+          onPickOnMap={field => setPicking(field)}
+        />
+      )}
+
+      {picking && (
+        <div className={styles.pickHint} role="status">
+          <PinDropIcon /> Clique no mapa para escolher {picking === 'from' ? 'a partida' : 'o destino'} (Esc cancela)
+        </div>
+      )}
+
       {/* Legend */}
       <div className={styles.legend}>
         <button
@@ -320,6 +408,7 @@ export default function Map({
             <li><span className={styles.legendIcon}><IncidentMarker type={IncidentType.VIA_BLOQUEADA} effect={IncidentEffect.BLOQUEIO} /></span> Bloqueio (rota desvia)</li>
             <li><span className={styles.legendIcon}><IncidentMarker type={IncidentType.ALAGAMENTO} effect={IncidentEffect.RISCO} /></span> Risco na via</li>
             {hasRoute && <li><span className={styles.legendIcon}><span className={styles.legendRoute} style={{ background: ROUTE_COLORS[theme].line, boxShadow: `0 0 0 2px ${ROUTE_COLORS[theme].casing}` }} /></span> Rota selecionada</li>}
+            {plannerLines.length > 1 && <li><span className={styles.legendIcon}><span className={styles.legendRoute} style={{ background: ALT_ROUTE_COLORS[theme].line, boxShadow: `0 0 0 2px ${ALT_ROUTE_COLORS[theme].casing}` }} /></span> Rota alternativa</li>}
           </ul>
         )}
       </div>
