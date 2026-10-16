@@ -41,8 +41,9 @@ app.use(express.json());
 // Parse URL-encoded bodies
 app.use(express.urlencoded({ extended: true }));
 
-// Request logging
+// Request logging (sem os blocos do trânsito: são dezenas por tela)
 app.use((req: Request, res: Response, next: NextFunction) => {
+  if (req.path.startsWith('/api/traffic/')) return next();
   const timestamp = new Date().toISOString();
   console.log(`[${timestamp}] ${req.method} ${req.path}`);
   next();

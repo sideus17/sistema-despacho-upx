@@ -1,5 +1,11 @@
 import { RouteInfo } from '../types';
 
+// "+4 min de trânsito", quando o trânsito de agora atrasa a rota em pelo menos 1 minuto
+export function trafficNote(route: RouteInfo): string | null {
+  const minutes = Math.round((route.trafficDelay ?? 0) / 60);
+  return minutes >= 1 ? `+${minutes} min de trânsito` : null;
+}
+
 // Principal + alternativas, na ordem do servidor (a principal é a primeira)
 export const routeOptions = (route: RouteInfo | null): RouteInfo[] => (route ? [route, ...(route.alternatives ?? [])] : []);
 

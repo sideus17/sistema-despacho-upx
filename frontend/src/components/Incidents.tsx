@@ -53,11 +53,49 @@ interface IncidentsProps {
   onFocus: (incident: Incident) => void;
 }
 
+function IncidentItem({ incident, onFocus }: { incident: Incident; onFocus: (incident: Incident) => void }) {
+  const meta = EFFECT_META[incident.effect];
+  // O TomTom informa um trecho de rua: o raio interno (só para a rota) não diz nada aqui
+  const showRadius = incident.radius > 0 && incident.source !== IncidentSource.TOMTOM;
+
+  return (
+    <li className={styles.item} style={{ '--effect-color': meta.color } as CSSProperties}>
+      <div className={styles.itemHeader}>
+        <span className={styles.itemIcon}><IncidentIcon type={incident.type} /></span>
+        <div className={styles.itemTitle}>
+          <h3>{incidentTypeLabel(incident.type)}</h3>
+          <p>{sourceLabel(incident)} · {getTimeAgo(incident.createdAt)}</p>
+        </div>
+        <span className={styles.effect}>{meta.label}</span>
+      </div>
+
+      {incident.description && <p className={styles.description}>{incident.description}</p>}
+
+      <p className={styles.meta}>
+        {expiryLabel(incident)}
+        {showRadius && ` · raio ${formatRadius(incident.radius)}`}
+        {incident.votes.yes > 0 && ` · ${incident.votes.yes === 1 ? '1 confirmação' : `${incident.votes.yes} confirmações`}`}
+      </p>
+      {incident.votes.no > 0 && (
+        <p className={styles.warning}>
+          {incident.votes.no === 1 ? '1 equipe disse' : `${incident.votes.no} equipes disseram`} que não está mais lá
+        </p>
+      )}
+
+      <div className={styles.actions}>
+        <button className={styles.secondary} onClick={() => onFocus(incident)}><LocationIcon /> Ver no mapa</button>
+      </div>
+    </li>
+  );
+}
+
 // A central acompanha: quem marca, confirma e tira do mapa são as equipes, as fontes oficiais e o vencimento
 export default function Incidents({ incidents, onFocus }: IncidentsProps) {
   // Alerta oficial sem área (vale para a cidade toda) aparece como faixa, fora da lista
   const officialAlerts = incidents.filter(i => i.source === IncidentSource.DEFESA_CIVIL && i.radius === 0 && !i.geometry);
-  const listed = sortIncidents(incidents.filter(i => !officialAlerts.includes(i)));
+  // Trânsito do TomTom: muitos e mudando a cada minuto; ficam num grupo à parte, recolhido
+  const traffic = sortIncidents(incidents.filter(i => i.source === IncidentSource.TOMTOM));
+  const listed = sortIncidents(incidents.filter(i => !officialAlerts.includes(i) && i.source !== IncidentSource.TOMTOM));
 
   return (
     <div className={styles.container}>
@@ -77,40 +115,18 @@ export default function Incidents({ incidents, onFocus }: IncidentsProps) {
         <p className={styles.empty}><CheckCircleIcon /> Nenhuma ocorrência ativa</p>
       ) : (
         <ul className={styles.list}>
-          {listed.map(incident => {
-            const meta = EFFECT_META[incident.effect];
-
-            return (
-              <li key={incident.id} className={styles.item} style={{ '--effect-color': meta.color } as CSSProperties}>
-                <div className={styles.itemHeader}>
-                  <span className={styles.itemIcon}><IncidentIcon type={incident.type} /></span>
-                  <div className={styles.itemTitle}>
-                    <h3>{incidentTypeLabel(incident.type)}</h3>
-                    <p>{sourceLabel(incident)} · {getTimeAgo(incident.createdAt)}</p>
-                  </div>
-                  <span className={styles.effect}>{meta.label}</span>
-                </div>
-
-                {incident.description && <p className={styles.description}>{incident.description}</p>}
-
-                <p className={styles.meta}>
-                  {expiryLabel(incident)}
-                  {incident.radius > 0 && ` · raio ${formatRadius(incident.radius)}`}
-                  {incident.votes.yes > 0 && ` · ${incident.votes.yes === 1 ? '1 confirmação' : `${incident.votes.yes} confirmações`}`}
-                </p>
-                {incident.votes.no > 0 && (
-                  <p className={styles.warning}>
-                    {incident.votes.no === 1 ? '1 equipe disse' : `${incident.votes.no} equipes disseram`} que não está mais lá
-                  </p>
-                )}
-
-                <div className={styles.actions}>
-                  <button className={styles.secondary} onClick={() => onFocus(incident)}><LocationIcon /> Ver no mapa</button>
-                </div>
-              </li>
-            );
-          })}
+          {listed.map(incident => <IncidentItem key={incident.id} incident={incident} onFocus={onFocus} />)}
         </ul>
+      )}
+
+      {traffic.length > 0 && (
+        <details className={styles.traffic}>
+          <summary>Trânsito (TomTom) · {traffic.length}</summary>
+          <p className={styles.hint}>Interdições, acidentes e congestionamentos fortes. Saem sozinhos quando o TomTom deixa de informar.</p>
+          <ul className={styles.list}>
+            {traffic.map(incident => <IncidentItem key={incident.id} incident={incident} onFocus={onFocus} />)}
+          </ul>
+        </details>
       )}
 
       <OfficialSources />

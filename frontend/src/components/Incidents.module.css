@@ -182,3 +182,29 @@
 .sources .sourceError {
   color: var(--color-warning-text);
 }
+
+/* Trânsito do TomTom: grupo recolhido depois das ocorrências */
+.traffic {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.traffic summary {
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.traffic[open] summary {
+  margin-bottom: 8px;
+}
+
+.traffic .hint {
+  margin-bottom: 8px;
+}

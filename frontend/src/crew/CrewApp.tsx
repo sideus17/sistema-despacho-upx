@@ -18,7 +18,7 @@ import {
 import { usePolling } from '../hooks/usePolling';
 import { useToast } from '../components/Toast';
 import { PRIORITY_META, formatGender } from '../utils/calls';
-import { fastestIndex, routeOptions, routeVia } from '../utils/routes';
+import { fastestIndex, routeOptions, routeVia, trafficNote } from '../utils/routes';
 import { PriorityLabel } from '../ui/PriorityLabel';
 import { AmbulanceTypeIcon } from '../ui/AmbulanceTypeIcon';
 import { BellIcon, CheckCircleIcon, DistanceIcon, NavigateIcon, ReportIcon, TimerIcon } from '../ui/icons';
@@ -524,6 +524,7 @@ export default function CrewApp() {
           <div className={styles.routeChoices} role="radiogroup" aria-label="Escolha a rota">
             {routeChoices.map((option, index) => {
               const via = routeVia(option);
+              const traffic = trafficNote(option);
               return (
                 <button
                   key={index}
@@ -533,7 +534,7 @@ export default function CrewApp() {
                   onClick={() => setRouteIndex(index)}
                 >
                   <strong>{formatDuration(option.duration)}</strong>
-                  <span>{formatDistance(option.distance)}{via && ` · via ${via}`}</span>
+                  <span>{formatDistance(option.distance)}{traffic && ` · ${traffic}`}{via && ` · via ${via}`}</span>
                   {index === fastestIndex(routeChoices) && <em>Mais rápida</em>}
                 </button>
               );
@@ -543,6 +544,7 @@ export default function CrewApp() {
           <div className={styles.routeInfo}>
             <span><DistanceIcon /> <strong>{formatDistance(chosenRoute.distance)}</strong></span>
             <span><TimerIcon /> <strong>{formatDuration(chosenRoute.duration)}</strong></span>
+            {trafficNote(chosenRoute) && <span>{trafficNote(chosenRoute)}</span>}
           </div>
         )}
         {chosenRoute && <RouteNotes route={chosenRoute} />}

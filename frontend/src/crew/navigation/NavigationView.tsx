@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Map as MapLibreMap, Marker, GeoJSONSource } from 'maplibre-gl';
+import { Map as MapLibreMap, Marker, GeoJSONSource, VectorTileSource } from 'maplibre-gl';
 import type { LayerSpecification, StyleSpecification } from 'maplibre-gl';
 import '../../map/maplibre';
 import { Ambulance, Coordinates, EmergencyCall, Incident, RouteInfo, SpeedLimitSegment } from '../../types';
-import { calculateRoute, getErrorMessage, getSpeedLimits, updateAmbulanceLocation, voteIncident } from '../../services/api';
+import { calculateRoute, getErrorMessage, getSpeedLimits, trafficTileUrl, updateAmbulanceLocation, voteIncident, withAuthRequest } from '../../services/api';
+import { TRAFFIC_LAYER, TRAFFIC_SOURCE, useTrafficEnabled, useTrafficVersion, withTrafficLayer } from '../../map/traffic';
+import { TrafficToggle } from '../../map/TrafficToggle';
 import { useToast } from '../../components/Toast';
 import { useAuth } from '../../auth/AuthContext';
 import { useGeolocation, useSimulatedGeolocation } from './useGeolocation';
@@ -24,8 +26,11 @@ import {
   DASHED_OUTLINE_FILTER,
   EFFECT_META,
   INCIDENT_FILL,
+  INCIDENT_LINE,
+  INCIDENT_LINE_LAYOUT,
   INCIDENT_OUTLINE,
   INCIDENT_OUTLINE_DASHED,
+  LINE_FILTER,
   SOLID_OUTLINE_FILTER,
   incidentAreas,
   incidentTypeLabel,
@@ -55,7 +60,8 @@ const EMPTY_STYLE: StyleSpecification = { version: 8, sources: {}, layers: [] };
 const INCIDENT_LAYERS: LayerSpecification[] = [
   { id: 'incident-fill', type: 'fill', source: 'incidents', paint: INCIDENT_FILL },
   { id: 'incident-outline', type: 'line', source: 'incidents', filter: SOLID_OUTLINE_FILTER, paint: INCIDENT_OUTLINE },
-  { id: 'incident-outline-dashed', type: 'line', source: 'incidents', filter: DASHED_OUTLINE_FILTER, paint: INCIDENT_OUTLINE_DASHED }
+  { id: 'incident-outline-dashed', type: 'line', source: 'incidents', filter: DASHED_OUTLINE_FILTER, paint: INCIDENT_OUTLINE_DASHED },
+  { id: 'incident-line', type: 'line', source: 'incidents', filter: LINE_FILTER, paint: INCIDENT_LINE, layout: INCIDENT_LINE_LAYOUT }
 ];
 
 function routeLayers(theme: MapTheme): LayerSpecification[] {
@@ -141,6 +147,11 @@ export default function NavigationView({
   const routeLineRef = useRef<Coordinates[]>(initialRoute.geometry);
   const incidentsRef = useRef(incidents);
   incidentsRef.current = incidents;
+  // Trânsito (TomTom): entra no estilo montado à mão e acompanha o botão sem recarregar o mapa
+  const trafficOn = useTrafficEnabled();
+  const trafficVersion = useTrafficVersion(trafficOn);
+  const trafficRef = useRef({ on: trafficOn, version: trafficVersion });
+  trafficRef.current = { on: trafficOn, version: trafficVersion };
   const lastReroute = useRef(0);
   const announced = useRef(new Set<string>());
   const voiceRef = useRef(voiceOn);
@@ -172,7 +183,9 @@ export default function NavigationView({
       zoom: 17,
       pitch: 50,
       bearing: nav.routeBearing,
-      attributionControl: { compact: true, customAttribution: DATA_ATTRIBUTION }
+      attributionControl: { compact: true, customAttribution: DATA_ATTRIBUTION },
+      // Os blocos do trânsito vêm da nossa API, que exige login
+      transformRequest: withAuthRequest
     });
     mapRef.current = map;
     // Créditos abertos cobririam o velocímetro: começam recolhidos no "i" (um toque abre)
@@ -207,7 +220,7 @@ export default function NavigationView({
     const map = mapRef.current;
     if (!map || !mapStyle) return;
     map.setStyle(mapStyle, {
-      transformStyle: (_previous, next) => ({
+      transformStyle: (_previous, next) => withTrafficLayer({
         ...next,
         sources: {
           ...next.sources,
@@ -215,9 +228,20 @@ export default function NavigationView({
           route: { type: 'geojson', data: lineFeature(routeLineRef.current) }
         },
         layers: [...next.layers, ...INCIDENT_LAYERS, ...routeLayers(theme)]
-      })
+      }, theme, trafficRef.current.version, trafficRef.current.on)
     });
   }, [mapStyle, theme]);
+
+  // Botão do trânsito: só mostra ou esconde a camada
+  useEffect(() => {
+    const map = mapRef.current;
+    if (map?.getLayer(TRAFFIC_LAYER)) map.setLayoutProperty(TRAFFIC_LAYER, 'visibility', trafficOn ? 'visible' : 'none');
+  }, [trafficOn]);
+
+  // A cada 2 min os blocos do trânsito são pedidos de novo
+  useEffect(() => {
+    (mapRef.current?.getSource(TRAFFIC_SOURCE) as VectorTileSource | undefined)?.setTiles([trafficTileUrl(trafficVersion)]);
+  }, [trafficVersion]);
 
   // Ocorrências novas ou encerradas aparecem sem recarregar o estilo
   useEffect(() => {
@@ -523,6 +547,7 @@ export default function NavigationView({
           >
             <ThemeIcon />
           </button>
+          <TrafficToggle className={styles.iconButton} activeClassName={styles.iconButtonActive} />
           <a className={styles.mapsButton} href={mapsUrl} target="_blank" rel="noopener noreferrer">
             Google Maps
           </a>

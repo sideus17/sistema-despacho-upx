@@ -2,6 +2,7 @@ import { supabase } from '../config/supabase';
 import { AuthUser } from '../middleware/auth';
 import { Coordinates, Incident, IncidentEffect, IncidentSource, IncidentType, IncidentVote, UserRole } from '../types';
 import { distanceMeters } from './geo';
+import { tomtomActiveIncidents } from './official/tomtom';
 
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
@@ -91,9 +92,11 @@ export async function listActiveIncidents(viewerId?: string): Promise<Incident[]
     .order('created_at', { ascending: false });
 
   if (error) throw new Error(error.message);
-  return (data ?? []).map(row => toIncident(row, viewerId));
+  // Os do TomTom vêm da memória (trânsito ao vivo), depois dos do banco
+  return [...(data ?? []).map(row => toIncident(row, viewerId)), ...tomtomActiveIncidents()];
 }
 
+// Só as do banco: o contador "Ocorrências" fala das equipes e dos alertas, não do trânsito
 export async function countActiveIncidents(): Promise<number> {
   const { count, error } = await supabase
     .from('incidents')

@@ -1,4 +1,4 @@
-import type { FeatureCollection, MultiPolygon, Polygon } from 'geojson';
+import type { FeatureCollection, LineString, MultiPolygon, Polygon } from 'geojson';
 import type { FillLayerSpecification, FilterSpecification, LineLayerSpecification } from 'maplibre-gl';
 import { Incident, IncidentEffect, IncidentSource, IncidentType } from '../types';
 import { circlePolygon } from '../crew/navigation/geo';
@@ -27,7 +27,8 @@ export const SOURCE_LABEL: Record<IncidentSource, string> = {
   [IncidentSource.CENTRAL]: 'Central',
   [IncidentSource.EQUIPE]: 'Equipe',
   [IncidentSource.CEMADEN]: 'CEMADEN',
-  [IncidentSource.DEFESA_CIVIL]: 'Defesa Civil'
+  [IncidentSource.DEFESA_CIVIL]: 'Defesa Civil',
+  [IncidentSource.TOMTOM]: 'TomTom'
 };
 
 export const EFFECT_META: Record<IncidentEffect, { label: string; color: string; hint: string; order: number }> = {
@@ -64,11 +65,12 @@ function clock(iso: string): string {
 }
 
 export function expiryLabel(incident: Incident): string {
-  return incident.expiresAt ? `vale até ${clock(incident.expiresAt)}` : 'até a central encerrar';
+  if (incident.expiresAt) return `vale até ${clock(incident.expiresAt)}`;
+  return incident.source === IncidentSource.TOMTOM ? 'enquanto o TomTom informar' : 'até a central encerrar';
 }
 
-// Área desenhada no mapa: o contorno da fonte oficial, quando existe, ou o círculo
-export function incidentAreas(incidents: Incident[]): FeatureCollection<Polygon | MultiPolygon> {
+// Área desenhada no mapa: o contorno da fonte oficial, o trecho de rua do TomTom ou o círculo
+export function incidentAreas(incidents: Incident[]): FeatureCollection<Polygon | MultiPolygon | LineString> {
   return {
     type: 'FeatureCollection',
     features: incidents
@@ -89,5 +91,15 @@ export const INCIDENT_FILL: FillLayerSpecification['paint'] = {
 export const INCIDENT_OUTLINE: LineLayerSpecification['paint'] = { 'line-color': ['get', 'color'], 'line-width': 2 };
 // Aviso: contorno tracejado, porque não mexe na rota
 export const INCIDENT_OUTLINE_DASHED: LineLayerSpecification['paint'] = { ...INCIDENT_OUTLINE, 'line-dasharray': [2, 2] };
-export const SOLID_OUTLINE_FILTER: FilterSpecification = ['!=', ['get', 'effect'], IncidentEffect.AVISO];
-export const DASHED_OUTLINE_FILTER: FilterSpecification = ['==', ['get', 'effect'], IncidentEffect.AVISO];
+const NOT_LINE: FilterSpecification = ['!=', ['geometry-type'], 'LineString'];
+export const SOLID_OUTLINE_FILTER: FilterSpecification = ['all', NOT_LINE, ['!=', ['get', 'effect'], IncidentEffect.AVISO]];
+export const DASHED_OUTLINE_FILTER: FilterSpecification = ['all', NOT_LINE, ['==', ['get', 'effect'], IncidentEffect.AVISO]];
+
+// Trecho de rua (TomTom): linha grossa na cor do efeito; aviso mais claro
+export const LINE_FILTER: FilterSpecification = ['==', ['geometry-type'], 'LineString'];
+export const INCIDENT_LINE: LineLayerSpecification['paint'] = {
+  'line-color': ['get', 'color'],
+  'line-width': ['interpolate', ['linear'], ['zoom'], 11, 2, 14, 4, 17, 8],
+  'line-opacity': ['match', ['get', 'effect'], IncidentEffect.AVISO, 0.55, 0.85]
+};
+export const INCIDENT_LINE_LAYOUT: LineLayerSpecification['layout'] = { 'line-cap': 'round', 'line-join': 'round' };

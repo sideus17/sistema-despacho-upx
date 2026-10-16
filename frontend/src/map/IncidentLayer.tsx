@@ -4,8 +4,11 @@ import { Incident } from '../types';
 import {
   DASHED_OUTLINE_FILTER,
   INCIDENT_FILL,
+  INCIDENT_LINE,
+  INCIDENT_LINE_LAYOUT,
   INCIDENT_OUTLINE,
   INCIDENT_OUTLINE_DASHED,
+  LINE_FILTER,
   SOLID_OUTLINE_FILTER,
   incidentAreas
 } from './incidents';
@@ -38,6 +41,14 @@ export function IncidentLayer({ incidents, beforeId, onSelect }: IncidentLayerPr
           type="line"
           filter={DASHED_OUTLINE_FILTER}
           paint={INCIDENT_OUTLINE_DASHED}
+          beforeId={beforeId}
+        />
+        <Layer
+          id="incident-line"
+          type="line"
+          filter={LINE_FILTER}
+          paint={INCIDENT_LINE}
+          layout={INCIDENT_LINE_LAYOUT}
           beforeId={beforeId}
         />
       </Source>

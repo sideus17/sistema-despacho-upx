@@ -19,7 +19,8 @@ const SOURCE_LABEL: Record<IncidentSource, string> = {
   [IncidentSource.CENTRAL]: 'Central',
   [IncidentSource.EQUIPE]: 'Equipe',
   [IncidentSource.CEMADEN]: 'CEMADEN',
-  [IncidentSource.DEFESA_CIVIL]: 'Defesa Civil'
+  [IncidentSource.DEFESA_CIVIL]: 'Defesa Civil',
+  [IncidentSource.TOMTOM]: 'TomTom'
 };
 
 // "Alagamento (Equipe USB-01)", para avisos em texto

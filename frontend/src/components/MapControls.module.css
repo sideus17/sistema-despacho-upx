@@ -65,3 +65,15 @@
     font-size: 20px;
   }
 }
+
+/* Trânsito ligado */
+.button.active {
+  background: var(--color-primary);
+  color: white;
+}
+
+@media (hover: hover) {
+  .button.active:hover {
+    background: var(--color-primary-dark);
+  }
+}

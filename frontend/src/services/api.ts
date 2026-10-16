@@ -1,4 +1,5 @@
 import axios from 'axios';
+import type { RequestTransformFunction } from 'maplibre-gl';
 import {
   Ambulance,
   AmbulanceStatus,
@@ -39,6 +40,22 @@ api.interceptors.request.use(async (config) => {
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
+
+// Endereço absoluto da API: os blocos do mapa são pedidos por um worker, que não resolve "/api"
+const API_ORIGIN_URL = new URL(API_BASE_URL, window.location.origin).href.replace(/\/$/, '');
+
+// Blocos do trânsito ao vivo (o backend busca no TomTom); a versão muda para o mapa pedir de novo
+export function trafficTileUrl(version: number): string {
+  return `${API_ORIGIN_URL}/traffic/flow/{z}/{x}/{y}.pbf?v=${version}`;
+}
+
+// O MapLibre não passa pelo axios: os pedidos dele para a nossa API levam o token aqui
+export const withAuthRequest: RequestTransformFunction = async url => {
+  if (!url.startsWith(API_ORIGIN_URL)) return { url };
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  return token ? { url, headers: { Authorization: `Bearer ${token}` } } : { url };
+};
 
 // Sessão expirada ou inválida: volta para a tela de login
 api.interceptors.response.use(

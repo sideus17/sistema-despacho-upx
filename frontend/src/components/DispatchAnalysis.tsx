@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { DispatchRecommendation, Ambulance, AmbulanceStatus, EmergencyCall } from '../types';
 import { formatDistance, formatDuration, getTimeAgo } from '../services/api';
+import { trafficNote } from '../utils/routes';
 import { PRIORITY_META } from '../utils/calls';
 import { PriorityLabel } from '../ui/PriorityLabel';
 import { AmbulanceTypeIcon } from '../ui/AmbulanceTypeIcon';
@@ -166,6 +167,7 @@ export default function DispatchAnalysis({
                       <div className={styles.route}>
                         <span><DistanceIcon /> <strong>{formatDistance(rec.route.distance)}</strong></span>
                         <span><TimerIcon /> <strong>{formatDuration(rec.route.duration)}</strong></span>
+                        {trafficNote(rec.route) && <span>{trafficNote(rec.route)}</span>}
                       </div>
                       <div className={styles.routeNotes}><RouteNotes route={rec.route} /></div>
                     </>
