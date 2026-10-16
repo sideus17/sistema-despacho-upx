@@ -23,9 +23,11 @@ import { ROUTE_OPTIONS_LAYER, RouteOptionsLayer } from '../map/RouteOptionsLayer
 import { boundsOf, toLngLat } from '../map/geojson';
 import { AmbulanceMarker, BaseMarker, CallMarker, IncidentMarker } from '../map/Markers';
 import { IncidentLayer } from '../map/IncidentLayer';
+import { TrafficLayer } from '../map/TrafficLayer';
+import { TRAFFIC_COLORS, useTrafficEnabled } from '../map/traffic';
 import { EFFECT_META, expiryLabel, incidentTypeLabel, sourceLabel } from '../map/incidents';
 import { PRIORITY_META } from '../utils/calls';
-import { getTimeAgo, reversePlace } from '../services/api';
+import { getTimeAgo, reversePlace, withAuthRequest } from '../services/api';
 import { ExpandLessIcon, ExpandMoreIcon, LocationIcon, PinDropIcon } from '../ui/icons';
 import { Avatar } from '../ui/Avatar';
 import { MapControls } from './MapControls';
@@ -259,6 +261,7 @@ export default function Map({
 
   const activePopup = renderPopup();
   // Com rotas no painel, elas tomam o lugar da rota da análise de despacho
+  const traffic = useTrafficEnabled();
   const showPlanner = plannerLines.length > 0;
   const hasRoute = showPlanner || (!!routeGeometry && routeGeometry.length > 1);
 
@@ -275,6 +278,7 @@ export default function Map({
           pitchWithRotate={false}
           touchPitch={false}
           attributionControl={{ compact: true, customAttribution: DATA_ATTRIBUTION }}
+          transformRequest={withAuthRequest}
           cursor={picking ? 'crosshair' : undefined}
           interactiveLayerIds={showPlanner ? [ROUTE_OPTIONS_LAYER] : undefined}
           onClick={event => {
@@ -296,6 +300,7 @@ export default function Map({
           }}
         >
           <MapControls />
+          <TrafficLayer theme={theme} />
 
           <IncidentLayer incidents={incidents} onSelect={(incident, event) => open('incident', incident.id)(event)} />
 
@@ -410,6 +415,13 @@ export default function Map({
             <li><span className={styles.legendIcon}><BaseMarker /></span> Base</li>
             <li><span className={styles.legendIcon}><IncidentMarker type={IncidentType.VIA_BLOQUEADA} effect={IncidentEffect.BLOQUEIO} /></span> Bloqueio (rota desvia)</li>
             <li><span className={styles.legendIcon}><IncidentMarker type={IncidentType.ALAGAMENTO} effect={IncidentEffect.RISCO} /></span> Risco na via</li>
+            {traffic && (
+              <>
+                <li><span className={styles.legendIcon}><span className={styles.legendRoute} style={{ background: TRAFFIC_COLORS[theme].slow }} /></span> Trânsito lento</li>
+                <li><span className={styles.legendIcon}><span className={styles.legendRoute} style={{ background: TRAFFIC_COLORS[theme].heavy }} /></span> Muito lento</li>
+                <li><span className={styles.legendIcon}><span className={styles.legendRoute} style={{ background: TRAFFIC_COLORS[theme].stopped }} /></span> Parado</li>
+              </>
+            )}
             {hasRoute && <li><span className={styles.legendIcon}><span className={styles.legendRoute} style={{ background: ROUTE_COLORS[theme].line, boxShadow: `0 0 0 2px ${ROUTE_COLORS[theme].casing}` }} /></span> Rota selecionada</li>}
             {plannerLines.length > 1 && <li><span className={styles.legendIcon}><span className={styles.legendRoute} style={{ background: ALT_ROUTE_COLORS[theme].line, boxShadow: `0 0 0 2px ${ALT_ROUTE_COLORS[theme].casing}` }} /></span> Rota alternativa</li>}
           </ul>

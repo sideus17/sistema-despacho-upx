@@ -12,6 +12,7 @@ import {
   voteIncident
 } from '../services/incidentService';
 import { officialStatus, triggerOfficialRefresh } from '../services/official/refresh';
+import { trafficTile, trafficTileAllowed } from '../services/trafficTiles';
 import { invalidateProfile, requireAuth, requireRole } from '../middleware/auth';
 import { duplicateMessage, parseCnh, parseCpf, parsePhone, profileUpdate, ProfileError, toMe } from '../services/profile';
 import {
@@ -768,6 +769,17 @@ router.get('/geocode/reverse', async (req: Request, res: Response) => {
     console.warn('Busca reversa falhou:', error instanceof Error ? error.message : error);
     res.json({ success: true, data: null, timestamp: new Date().toISOString() });
   }
+});
+
+// Blocos do trânsito ao vivo (TomTom) para a camada do mapa; a chave fica aqui no servidor
+router.get('/traffic/flow/:z/:x/:y.pbf', async (req: Request, res: Response) => {
+  const [z, x, y] = [req.params.z, req.params.x, req.params.y].map(Number);
+  if (!trafficTileAllowed(z, x, y)) return fail(res, 400, 'Bloco fora da região atendida.');
+
+  const tile = await trafficTile(z, x, y);
+  // Sem chave ou sem resposta do TomTom: o mapa só fica sem trânsito
+  if (!tile) return res.status(204).end();
+  res.set('Content-Type', 'application/x-protobuf').set('Cache-Control', 'private, max-age=60').send(tile);
 });
 
 // ============================================

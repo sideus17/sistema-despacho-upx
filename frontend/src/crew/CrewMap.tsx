@@ -9,6 +9,10 @@ import { useTheme } from '../theme/theme';
 import { RouteLayer } from '../map/RouteLayer';
 import { ROUTE_OPTIONS_LAYER, RouteOptionsLayer } from '../map/RouteOptionsLayer';
 import { IncidentLayer } from '../map/IncidentLayer';
+import { TrafficLayer } from '../map/TrafficLayer';
+import { TrafficToggle } from '../map/TrafficToggle';
+import { withAuthRequest } from '../services/api';
+import styles from './CrewMap.module.css';
 import { boundsOf, toLngLat } from '../map/geojson';
 import { AmbulanceMarker, CallMarker } from '../map/Markers';
 
@@ -56,6 +60,7 @@ export default function CrewMap({ ambulance, call, routes = [], selectedRoute = 
       pitchWithRotate={false}
       touchPitch={false}
       attributionControl={{ compact: true, customAttribution: DATA_ATTRIBUTION }}
+      transformRequest={withAuthRequest}
       // Toque numa rota cinza: ela passa a ser a escolhida
       interactiveLayerIds={lines.length > 1 ? [ROUTE_OPTIONS_LAYER] : undefined}
       onClick={event => {
@@ -70,6 +75,8 @@ export default function CrewMap({ ambulance, call, routes = [], selectedRoute = 
       }}
     >
       <NavigationControl position="top-left" showCompass={false} />
+      <TrafficToggle className={styles.traffic} activeClassName={styles.trafficActive} />
+      <TrafficLayer theme={theme} />
 
       <IncidentLayer incidents={incidents} />
 
