@@ -1,4 +1,4 @@
-import { CallPriority, CallStatus, EmergencyCall } from '../types';
+import { CallOutcome, CallPriority, CallStatus, EmergencyCall } from '../types';
 import { EmergencyIcon, IconComponent, InfoIcon, WarningIcon } from '../ui/icons';
 
 // Classificação de risco em 4 cores (Regulação Médica das Urgências, Ministério da Saúde).
@@ -16,6 +16,17 @@ export const CALL_STATUS_LABEL: Record<CallStatus, string> = {
   [CallStatus.FINALIZADO]: 'Finalizado',
   [CallStatus.CANCELADO]: 'Cancelado'
 };
+
+export const OUTCOME_LABEL: Record<CallOutcome, string> = {
+  [CallOutcome.TRANSPORTADO]: 'Levado ao hospital',
+  [CallOutcome.ATENDIDO_NO_LOCAL]: 'Atendido no local',
+  [CallOutcome.RECUSA]: 'Recusou atendimento',
+  [CallOutcome.OBITO]: 'Óbito',
+  [CallOutcome.NAO_LOCALIZADO]: 'Não localizado'
+};
+
+// Com a chegada ao hospital registrada, o servidor já sabe que foi transporte; sem ela, pergunta
+export const needsOutcome = (call: EmergencyCall) => !call.times?.atHospital;
 
 // Ordem do mais grave para o menos grave (vermelho, amarelo, verde, azul)
 export const PRIORITIES_BY_SEVERITY = (Object.keys(PRIORITY_META) as CallPriority[]).sort(

@@ -139,3 +139,14 @@ describe('chamado repetido', () => {
     assert.deepEqual(matches.map(match => [match.row.id, match.distance]), [['finalizado', null]]);
   });
 });
+
+test('horários do atendimento: só os que aconteceram; hospital e desfecho junto', () => {
+  const call = toCall(
+    { ...ROW, dispatched_at: '2026-10-16T10:02:00Z', on_scene_at: '2026-10-16T10:11:00Z', en_route_at: null, hospital_id: 'hosp-chs', outcome: null },
+    UserRole.MOTORISTA
+  );
+  assert.deepEqual(call.times, { dispatched: '2026-10-16T10:02:00Z', onScene: '2026-10-16T10:11:00Z' });
+  assert.equal(call.hospitalId, 'hosp-chs');
+  assert.equal('outcome' in call, false);
+  assert.equal('times' in toCall(ROW, UserRole.OPERADOR), false);
+});

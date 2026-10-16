@@ -15,7 +15,8 @@ import {
   Incident,
   DispatchRecommendation,
   Stats,
-  Coordinates
+  Coordinates,
+  CallOutcome
 } from './types';
 import {
   getAmbulances,
@@ -190,9 +191,9 @@ function App() {
     await loadData();
   };
 
-  const handleFinish = async (call: EmergencyCall) => {
+  const handleFinish = async (call: EmergencyCall, outcome?: CallOutcome) => {
     try {
-      await finishDispatch(call.id);
+      await finishDispatch(call.id, outcome);
       toast('Atendimento finalizado. Viatura liberada.', 'success');
       if (selectedCall?.id === call.id) setSelectedCall(null);
     } catch (error) {

@@ -68,10 +68,12 @@ export function useSimulatedGeolocation(line: Coordinates[] | undefined, enabled
 
     const tick = () => {
       const { point, segmentIndex } = pointAlong(line, cumulative, travelled.current);
+      // No fim da rota o carro para (a central marca a chegada pela posição parada)
+      const arrived = travelled.current >= cumulative[cumulative.length - 1];
       setFix({
         position: { lat: point.lat + offset.current.lat, lng: point.lng + offset.current.lng },
         heading: bearing(line[segmentIndex], line[segmentIndex + 1] ?? line[segmentIndex]),
-        speed: SIMULATED_SPEED,
+        speed: arrived ? 0 : SIMULATED_SPEED,
         accuracy: 5
       });
       travelled.current = Math.min(travelled.current + SIMULATED_SPEED, cumulative[cumulative.length - 1]);

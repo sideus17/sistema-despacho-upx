@@ -87,7 +87,6 @@ interface NavigationViewProps {
   incidents: Incident[];
   simulate: boolean;
   onExit: () => void;
-  onFinish: () => Promise<void>;
   onIncidentsChange: () => void; // relato ou resposta enviada: atualiza a lista
 }
 
@@ -98,7 +97,6 @@ export default function NavigationView({
   incidents,
   simulate,
   onExit,
-  onFinish,
   onIncidentsChange
 }: NavigationViewProps) {
   const { me } = useAuth();
@@ -107,7 +105,6 @@ export default function NavigationView({
   const [rerouting, setRerouting] = useState(false);
   const [following, setFollowing] = useState(true);
   const [voiceOn, setVoiceOn] = useState(readVoicePreference);
-  const [finishing, setFinishing] = useState(false);
   const toast = useToast();
   const { theme, preference } = useTheme();
   const mapStyle = useMapStyle(theme);
@@ -138,7 +135,7 @@ export default function NavigationView({
   // Deitado, o painel vira uma coluna à esquerda e começa recolhido; em pé, ele pode descer
   const landscape = useMediaQuery(LANDSCAPE_PHONE);
   const [panelCollapsed, setPanelCollapsed] = usePanelCollapsed(landscape);
-  // Ao chegar, o painel abre sozinho para o "Finalizar atendimento"
+  // Ao chegar, o painel abre sozinho para o "Sair da navegação" (finalizar é no card do chamado)
   const collapsed = panelCollapsed && !nav.arrived;
   const landscapeRef = useRef(landscape);
   landscapeRef.current = landscape;
@@ -413,15 +410,6 @@ export default function NavigationView({
     }
   };
 
-  const handleFinish = async () => {
-    setFinishing(true);
-    try {
-      await onFinish();
-    } finally {
-      setFinishing(false);
-    }
-  };
-
   const eta = new Date(Date.now() + nav.durationRemaining * 1000).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   const mapsUrl = googleMapsUrl(fix?.position ?? ambulance.location, call.location, nav.remaining, route.waypoints);
   const StepIcon = step ? maneuverIcon(step) : null;
@@ -521,8 +509,8 @@ export default function NavigationView({
       <footer ref={panelRef} className={`${styles.panel} ${collapsed ? styles.collapsed : ''}`}>
         {!nav.arrived && <PanelHandle collapsed={collapsed} onChange={setPanelCollapsed} label="painel da navegação" />}
         {nav.arrived ? (
-          <button className={styles.finish} disabled={finishing} onClick={handleFinish}>
-            {finishing ? 'Finalizando…' : <><CheckCircleIcon /> Finalizar atendimento</>}
+          <button className={styles.finish} onClick={onExit}>
+            <CheckCircleIcon /> Sair da navegação
           </button>
         ) : (
           <div className={styles.summary}>

@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Ambulance, AmbulanceStatus, AmbulanceType, Base, CallStatus, Coordinates, EmergencyCall, Incident, RouteInfo } from '../types';
+import { Ambulance, AmbulanceStatus, AmbulanceType, Base, CallOutcome, CallStatus, Coordinates, EmergencyCall, Incident, RouteInfo } from '../types';
 import {
   getAmbulances,
   getBases,
@@ -17,7 +17,8 @@ import {
 } from '../services/api';
 import { usePolling } from '../hooks/usePolling';
 import { useToast } from '../components/Toast';
-import { PRIORITY_META, formatGender } from '../utils/calls';
+import { PRIORITY_META, formatGender, needsOutcome } from '../utils/calls';
+import { OutcomeChoice } from '../ui/OutcomeChoice';
 import { fastestIndex, routeOptions, routeVia, trafficNote } from '../utils/routes';
 import { PriorityLabel } from '../ui/PriorityLabel';
 import { signalsText } from '../utils/triage';
@@ -305,11 +306,11 @@ export default function CrewApp() {
     await signOut();
   };
 
-  const handleFinish = async () => {
+  const handleFinish = async (outcome?: CallOutcome) => {
     if (!activeCall) return;
     setBusy(true);
     try {
-      await finishDispatch(activeCall.id);
+      await finishDispatch(activeCall.id, outcome);
       toast('Atendimento finalizado. Viatura disponível.', 'success');
       await loadData();
     } catch (error) {
@@ -455,7 +456,6 @@ export default function CrewApp() {
           incidents={incidents}
           simulate={SIMULATE}
           onExit={() => setNavigating(false)}
-          onFinish={handleFinish}
           onIncidentsChange={loadData}
         />
       </Suspense>
@@ -579,9 +579,11 @@ export default function CrewApp() {
           )}
         </div>
 
-        {confirmingFinish ? (
+        {confirmingFinish && needsOutcome(activeCall) ? (
+          <OutcomeChoice busy={busy} onChoose={handleFinish} onCancel={() => setConfirmingFinish(false)} large />
+        ) : confirmingFinish ? (
           <div className={styles.navRow}>
-            <button className={styles.finishConfirm} disabled={busy} onClick={handleFinish}>
+            <button className={styles.finishConfirm} disabled={busy} onClick={() => handleFinish()}>
               {busy ? 'Finalizando…' : 'Confirmar finalização'}
             </button>
             <button className={styles.secondaryButton} disabled={busy} onClick={() => setConfirmingFinish(false)}>

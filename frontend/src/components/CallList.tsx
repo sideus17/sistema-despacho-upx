@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { EmergencyCall, CallStatus, Ambulance } from '../types';
+import { EmergencyCall, CallStatus, Ambulance, CallOutcome } from '../types';
 import { getTimeAgo } from '../services/api';
-import { PRIORITY_META, sortCallsByPriority, formatGender, formatWait, waitLevel } from '../utils/calls';
+import { PRIORITY_META, sortCallsByPriority, formatGender, formatWait, needsOutcome, waitLevel } from '../utils/calls';
 import { useNow } from '../hooks/useNow';
 import { setCallAlertsEnabled, useCallAlertsEnabled } from '../hooks/useCallAlerts';
 import { PriorityLabel } from '../ui/PriorityLabel';
+import { OutcomeChoice } from '../ui/OutcomeChoice';
 import { signalsText } from '../utils/triage';
 import { formatPhone } from '../utils/documents';
 import { AmbulanceIcon, BellIcon, BellOffIcon, CallIcon, CheckCircleIcon, LocationIcon, PersonIcon, TimerIcon } from '../ui/icons';
@@ -16,7 +17,7 @@ interface CallListProps {
   selectedCallId?: string;
   onFocus: (call: EmergencyCall) => void;
   onDispatch: (call: EmergencyCall) => void;
-  onFinish: (call: EmergencyCall) => Promise<void>;
+  onFinish: (call: EmergencyCall, outcome?: CallOutcome) => Promise<void>;
 }
 
 type Filter = 'all' | 'pending' | 'active';
@@ -43,10 +44,10 @@ export default function CallList({ calls, ambulances, selectedCallId, onFocus, o
     { key: 'active', label: 'Em atendimento', count: activeCalls.length }
   ];
 
-  const handleFinish = async (call: EmergencyCall) => {
+  const handleFinish = async (call: EmergencyCall, outcome?: CallOutcome) => {
     setFinishingId(call.id);
     try {
-      await onFinish(call);
+      await onFinish(call, outcome);
     } finally {
       setFinishingId(null);
       setConfirmingFinishId(null);
@@ -150,7 +151,13 @@ export default function CallList({ calls, ambulances, selectedCallId, onFocus, o
                   {isActive && (
                     <>
                       <span className={styles.ambulanceBadge}><AmbulanceIcon /> {assignedAmbulance?.code ?? 'Viatura'} em atendimento</span>
-                      {isConfirming ? (
+                      {isConfirming && needsOutcome(call) ? (
+                        <OutcomeChoice
+                          busy={finishingId === call.id}
+                          onChoose={outcome => handleFinish(call, outcome)}
+                          onCancel={() => setConfirmingFinishId(null)}
+                        />
+                      ) : isConfirming ? (
                         <div className={styles.confirmRow}>
                           <button
                             className={styles.success}

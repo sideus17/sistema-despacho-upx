@@ -1,4 +1,4 @@
-import { CallPriority, CallStatus, CallTriage, Coordinates, EmergencyCall, UserRole } from '../types';
+import { CallOutcome, CallPriority, CallStatus, CallTimes, CallTriage, Coordinates, EmergencyCall, UserRole } from '../types';
 import { distanceMeters } from './geo';
 import { insideServiceArea } from './geocodingService';
 import { isValidPhone, onlyDigits } from './profile';
@@ -67,7 +67,7 @@ export function parseCallLocation(input: unknown): Coordinates | null {
   return { lat, lng };
 }
 
-// Linha da tabela calls (as colunas da migração 005 podem faltar se ela ainda não rodou)
+// Linha da tabela calls (as colunas das migrações 005 e 006 podem faltar se elas ainda não rodaram)
 export interface CallRow {
   id: string;
   lat: number;
@@ -84,10 +84,35 @@ export interface CallRow {
   caller_phone?: string | null;
   reference_point?: string | null;
   triage?: CallTriage | null;
+  dispatched_at?: string | null;
+  dispatch_lat?: number | null;
+  dispatch_lng?: number | null;
+  en_route_at?: string | null;
+  on_scene_at?: string | null;
+  left_scene_at?: string | null;
+  hospital_arrival_at?: string | null;
+  finished_at?: string | null;
+  hospital_id?: string | null;
+  outcome?: CallOutcome | null;
+}
+
+// Só os horários que já aconteceram
+function timesOf(row: CallRow): CallTimes | undefined {
+  const times: CallTimes = {
+    dispatched: row.dispatched_at ?? undefined,
+    enRoute: row.en_route_at ?? undefined,
+    onScene: row.on_scene_at ?? undefined,
+    leftScene: row.left_scene_at ?? undefined,
+    atHospital: row.hospital_arrival_at ?? undefined,
+    finished: row.finished_at ?? undefined
+  };
+  const filled = Object.entries(times).filter(([, value]) => value);
+  return filled.length > 0 ? (Object.fromEntries(filled) as CallTimes) : undefined;
 }
 
 // O telefone de quem ligou só vai para a central (LGPD): a equipe fala com a central, não com quem ligou
 export function toCall(row: CallRow, role: UserRole): EmergencyCall {
+  const times = timesOf(row);
   return {
     id: row.id,
     ambulance_id: row.ambulance_id ?? undefined,
@@ -104,6 +129,9 @@ export function toCall(row: CallRow, role: UserRole): EmergencyCall {
     timestamp: row.timestamp,
     ...(row.reference_point ? { reference: row.reference_point } : {}),
     ...(row.triage ? { triage: row.triage } : {}),
+    ...(times ? { times } : {}),
+    ...(row.hospital_id ? { hospitalId: row.hospital_id } : {}),
+    ...(row.outcome ? { outcome: row.outcome } : {}),
     ...(role === UserRole.OPERADOR && row.caller_phone ? { callerPhone: row.caller_phone } : {})
   };
 }
