@@ -93,8 +93,9 @@ export async function changePassword(currentPassword: string, newPassword: strin
   await api.post('/me/password', { currentPassword, newPassword });
 }
 
-export async function startShift(ambulanceId: string): Promise<void> {
-  await api.post('/shifts/start', { ambulanceId });
+// A posição do celular vira a da viatura (o motorista está ao lado dela no início do plantão)
+export async function startShift(ambulanceId: string, location?: Coordinates): Promise<void> {
+  await api.post('/shifts/start', { ambulanceId, location });
 }
 
 export async function endShift(): Promise<void> {

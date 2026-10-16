@@ -192,6 +192,9 @@ router.post('/me/password', async (req: Request, res: Response) => {
 router.post('/shifts/start', requireRole(UserRole.MOTORISTA), async (req: Request, res: Response) => {
   const { ambulanceId } = req.body ?? {};
   if (!ambulanceId) return fail(res, 400, 'ambulanceId is required');
+  // Posição do celular, opcional (sem GPS a viatura fica onde estava, normalmente na base)
+  const location = req.body?.location == null ? null : parseCoordinates(req.body.location);
+  if (req.body?.location != null && !location) return fail(res, 400, 'Localização inválida.');
 
   const { data: current } = await supabase.from('ambulances').select('id, code').eq('driver_id', req.user!.id).maybeSingle();
   if (current) {
@@ -203,7 +206,10 @@ router.post('/shifts/start', requireRole(UserRole.MOTORISTA), async (req: Reques
   // Só assume a viatura se ninguém estiver com ela
   const { data: taken, error } = await supabase
     .from('ambulances')
-    .update({ driver_id: req.user!.id })
+    .update({
+      driver_id: req.user!.id,
+      ...(location && { lat: location.lat, lng: location.lng, location_updated_at: new Date().toISOString() })
+    })
     .eq('id', ambulanceId)
     .is('driver_id', null)
     .select('id');

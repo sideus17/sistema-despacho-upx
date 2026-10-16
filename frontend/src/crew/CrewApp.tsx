@@ -1,7 +1,8 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Ambulance, AmbulanceStatus, AmbulanceType, CallStatus, Coordinates, EmergencyCall, Incident, RouteInfo } from '../types';
+import { Ambulance, AmbulanceStatus, AmbulanceType, Base, CallStatus, Coordinates, EmergencyCall, Incident, RouteInfo } from '../types';
 import {
   getAmbulances,
+  getBases,
   getPendingCalls,
   getIncidents,
   calculateRoute,
@@ -28,6 +29,9 @@ import { useAuth } from '../auth/AuthContext';
 import { AccountMenu } from '../components/AccountMenu';
 import InstallBanner from './InstallBanner';
 import { LANDSCAPE_PHONE, useMediaQuery } from '../ui/useMediaQuery';
+import { formatNavDistance } from './navigation/instructions';
+import { PickerEntry, pickerOrder } from './shift';
+import { useShiftLocation } from './useShiftLocation';
 import { googleMapsUrl } from './navigation/mapsLink';
 import styles from './CrewApp.module.css';
 import '../styles/index.css';
@@ -67,17 +71,33 @@ function saveSnapshot(snapshot: Snapshot | null) {
   }
 }
 
-// Posição atual para o relato fora da navegação (na simulação, a da viatura)
-function currentPosition(fallback: Coordinates): Promise<Coordinates | null> {
-  if (SIMULATE) return Promise.resolve(fallback);
+// GPS do aparelho agora; sem permissão, sem sinal ou impreciso demais, null
+function readGps(maxAccuracy = Infinity): Promise<Coordinates | null> {
   return new Promise(resolve => {
     if (!('geolocation' in navigator)) return resolve(null);
     navigator.geolocation.getCurrentPosition(
-      ({ coords }) => resolve({ lat: coords.latitude, lng: coords.longitude }),
+      ({ coords }) => resolve(coords.accuracy <= maxAccuracy ? { lat: coords.latitude, lng: coords.longitude } : null),
       () => resolve(null),
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 15000 }
     );
   });
+}
+
+// Posição atual para o relato fora da navegação (na simulação, a da viatura)
+function currentPosition(fallback: Coordinates): Promise<Coordinates | null> {
+  return SIMULATE ? Promise.resolve(fallback) : readGps();
+}
+
+// Precisão mínima para a posição do celular virar a da viatura no início do turno
+const SHIFT_GPS_ACCURACY = 100;
+
+// Selo de cada viatura na escolha do turno (o status interno "Indisponível" de quem está sem equipe confundia)
+function PickerPill({ entry }: { entry: PickerEntry }) {
+  if (entry.taken) return <span className={`${styles.pill} ${styles.pill_INDISPONIVEL}`}>Em turno · {entry.ambulance.driver?.name.split(' ')[0]}</span>;
+  if (entry.ambulance.status === AmbulanceStatus.EM_ATENDIMENTO) {
+    return <span className={`${styles.pill} ${styles.pill_EM_ATENDIMENTO}`}>Atendimento em andamento</span>;
+  }
+  return <span className={`${styles.pill} ${styles.pill_DISPONIVEL}`}>Livre</span>;
 }
 
 const TYPE_FILTERS: Array<{ value: AmbulanceType | 'ALL'; label: string }> = [
@@ -118,6 +138,9 @@ export default function CrewApp() {
   const [busy, setBusy] = useState(false);
   const [isNewDispatch, setIsNewDispatch] = useState(false);
   const [navigating, setNavigating] = useState(false);
+  // Escolha da viatura: onde o celular está e o nome das bases
+  const [here, setHere] = useState<Coordinates | null>(null);
+  const [bases, setBases] = useState<Base[]>([]);
   // Celular deitado: informações e botões numa coluna à esquerda, mapa à direita na altura toda
   const landscape = useMediaQuery(LANDSCAPE_PHONE);
   const lastCallId = useRef<string | null | undefined>(undefined);
@@ -179,6 +202,19 @@ export default function CrewApp() {
     ? calls.find(c => c.status === CallStatus.EM_ATENDIMENTO && c.ambulance_id === ambulance.id)
     : undefined;
 
+  // O celular é o GPS da viatura durante o turno (na navegação quem manda é ela; na simulação, a viatura anda sozinha)
+  useShiftLocation(ambulance?.id, !navigating && !SIMULATE);
+
+  // Sem turno: localiza o celular e as bases para ordenar e descrever as viaturas
+  const choosing = !ambulance;
+  useEffect(() => {
+    if (!choosing) return;
+    let cancelled = false;
+    readGps(SHIFT_GPS_ACCURACY).then(position => { if (!cancelled) setHere(position); });
+    getBases().then(result => { if (!cancelled) setBases(result); }).catch(() => { /* sem bases: sem o nome */ });
+    return () => { cancelled = true; };
+  }, [choosing]);
+
   // Trocou de viatura: o chamado que ela já tiver não conta como "novo despacho"
   useEffect(() => {
     lastCallId.current = undefined;
@@ -232,8 +268,13 @@ export default function CrewApp() {
   const handleStartShift = async (target: Ambulance) => {
     setBusy(true);
     try {
-      await startShift(target.id);
-      toast(`Turno iniciado na ${target.code}. A central já vê você disponível.`, 'success');
+      await startShift(target.id, here ?? (await readGps(SHIFT_GPS_ACCURACY)) ?? undefined);
+      toast(
+        target.status === AmbulanceStatus.EM_ATENDIMENTO
+          ? `Turno iniciado na ${target.code}. Você assumiu o atendimento em andamento.`
+          : `Turno iniciado na ${target.code}. A central já vê você disponível.`,
+        'success'
+      );
       await loadData();
     } catch (error) {
       toast(getErrorMessage(error, 'Não foi possível iniciar o turno.'), 'error');
@@ -326,8 +367,8 @@ export default function CrewApp() {
 
   // Sem turno: escolher a viatura de hoje
   if (!ambulance) {
-    const freeAmbulances = ambulances.filter(a => !a.driver && (typeFilter === 'ALL' || a.type === typeFilter));
-
+    const entries = pickerOrder(ambulances.filter(a => typeFilter === 'ALL' || a.type === typeFilter), here);
+    const baseName = (id: string) => bases.find(base => base.id === id)?.name;
     return (
       <div className={styles.shell}>
         {offlineBanner}
@@ -337,7 +378,7 @@ export default function CrewApp() {
             <AccountMenu onSignOut={handleSignOut} />
           </div>
           <h1>Iniciar turno</h1>
-          <p className={styles.muted}>Escolha a viatura que você vai usar hoje. A central passa a ver seu nome nela.</p>
+          <p className={styles.muted}>Escolha a viatura do seu plantão. A central passa a ver seu nome nela, e ela passa a usar a localização deste celular.</p>
 
           <div className={styles.typeFilters} role="tablist" aria-label="Tipo de viatura">
             {TYPE_FILTERS.map(filter => (
@@ -353,21 +394,34 @@ export default function CrewApp() {
             ))}
           </div>
 
-          {freeAmbulances.length === 0 ? (
+          {!entries.some(entry => !entry.taken) && (
             <p className={styles.muted}>Nenhuma viatura livre deste tipo agora.</p>
-          ) : (
-            <ul className={styles.pickerList}>
-              {freeAmbulances.map(a => (
+          )}
+          <ul className={styles.pickerList}>
+            {entries.map(entry => {
+              const { ambulance: a } = entry;
+              const where = [baseName(a.baseId), entry.distance !== null && `a ${formatNavDistance(entry.distance)} de você`]
+                .filter(Boolean)
+                .join(' · ');
+              return (
                 <li key={a.id}>
-                  <button className={styles.pickerItem} disabled={busy} onClick={() => handleStartShift(a)}>
+                  <button
+                    className={`${styles.pickerItem} ${entry.taken ? styles.pickerItemTaken : ''}`}
+                    disabled={busy || entry.taken}
+                    onClick={() => handleStartShift(a)}
+                  >
                     <span className={styles.pickerCode}><AmbulanceTypeIcon type={a.type} /> {a.code}</span>
+                    {where && <span className={styles.pickerWhere}>{where}</span>}
                     <span className={styles.muted}>{a.type} · equipe: {a.crew.medic}{a.crew.nurse ? `, ${a.crew.nurse}` : ''}</span>
-                    <StatusPill status={a.status} />
+                    <PickerPill entry={entry} />
+                    {!entry.taken && a.status === AmbulanceStatus.EM_ATENDIMENTO && (
+                      <span className={styles.muted}>Ao escolher, você assume o chamado em andamento.</span>
+                    )}
                   </button>
                 </li>
-              ))}
-            </ul>
-          )}
+              );
+            })}
+          </ul>
         </main>
       </div>
     );

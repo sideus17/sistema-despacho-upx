@@ -536,3 +536,16 @@
   border-radius: 0;
   box-shadow: none;
 }
+
+/* Viatura com outro motorista em turno: aparece só para explicar por que não dá para escolher */
+.pickerItem.pickerItemTaken:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Base e distância até o celular */
+.pickerWhere {
+  color: var(--color-text-soft);
+  font-size: 14px;
+  font-weight: 600;
+}
