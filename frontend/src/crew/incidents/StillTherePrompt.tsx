@@ -10,7 +10,9 @@ const QUESTION: Partial<Record<IncidentType, string>> = {
   [IncidentType.ALAGAMENTO]: 'Ainda está alagado aqui?',
   [IncidentType.VIA_BLOQUEADA]: 'A via ainda está bloqueada?',
   [IncidentType.QUEDA_ARVORE]: 'A árvore ainda está na via?',
-  [IncidentType.ACIDENTE]: 'O acidente ainda está aqui?'
+  [IncidentType.ACIDENTE]: 'O acidente ainda está aqui?',
+  [IncidentType.OBRAS]: 'As obras ainda estão aqui?',
+  [IncidentType.CONGESTIONAMENTO]: 'Ainda está congestionado aqui?'
 };
 
 export const stillThereQuestion = (incident: Incident) => QUESTION[incident.type] ?? 'Ainda está lá?';

@@ -5,7 +5,6 @@ import { calculateRoute } from '../services/routingService';
 import { geocodeAddress } from '../services/geocodingService';
 import {
   IncidentError,
-  closeIncident,
   countActiveIncidents,
   createIncident,
   listActiveIncidents,
@@ -502,7 +501,7 @@ router.get('/bases', async (req: Request, res: Response) => {
 
 
 // ============================================
-// OCORRÊNCIAS (central, equipes e fontes oficiais)
+// OCORRÊNCIAS (equipes e fontes oficiais; a central só acompanha)
 // ============================================
 
 router.get('/incidents', async (req: Request, res: Response) => {
@@ -516,8 +515,8 @@ router.get('/incidents', async (req: Request, res: Response) => {
   }
 });
 
-// Central marca no mapa; a equipe relata onde está (o relato repetido confirma o anterior)
-router.post('/incidents', requireRole(UserRole.OPERADOR, UserRole.MOTORISTA), async (req: Request, res: Response) => {
+// A equipe relata onde está (o relato repetido confirma o anterior)
+router.post('/incidents', requireRole(UserRole.MOTORISTA), async (req: Request, res: Response) => {
   try {
     const result = await createIncident(req.user!, req.body ?? {});
     res.status(result.created ? 201 : 200).json({ success: true, data: result, timestamp: new Date().toISOString() });
@@ -526,22 +525,13 @@ router.post('/incidents', requireRole(UserRole.OPERADOR, UserRole.MOTORISTA), as
   }
 });
 
-router.post('/incidents/:id/close', requireRole(UserRole.OPERADOR), async (req: Request, res: Response) => {
-  try {
-    await closeIncident(req.user!, req.params.id);
-    res.json({ success: true, data: { id: req.params.id }, timestamp: new Date().toISOString() });
-  } catch (error) {
-    failIncident(res, error, 'Erro ao encerrar a ocorrência.');
-  }
-});
-
 // Quando cada fonte oficial foi lida pela última vez e se deu erro
 router.get('/official/status', requireRole(UserRole.OPERADOR), (req: Request, res: Response) => {
   res.json({ success: true, data: officialStatus(), timestamp: new Date().toISOString() });
 });
 
-// "Ainda está lá?" das equipes; a central usa só o SIM, para confirmar o bloqueio de um relato
-router.post('/incidents/:id/vote', requireRole(UserRole.OPERADOR, UserRole.MOTORISTA), async (req: Request, res: Response) => {
+// "Ainda está lá?" das equipes
+router.post('/incidents/:id/vote', requireRole(UserRole.MOTORISTA), async (req: Request, res: Response) => {
   try {
     const { vote } = req.body ?? {};
     if (vote !== 'SIM' && vote !== 'NAO') return fail(res, 400, 'Resposta inválida.');

@@ -42,6 +42,10 @@ export { default as WindIcon } from '~icons/material-symbols/air-rounded';
 export { default as HeavyRainIcon } from '~icons/material-symbols/rainy-heavy-rounded';
 export { default as CarCrashIcon } from '~icons/material-symbols/car-crash-rounded';
 export { default as OfficialAlertIcon } from '~icons/material-symbols/campaign-rounded';
+export { default as ConstructionIcon } from '~icons/material-symbols/construction-rounded';
+export { default as TrafficJamIcon } from '~icons/material-symbols/traffic-jam';
+export { default as StalledVehicleIcon } from '~icons/material-symbols/car-repair-rounded';
+export { default as TrafficLightIcon } from '~icons/material-symbols/traffic-rounded';
 export { default as AddLocationIcon } from '~icons/material-symbols/add-location-alt-rounded';
 export { default as ReportIcon } from '~icons/material-symbols/report-rounded';
 

@@ -2,12 +2,23 @@ import { useEffect, useState } from 'react';
 import { Coordinates, IncidentType } from '../../types';
 import { getErrorMessage } from '../../services/api';
 import { useToast } from '../../components/Toast';
-import { INCIDENT_LABEL } from '../../map/incidents';
+import { incidentTypeLabel } from '../../map/incidents';
 import { IncidentIcon } from '../../ui/IncidentIcon';
 import { ReportOutcome, submitReport } from './reportQueue';
 import styles from './ReportSheet.module.css';
 
-const REPORT_TYPES = [IncidentType.ALAGAMENTO, IncidentType.QUEDA_ARVORE, IncidentType.VIA_BLOQUEADA, IncidentType.ACIDENTE];
+// Como no Waze: o que bloqueia ou atrasa primeiro, depois o que só pede atenção
+const REPORT_TYPES = [
+  IncidentType.ACIDENTE,
+  IncidentType.CONGESTIONAMENTO,
+  IncidentType.VIA_BLOQUEADA,
+  IncidentType.ALAGAMENTO,
+  IncidentType.QUEDA_ARVORE,
+  IncidentType.OBRAS,
+  IncidentType.VEICULO_PARADO,
+  IncidentType.PERIGO_NA_VIA,
+  IncidentType.SEMAFORO_QUEBRADO
+];
 // Sem toque, a folha fecha sozinha para não ficar sobre o mapa
 const AUTO_CLOSE_MS = 12000;
 
@@ -30,7 +41,7 @@ export default function ReportSheet({ getPosition, onClose, onReported, speak }:
   }, [sending, onClose]);
 
   const report = async (type: IncidentType) => {
-    const label = INCIDENT_LABEL[type];
+    const label = incidentTypeLabel(type);
     setSending(type);
     try {
       const position = await getPosition();
@@ -68,7 +79,7 @@ export default function ReportSheet({ getPosition, onClose, onReported, speak }:
           {REPORT_TYPES.map(type => (
             <button key={type} className={styles.option} disabled={!!sending} onClick={() => report(type)}>
               <span className={styles.optionIcon}><IncidentIcon type={type} /></span>
-              {sending === type ? 'Enviando…' : INCIDENT_LABEL[type]}
+              {sending === type ? 'Enviando…' : incidentTypeLabel(type)}
             </button>
           ))}
         </div>

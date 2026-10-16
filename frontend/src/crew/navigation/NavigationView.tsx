@@ -21,11 +21,11 @@ import {
   DASHED_OUTLINE_FILTER,
   EFFECT_META,
   INCIDENT_FILL,
-  INCIDENT_LABEL,
   INCIDENT_OUTLINE,
   INCIDENT_OUTLINE_DASHED,
   SOLID_OUTLINE_FILTER,
   incidentAreas,
+  incidentTypeLabel,
   sourceLabel
 } from '../../map/incidents';
 import { IncidentIcon } from '../../ui/IncidentIcon';
@@ -402,7 +402,7 @@ export default function NavigationView({
             <span className={styles.incidentAlertIcon}><IncidentIcon type={alerts.alert.incident.type} /></span>
             <p>
               <strong>
-                {INCIDENT_LABEL[alerts.alert.incident.type]}
+                {incidentTypeLabel(alerts.alert.incident.type)}
                 {alerts.alert.distance !== null && ` em ${formatAlertDistance(alerts.alert.distance)}`}
               </strong>
               <span>

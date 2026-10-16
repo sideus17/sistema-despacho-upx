@@ -5,7 +5,6 @@ import {
   EmergencyCall,
   Base,
   Incident,
-  IncidentEffect,
   IncidentType,
   OfficialSourceStatus,
   DispatchRecommendation,
@@ -190,9 +189,6 @@ export interface CreateIncidentRequest {
   type: IncidentType;
   lat: number;
   lng: number;
-  radius?: number; // só a central escolhe
-  effect?: IncidentEffect; // só a central escolhe
-  durationMinutes?: number | null; // só a central escolhe; null = até encerrar
   description?: string;
   clientId?: string; // relato da equipe guardado sem sinal
   reportedAt?: string;
@@ -208,10 +204,6 @@ export interface CreateIncidentResult {
 export async function createIncident(request: CreateIncidentRequest): Promise<CreateIncidentResult> {
   const response = await api.post<ApiResponse<CreateIncidentResult>>('/incidents', request);
   return response.data.data!;
-}
-
-export async function closeIncident(id: string): Promise<void> {
-  await api.post(`/incidents/${id}/close`);
 }
 
 export async function voteIncident(id: string, vote: 'SIM' | 'NAO'): Promise<{ incident: Incident | null; closed: boolean }> {

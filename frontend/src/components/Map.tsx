@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Map as MapGL, Marker, Popup, Source, Layer, NavigationControl, MapRef } from '@vis.gl/react-maplibre';
-import type { FillLayerSpecification, LineLayerSpecification } from 'maplibre-gl';
+import { Map as MapGL, Marker, Popup, NavigationControl, MapRef } from '@vis.gl/react-maplibre';
 import '../map/maplibre';
 import {
   Ambulance,
@@ -22,22 +21,15 @@ import { RouteLayer } from '../map/RouteLayer';
 import { boundsOf, toLngLat } from '../map/geojson';
 import { AmbulanceMarker, BaseMarker, CallMarker, IncidentMarker } from '../map/Markers';
 import { IncidentLayer } from '../map/IncidentLayer';
-import { EFFECT_META, INCIDENT_LABEL, expiryLabel, sourceLabel } from '../map/incidents';
-import { circlePolygon } from '../crew/navigation/geo';
+import { EFFECT_META, expiryLabel, incidentTypeLabel, sourceLabel } from '../map/incidents';
 import { PRIORITY_META } from '../utils/calls';
 import { getTimeAgo } from '../services/api';
-import { AddLocationIcon, ExpandLessIcon, ExpandMoreIcon } from '../ui/icons';
+import { ExpandLessIcon, ExpandMoreIcon } from '../ui/icons';
 import { Avatar } from '../ui/Avatar';
-import type { IncidentDraft } from './Incidents';
 import styles from './Map.module.css';
 
 // Sorocaba
 const INITIAL_VIEW = { longitude: -47.4526, latitude: -23.5015, zoom: 13 };
-
-// Prévia da área sendo marcada pela central
-const DRAFT_COLOR = '#2563eb';
-const DRAFT_FILL: FillLayerSpecification['paint'] = { 'fill-color': DRAFT_COLOR, 'fill-opacity': 0.12 };
-const DRAFT_OUTLINE: LineLayerSpecification['paint'] = { 'line-color': DRAFT_COLOR, 'line-width': 2, 'line-dasharray': [2, 1.5] };
 
 type Selection = { kind: 'ambulance' | 'call' | 'base' | 'incident'; id: string } | null;
 
@@ -49,10 +41,6 @@ interface MapProps {
   selectedCall?: EmergencyCall | null;
   routeGeometry?: Coordinates[] | null;
   onCallSelect?: (call: EmergencyCall) => void;
-  // Nova ocorrência em andamento: o clique no mapa marca o local
-  draft?: IncidentDraft | null;
-  onPickLocation?: (location: Coordinates) => void;
-  onCloseIncident?: (incident: Incident) => Promise<void>;
   // Pedido para mostrar uma ocorrência (a cada pedido muda o `at`)
   focusIncident?: { id: string; at: number } | null;
 }
@@ -65,17 +53,12 @@ export default function Map({
   selectedCall,
   routeGeometry,
   onCallSelect,
-  draft,
-  onPickLocation,
-  onCloseIncident,
   focusIncident
 }: MapProps) {
   const mapRef = useRef<MapRef>(null);
   const fitted = useRef(false);
   const [loaded, setLoaded] = useState(false);
   const [popup, setPopup] = useState<Selection>(null);
-  const [confirmingClose, setConfirmingClose] = useState(false);
-  const [closing, setClosing] = useState(false);
   const [legendOpen, setLegendOpen] = useState(() => window.matchMedia('(min-width: 768px)').matches);
   const { theme } = useTheme();
   const mapStyle = useMapStyle(theme);
@@ -114,31 +97,10 @@ export default function Map({
     setPopup({ kind: 'incident', id: incident.id });
   }, [loaded, focusIncident]);
 
-  // Outro popup aberto cancela a confirmação de encerramento
-  useEffect(() => setConfirmingClose(false), [popup?.kind, popup?.id]);
-
-  const draftArea = useMemo(() => draft?.location ? {
-    type: 'Feature' as const,
-    properties: {},
-    geometry: { type: 'Polygon' as const, coordinates: [circlePolygon(draft.location, draft.radius)] }
-  } : null, [draft?.location, draft?.radius]);
-
   const open = (kind: NonNullable<Selection>['kind'], id: string) => (event: { originalEvent: MouseEvent }) => {
     // Sem isso o clique chega ao mapa e fecha o popup na hora
     event.originalEvent.stopPropagation();
     setPopup({ kind, id });
-  };
-
-  const handleClose = async (incident: Incident) => {
-    if (!onCloseIncident) return;
-    setClosing(true);
-    try {
-      await onCloseIncident(incident);
-      setPopup(null);
-    } finally {
-      setClosing(false);
-      setConfirmingClose(false);
-    }
   };
 
   const renderPopup = () => {
@@ -232,7 +194,7 @@ export default function Map({
       offset: 18,
       content: (
         <>
-          <h3>{INCIDENT_LABEL[incident.type] ?? incident.type}</h3>
+          <h3>{incidentTypeLabel(incident.type)}</h3>
           <p>
             <span className={styles.effectPill} style={{ background: effect.color }}>{effect.label}</span> {effect.hint}
           </p>
@@ -246,22 +208,6 @@ export default function Map({
           )}
           {incident.description && <p>{incident.description}</p>}
           {incident.radius > 0 && <p><strong>Raio:</strong> {incident.radius} m</p>}
-          {onCloseIncident && (
-            <div className={styles.popupActions}>
-              {confirmingClose ? (
-                <>
-                  <button className={styles.popupDanger} disabled={closing} onClick={() => handleClose(incident)}>
-                    {closing ? 'Encerrando…' : 'Confirmar encerramento'}
-                  </button>
-                  <button className={styles.popupSecondary} disabled={closing} onClick={() => setConfirmingClose(false)}>
-                    Cancelar
-                  </button>
-                </>
-              ) : (
-                <button className={styles.popupSecondary} onClick={() => setConfirmingClose(true)}>Encerrar</button>
-              )}
-            </div>
-          )}
         </>
       )
     };
@@ -283,10 +229,6 @@ export default function Map({
           pitchWithRotate={false}
           touchPitch={false}
           attributionControl={{ compact: true, customAttribution: DATA_ATTRIBUTION }}
-          cursor={draft ? 'crosshair' : undefined}
-          onClick={event => {
-            if (draft && onPickLocation) onPickLocation({ lat: event.lngLat.lat, lng: event.lngLat.lng });
-          }}
           onLoad={event => {
             event.target.touchZoomRotate.disableRotation();
             setLoaded(true);
@@ -295,18 +237,6 @@ export default function Map({
           <NavigationControl position="top-left" showCompass={false} />
 
           <IncidentLayer incidents={incidents} onSelect={(incident, event) => open('incident', incident.id)(event)} />
-
-          {draftArea && draft?.location && (
-            <>
-              <Source id="incident-draft" type="geojson" data={draftArea}>
-                <Layer id="incident-draft-fill" type="fill" paint={DRAFT_FILL} />
-                <Layer id="incident-draft-outline" type="line" paint={DRAFT_OUTLINE} />
-              </Source>
-              <Marker longitude={draft.location.lng} latitude={draft.location.lat} anchor="bottom">
-                <span className={styles.draftPin}><AddLocationIcon /></span>
-              </Marker>
-            </>
-          )}
 
           {routeGeometry && routeGeometry.length > 1 && <RouteLayer line={routeGeometry} theme={theme} />}
 
@@ -368,12 +298,6 @@ export default function Map({
         </MapGL>
       ) : (
         <div className={styles.placeholder} style={{ background: MAP_BACKGROUND[theme] }} aria-label="Carregando mapa" />
-      )}
-
-      {draft && (
-        <div className={styles.pickHint} role="status">
-          <AddLocationIcon /> {draft.location ? 'Toque de novo para mudar o local' : 'Toque no mapa para marcar o local da ocorrência'}
-        </div>
       )}
 
       {/* Legend */}
