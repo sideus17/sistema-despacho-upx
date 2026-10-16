@@ -1,4 +1,6 @@
 .screen {
+  /* Altura do painel de baixo, medida no componente; os botões flutuantes ficam logo acima */
+  --panel-h: calc(env(safe-area-inset-bottom) + 150px);
   position: fixed;
   inset: 0;
   z-index: 1500;
@@ -12,7 +14,7 @@
 
 /* Atribuição do mapa (obrigatória) acima do painel inferior */
 .screen :global(.maplibregl-ctrl-bottom-right) {
-  bottom: calc(env(safe-area-inset-bottom) + 150px);
+  bottom: var(--panel-h);
 }
 
 /* Topo: instrução e avisos */
@@ -77,7 +79,7 @@
 .recenter {
   position: absolute;
   right: 12px;
-  bottom: calc(env(safe-area-inset-bottom) + 160px);
+  bottom: calc(var(--panel-h) + 10px);
   min-height: 44px;
   padding: 0 16px;
   border: none;
@@ -99,7 +101,7 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 14px 16px calc(env(safe-area-inset-bottom) + 14px);
+  padding: 10px 16px calc(env(safe-area-inset-bottom) + 14px);
   border-radius: 18px 18px 0 0;
   background: white;
   box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.15);
@@ -294,7 +296,7 @@
 .report {
   position: absolute;
   right: 12px;
-  bottom: calc(env(safe-area-inset-bottom) + 220px);
+  bottom: calc(var(--panel-h) + 70px);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -323,7 +325,7 @@
 .speed {
   position: absolute;
   left: 12px;
-  bottom: calc(env(safe-area-inset-bottom) + 160px);
+  bottom: calc(var(--panel-h) + 10px);
   display: flex;
   align-items: flex-end;
   gap: 8px;
@@ -386,4 +388,111 @@
 
 .screen[data-theme='night'] .speedometer:not(.speeding) small {
   color: #9ca3af;
+}
+
+/* Recolhido: só a alça e o resumo (chegada, minutos e distância) */
+.panel.collapsed {
+  gap: 4px;
+  padding-bottom: calc(env(safe-area-inset-bottom) + 10px);
+}
+
+.panel.collapsed .summary strong {
+  font-size: 22px;
+}
+
+/* Celular deitado: instrução e painel numa coluna à esquerda, mapa no resto da tela */
+@media (orientation: landscape) and (max-height: 540px) {
+  .top {
+    top: calc(env(safe-area-inset-top) + 8px);
+    left: calc(env(safe-area-inset-left) + 10px);
+    right: auto;
+    width: min(380px, 42%);
+    gap: 6px;
+  }
+
+  .banner {
+    min-height: 0;
+    gap: 10px;
+    padding: 8px 12px;
+  }
+
+  .icon {
+    width: 36px;
+    font-size: 30px;
+  }
+
+  .distance {
+    font-size: 20px;
+  }
+
+  .bannerText {
+    font-size: 15px;
+  }
+
+  .incidentAlert {
+    padding: 6px 10px;
+  }
+
+  .incidentAlert strong {
+    font-size: 15px;
+  }
+
+  .panel {
+    left: calc(env(safe-area-inset-left) + 10px);
+    right: auto;
+    bottom: calc(env(safe-area-inset-bottom) + 10px);
+    width: min(380px, 42%);
+    gap: 8px;
+    padding: 6px 12px 10px;
+    border-radius: 16px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  }
+
+  .panel.collapsed {
+    padding-bottom: 8px;
+  }
+
+  .summary strong {
+    font-size: 22px;
+  }
+
+  .summary span {
+    font-size: 14px;
+  }
+
+  .iconButton,
+  .exitButton,
+  .mapsButton,
+  .finish {
+    min-height: 44px;
+  }
+
+  .iconButton {
+    min-width: 44px;
+  }
+
+  .mapsButton {
+    font-size: 14px;
+  }
+
+  /* Velocímetro logo acima do painel; Reportar e Recentralizar no canto direito, longe da coluna */
+  .speed {
+    left: calc(env(safe-area-inset-left) + 10px);
+    bottom: calc(var(--panel-h) + 20px);
+  }
+
+  /* Acima do "i" dos créditos do mapa, que fica no canto */
+  .recenter {
+    right: calc(env(safe-area-inset-right) + 12px);
+    bottom: calc(env(safe-area-inset-bottom) + 44px);
+  }
+
+  .report {
+    right: calc(env(safe-area-inset-right) + 12px);
+    bottom: calc(env(safe-area-inset-bottom) + 98px);
+  }
+
+  .screen :global(.maplibregl-ctrl-bottom-right) {
+    bottom: 0;
+  }
 }

@@ -480,3 +480,59 @@
   opacity: 0.6;
   cursor: wait;
 }
+
+/* Celular deitado: coluna de informações e botões à esquerda (rola), mapa à direita na altura toda */
+.shellLandscape {
+  flex-direction: row;
+  max-width: none;
+}
+
+.sideColumn {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 min(400px, 42%);
+  min-width: 0;
+  border-right: 1px solid var(--color-border);
+}
+
+.shellLandscape .header {
+  padding: calc(env(safe-area-inset-top) + 8px) 12px 8px calc(env(safe-area-inset-left) + 12px);
+}
+
+.shellLandscape .headerCode {
+  margin-bottom: 2px;
+  font-size: 17px;
+}
+
+.shellLandscape .main {
+  gap: 10px;
+  padding: 10px 12px 10px calc(env(safe-area-inset-left) + 12px);
+}
+
+.shellLandscape .callCard {
+  padding: 12px;
+}
+
+.shellLandscape .address {
+  font-size: 17px;
+}
+
+.shellLandscape .actionBar {
+  gap: 6px;
+  padding: 8px 12px calc(env(safe-area-inset-bottom) + 8px) calc(env(safe-area-inset-left) + 12px);
+}
+
+.shellLandscape .navigate,
+.shellLandscape .mapsLink,
+.shellLandscape .finish,
+.shellLandscape .finishConfirm,
+.shellLandscape .secondaryButton {
+  min-height: 44px;
+}
+
+.shellLandscape .mapWrap {
+  flex: 1;
+  min-height: 0;
+  border-radius: 0;
+  box-shadow: none;
+}

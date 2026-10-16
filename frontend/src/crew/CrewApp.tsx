@@ -27,6 +27,7 @@ import { clearReports, flushReports, pendingReports } from './incidents/reportQu
 import { useAuth } from '../auth/AuthContext';
 import { AccountMenu } from '../components/AccountMenu';
 import InstallBanner from './InstallBanner';
+import { LANDSCAPE_PHONE, useMediaQuery } from '../ui/useMediaQuery';
 import { googleMapsUrl } from './navigation/mapsLink';
 import styles from './CrewApp.module.css';
 import '../styles/index.css';
@@ -117,6 +118,8 @@ export default function CrewApp() {
   const [busy, setBusy] = useState(false);
   const [isNewDispatch, setIsNewDispatch] = useState(false);
   const [navigating, setNavigating] = useState(false);
+  // Celular deitado: informações e botões numa coluna à esquerda, mapa à direita na altura toda
+  const landscape = useMediaQuery(LANDSCAPE_PHONE);
   const lastCallId = useRef<string | null | undefined>(undefined);
   const incidentsRef = useRef(incidents);
   incidentsRef.current = incidents;
@@ -404,163 +407,206 @@ export default function CrewApp() {
     );
   }
 
+  const header = (
+    <header className={styles.header}>
+      <div>
+        <p className={styles.headerCode}><AmbulanceTypeIcon type={ambulance.type} /> {ambulance.code} <span>{ambulance.type} · {me.fullName.split(' ')[0]}</span></p>
+        <StatusPill status={ambulance.status} />
+      </div>
+      {/* Durante um atendimento não dá para encerrar o turno nem sair */}
+      <AccountMenu
+        onSignOut={handleSignOut}
+        shift={{ code: ambulance.code, onEnd: handleEndShift }}
+        blockedReason={activeCall ? 'Finalize o atendimento antes de encerrar o turno ou sair.' : undefined}
+      />
+    </header>
+  );
+
+  // O mesmo conteúdo serve aos dois arranjos: em pé (coluna única) e deitado (coluna + mapa ao lado)
+  let info: React.ReactNode;
+  let details: React.ReactNode = null;
+  let mapView: React.ReactNode;
+  let actionBar: React.ReactNode;
+
+  if (activeCall && meta) {
+    info = (
+      <section
+        className={`${styles.callCard} ${isNewDispatch ? styles.callCardNew : ''}`}
+        style={{ '--priority-color': meta.color } as React.CSSProperties}
+        onClick={() => setIsNewDispatch(false)}
+      >
+        {isNewDispatch && <p className={styles.newBadge}><BellIcon /> Novo despacho</p>}
+        <p className={styles.priority}><PriorityLabel priority={activeCall.priority} /></p>
+        <h1 className={styles.address}>{activeCall.address}</h1>
+        <p className={styles.description}>{activeCall.description}</p>
+        <p className={styles.patient}>
+          {[activeCall.patientInfo.age && `${activeCall.patientInfo.age} anos`, gender, `aberto ${getTimeAgo(activeCall.timestamp)}`]
+            .filter(Boolean)
+            .join(' · ')}
+        </p>
+      </section>
+    );
+
+    mapView = (
+      <div className={styles.mapWrap}>
+        <Suspense fallback={null}>
+          <CrewMap
+            ambulance={ambulance}
+            call={activeCall}
+            routes={routeChoices.map(option => option.geometry)}
+            selectedRoute={routeIndex}
+            onSelectRoute={setRouteIndex}
+            incidents={incidents}
+          />
+        </Suspense>
+        {reportButton}
+      </div>
+    );
+
+    details = (
+      <>
+        {routeChoices.length > 1 ? (
+          // Como no Waze: escolhe o caminho antes de sair (no mapa, a escolhida fica azul)
+          <div className={styles.routeChoices} role="radiogroup" aria-label="Escolha a rota">
+            {routeChoices.map((option, index) => {
+              const via = routeVia(option);
+              return (
+                <button
+                  key={index}
+                  role="radio"
+                  aria-checked={index === routeIndex}
+                  className={`${styles.routeChoice} ${index === routeIndex ? styles.routeChoiceSelected : ''}`}
+                  onClick={() => setRouteIndex(index)}
+                >
+                  <strong>{formatDuration(option.duration)}</strong>
+                  <span>{formatDistance(option.distance)}{via && ` · via ${via}`}</span>
+                  {index === fastestIndex(routeChoices) && <em>Mais rápida</em>}
+                </button>
+              );
+            })}
+          </div>
+        ) : chosenRoute && (
+          <div className={styles.routeInfo}>
+            <span><DistanceIcon /> <strong>{formatDistance(chosenRoute.distance)}</strong></span>
+            <span><TimerIcon /> <strong>{formatDuration(chosenRoute.duration)}</strong></span>
+          </div>
+        )}
+        {chosenRoute && <RouteNotes route={chosenRoute} />}
+      </>
+    );
+
+    actionBar = (
+      <nav className={styles.actionBar}>
+        <div className={styles.navRow}>
+          <button
+            className={styles.navigate}
+            disabled={!chosenRoute}
+            onClick={() => {
+              setIsNewDispatch(false);
+              setNavigating(true);
+            }}
+          >
+            {chosenRoute ? <><NavigateIcon /> Iniciar navegação</> : 'Calculando rota…'}
+          </button>
+          {chosenRoute && (
+            <a
+              className={styles.mapsLink}
+              href={googleMapsUrl(ambulance.location, activeCall.location, chosenRoute.geometry, chosenRoute.waypoints)}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Google Maps
+            </a>
+          )}
+        </div>
+
+        {confirmingFinish ? (
+          <div className={styles.navRow}>
+            <button className={styles.finishConfirm} disabled={busy} onClick={handleFinish}>
+              {busy ? 'Finalizando…' : 'Confirmar finalização'}
+            </button>
+            <button className={styles.secondaryButton} disabled={busy} onClick={() => setConfirmingFinish(false)}>
+              Cancelar
+            </button>
+          </div>
+        ) : (
+          <button className={styles.finish} onClick={() => setConfirmingFinish(true)}>
+            <CheckCircleIcon /> Finalizar atendimento
+          </button>
+        )}
+      </nav>
+    );
+  } else {
+    info = (
+      <section className={styles.idle}>
+        {ambulance.status === AmbulanceStatus.DISPONIVEL ? (
+          <>
+            <p className={styles.idleTitle}>Aguardando chamado</p>
+            <p className={styles.muted}>Você será avisado assim que a central despachar esta viatura.</p>
+          </>
+        ) : (
+          <>
+            <p className={styles.idleTitle}>{STATUS_LABEL[ambulance.status]}</p>
+            <p className={styles.muted}>A central não vai despachar esta viatura enquanto ela estiver fora de serviço.</p>
+          </>
+        )}
+      </section>
+    );
+
+    mapView = (
+      <div className={styles.mapWrap}>
+        <Suspense fallback={null}>
+          <CrewMap ambulance={ambulance} incidents={incidents} />
+        </Suspense>
+        {reportButton}
+      </div>
+    );
+
+    actionBar = (
+      <nav className={styles.actionBar}>
+        <button
+          className={ambulance.status === AmbulanceStatus.DISPONIVEL ? styles.secondaryButton : styles.finish}
+          disabled={busy}
+          onClick={handleToggleAvailability}
+        >
+          {ambulance.status === AmbulanceStatus.DISPONIVEL ? 'Ficar indisponível' : 'Ficar disponível'}
+        </button>
+      </nav>
+    );
+  }
+
+  if (landscape) {
+    return (
+      <div className={`${styles.shell} ${styles.shellLandscape}`}>
+        <div className={styles.sideColumn}>
+          {header}
+          {offlineBanner}
+          <InstallBanner />
+          <main className={styles.main}>
+            {info}
+            {details}
+          </main>
+          {actionBar}
+        </div>
+        {mapView}
+        {reportSheet}
+      </div>
+    );
+  }
+
   return (
     <div className={styles.shell}>
-      <header className={styles.header}>
-        <div>
-          <p className={styles.headerCode}><AmbulanceTypeIcon type={ambulance.type} /> {ambulance.code} <span>{ambulance.type} · {me.fullName.split(' ')[0]}</span></p>
-          <StatusPill status={ambulance.status} />
-        </div>
-        {/* Durante um atendimento não dá para encerrar o turno nem sair */}
-        <AccountMenu
-          onSignOut={handleSignOut}
-          shift={{ code: ambulance.code, onEnd: handleEndShift }}
-          blockedReason={activeCall ? 'Finalize o atendimento antes de encerrar o turno ou sair.' : undefined}
-        />
-      </header>
-
+      {header}
       {offlineBanner}
       <InstallBanner />
       {reportSheet}
 
-      {activeCall && meta ? (
-        <>
-          <main className={styles.main}>
-            <section
-              className={`${styles.callCard} ${isNewDispatch ? styles.callCardNew : ''}`}
-              style={{ '--priority-color': meta.color } as React.CSSProperties}
-              onClick={() => setIsNewDispatch(false)}
-            >
-              {isNewDispatch && <p className={styles.newBadge}><BellIcon /> Novo despacho</p>}
-              <p className={styles.priority}><PriorityLabel priority={activeCall.priority} /></p>
-              <h1 className={styles.address}>{activeCall.address}</h1>
-              <p className={styles.description}>{activeCall.description}</p>
-              <p className={styles.patient}>
-                {[activeCall.patientInfo.age && `${activeCall.patientInfo.age} anos`, gender, `aberto ${getTimeAgo(activeCall.timestamp)}`]
-                  .filter(Boolean)
-                  .join(' · ')}
-              </p>
-            </section>
-
-            <div className={styles.mapWrap}>
-              <Suspense fallback={null}>
-                <CrewMap
-                  ambulance={ambulance}
-                  call={activeCall}
-                  routes={routeChoices.map(option => option.geometry)}
-                  selectedRoute={routeIndex}
-                  onSelectRoute={setRouteIndex}
-                  incidents={incidents}
-                />
-              </Suspense>
-              {reportButton}
-            </div>
-
-            {routeChoices.length > 1 ? (
-              // Como no Waze: escolhe o caminho antes de sair (no mapa, a escolhida fica azul)
-              <div className={styles.routeChoices} role="radiogroup" aria-label="Escolha a rota">
-                {routeChoices.map((option, index) => {
-                  const via = routeVia(option);
-                  return (
-                    <button
-                      key={index}
-                      role="radio"
-                      aria-checked={index === routeIndex}
-                      className={`${styles.routeChoice} ${index === routeIndex ? styles.routeChoiceSelected : ''}`}
-                      onClick={() => setRouteIndex(index)}
-                    >
-                      <strong>{formatDuration(option.duration)}</strong>
-                      <span>{formatDistance(option.distance)}{via && ` · via ${via}`}</span>
-                      {index === fastestIndex(routeChoices) && <em>Mais rápida</em>}
-                    </button>
-                  );
-                })}
-              </div>
-            ) : chosenRoute && (
-              <div className={styles.routeInfo}>
-                <span><DistanceIcon /> <strong>{formatDistance(chosenRoute.distance)}</strong></span>
-                <span><TimerIcon /> <strong>{formatDuration(chosenRoute.duration)}</strong></span>
-              </div>
-            )}
-            {chosenRoute && <RouteNotes route={chosenRoute} />}
-          </main>
-
-          <nav className={styles.actionBar}>
-            <div className={styles.navRow}>
-              <button
-                className={styles.navigate}
-                disabled={!chosenRoute}
-                onClick={() => {
-                  setIsNewDispatch(false);
-                  setNavigating(true);
-                }}
-              >
-                {chosenRoute ? <><NavigateIcon /> Iniciar navegação</> : 'Calculando rota…'}
-              </button>
-              {chosenRoute && (
-                <a
-                  className={styles.mapsLink}
-                  href={googleMapsUrl(ambulance.location, activeCall.location, chosenRoute.geometry, chosenRoute.waypoints)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Google Maps
-                </a>
-              )}
-            </div>
-
-            {confirmingFinish ? (
-              <div className={styles.navRow}>
-                <button className={styles.finishConfirm} disabled={busy} onClick={handleFinish}>
-                  {busy ? 'Finalizando…' : 'Confirmar finalização'}
-                </button>
-                <button className={styles.secondaryButton} disabled={busy} onClick={() => setConfirmingFinish(false)}>
-                  Cancelar
-                </button>
-              </div>
-            ) : (
-              <button className={styles.finish} onClick={() => setConfirmingFinish(true)}>
-                <CheckCircleIcon /> Finalizar atendimento
-              </button>
-            )}
-          </nav>
-        </>
-      ) : (
-        <>
-          <main className={styles.main}>
-            <section className={styles.idle}>
-              {ambulance.status === AmbulanceStatus.DISPONIVEL ? (
-                <>
-                  <p className={styles.idleTitle}>Aguardando chamado</p>
-                  <p className={styles.muted}>Você será avisado assim que a central despachar esta viatura.</p>
-                </>
-              ) : (
-                <>
-                  <p className={styles.idleTitle}>{STATUS_LABEL[ambulance.status]}</p>
-                  <p className={styles.muted}>A central não vai despachar esta viatura enquanto ela estiver fora de serviço.</p>
-                </>
-              )}
-            </section>
-
-            <div className={styles.mapWrap}>
-              <Suspense fallback={null}>
-                <CrewMap ambulance={ambulance} incidents={incidents} />
-              </Suspense>
-              {reportButton}
-            </div>
-          </main>
-
-          <nav className={styles.actionBar}>
-            <button
-              className={ambulance.status === AmbulanceStatus.DISPONIVEL ? styles.secondaryButton : styles.finish}
-              disabled={busy}
-              onClick={handleToggleAvailability}
-            >
-              {ambulance.status === AmbulanceStatus.DISPONIVEL ? 'Ficar indisponível' : 'Ficar disponível'}
-            </button>
-          </nav>
-        </>
-      )}
+      <main className={styles.main}>
+        {info}
+        {mapView}
+        {details}
+      </main>
+      {actionBar}
     </div>
   );
 }

@@ -10,6 +10,8 @@ import { useAuth } from '../../auth/AuthContext';
 import { useGeolocation, useSimulatedGeolocation } from './useGeolocation';
 import { useNavigation } from './useNavigation';
 import { overLimit, speedLimitAt, toKmh } from './speed';
+import { PanelHandle, usePanelCollapsed } from '../PanelHandle';
+import { LANDSCAPE_PHONE, useMediaQuery } from '../../ui/useMediaQuery';
 import { formatNavDistance, maneuverIcon, maneuverText, spokenInstruction } from './instructions';
 import { googleMapsUrl } from './mapsLink';
 import { useMapStyle } from '../../map/useMapStyle';
@@ -125,6 +127,15 @@ export default function NavigationView({
   const speedLimit = speedLimitAt(limits, nav.travelled);
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const screenRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLElement>(null);
+  // Deitado, o painel vira uma coluna à esquerda e começa recolhido; em pé, ele pode descer
+  const landscape = useMediaQuery(LANDSCAPE_PHONE);
+  const [panelCollapsed, setPanelCollapsed] = usePanelCollapsed(landscape);
+  // Ao chegar, o painel abre sozinho para o "Finalizar atendimento"
+  const collapsed = panelCollapsed && !nav.arrived;
+  const landscapeRef = useRef(landscape);
+  landscapeRef.current = landscape;
   const mapRef = useRef<MapLibreMap | null>(null);
   const vehicleRef = useRef<Marker | null>(null);
   const routeLineRef = useRef<Coordinates[]>(initialRoute.geometry);
@@ -229,11 +240,23 @@ export default function NavigationView({
         pitch: 50,
         duration: 1000,
         easing: t => t,
-        // Carro no terço de baixo da tela, como nos apps de navegação
-        padding: { top: map.getContainer().clientHeight * 0.35, bottom: 0, left: 0, right: 0 }
+        // Carro no terço de baixo da tela, como nos apps de navegação; deitado, à direita do painel
+        padding: landscapeRef.current
+          ? { top: map.getContainer().clientHeight * 0.3, bottom: 0, left: (panelRef.current?.offsetWidth ?? 0) + 20, right: 0 }
+          : { top: map.getContainer().clientHeight * 0.35, bottom: 0, left: 0, right: 0 }
       });
     }
   }, [nav.position, nav.remaining, heading, following]);
+
+  // Altura do painel numa variável CSS: os botões flutuantes e os créditos do mapa ficam logo acima dele
+  useEffect(() => {
+    const panel = panelRef.current;
+    const screen = screenRef.current;
+    if (!panel || !screen || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => screen.style.setProperty('--panel-h', `${panel.offsetHeight}px`));
+    observer.observe(panel);
+    return () => observer.disconnect();
+  }, []);
 
   // Recalcula a partir de onde o carro está (o backend desvia das ocorrências ativas)
   const reroute = useCallback((message: string, minInterval: number) => {
@@ -382,7 +405,7 @@ export default function NavigationView({
   const ThemeIcon = themeOption.Icon;
 
   return (
-    <div className={styles.screen} data-theme={theme}>
+    <div ref={screenRef} className={styles.screen} data-theme={theme}>
       <div ref={containerRef} className={styles.map} />
       {createPortal(<CallMarker priority={call.priority} />, destinationEl)}
 
@@ -471,7 +494,8 @@ export default function NavigationView({
         <button className={styles.recenter} onClick={recenter}><MyLocationIcon /> Recentralizar</button>
       )}
 
-      <footer className={styles.panel}>
+      <footer ref={panelRef} className={`${styles.panel} ${collapsed ? styles.collapsed : ''}`}>
+        {!nav.arrived && <PanelHandle collapsed={collapsed} onChange={setPanelCollapsed} label="painel da navegação" />}
         {nav.arrived ? (
           <button className={styles.finish} disabled={finishing} onClick={handleFinish}>
             {finishing ? 'Finalizando…' : <><CheckCircleIcon /> Finalizar atendimento</>}
@@ -483,7 +507,7 @@ export default function NavigationView({
           </div>
         )}
 
-        <div className={styles.actions}>
+        {!collapsed && <div className={styles.actions}>
           <button
             className={styles.iconButton}
             onClick={toggleVoice}
@@ -506,7 +530,7 @@ export default function NavigationView({
             <button className={styles.iconButton} onClick={sim.deviate} title="Simular saída da rota" aria-label="Simular saída da rota"><DetourIcon /></button>
           )}
           <button className={styles.exitButton} onClick={onExit}>Sair</button>
-        </div>
+        </div>}
       </footer>
     </div>
   );
