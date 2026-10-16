@@ -1,7 +1,17 @@
-import { test } from 'node:test';
+import { describe, it, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { CallPriority, CallStatus, UserRole } from '../types';
-import { CallError, CallRow, parseCallLocation, parsePriority, parseReference, parseTriage, toCall } from './calls';
+import {
+  CallError,
+  CallRow,
+  parseCallLocation,
+  parseCallerPhone,
+  parsePriority,
+  parseReference,
+  parseTriage,
+  recentMatches,
+  toCall
+} from './calls';
 
 const ROW: CallRow = {
   id: 'call-1',
@@ -73,4 +83,59 @@ test('local escolhido: número de verdade e dentro da região atendida', () => {
   assert.throws(() => parseCallLocation({ lat: '-23.5', lng: -47.45 }), (error: CallError) => error.status === 400);
   // São Paulo capital: fora da região
   assert.throws(() => parseCallLocation({ lat: -23.55, lng: -46.63 }), (error: CallError) => error.status === 422);
+});
+
+test('telefone de quem ligou: opcional, fixo ou celular, gravado só com os dígitos', () => {
+  assert.equal(parseCallerPhone(undefined), null);
+  assert.equal(parseCallerPhone(''), null);
+  assert.equal(parseCallerPhone('(15) 99123-4567'), '15991234567');
+  assert.equal(parseCallerPhone('(15) 3232-1234'), '1532321234');
+  assert.throws(() => parseCallerPhone('(15) 9912-345'), CallError);
+  assert.throws(() => parseCallerPhone('(20) 3232-1234'), CallError); // DDD 20 não existe
+  assert.throws(() => parseCallerPhone('(15) 8232-1234'), CallError); // fixo não começa com 8
+});
+
+describe('chamado repetido', () => {
+  const NOW = Date.parse('2026-10-16T12:00:00Z');
+  const row = (id: string, minutesAgo: number, extra: Partial<CallRow> = {}): CallRow => ({
+    ...ROW,
+    id,
+    caller_phone: null,
+    timestamp: new Date(NOW - minutesAgo * 60_000).toISOString(),
+    ...extra
+  });
+  // ~100 m ao norte de ROW (-23.5, -47.45)
+  const NEAR = { lat: -23.4991, lng: -47.45 };
+
+  it('mesmo telefone ou até 150 m nas últimas 2 h; os mais novos primeiro', () => {
+    const matches = recentMatches(
+      [
+        row('telefone', 90, { caller_phone: '15991234567', lat: -23.45, lng: -47.40 }),
+        row('local', 10),
+        row('os-dois', 30, { caller_phone: '15991234567' }),
+        row('longe', 5, { lat: -23.51, lng: -47.45 })
+      ],
+      { phone: '15991234567', location: NEAR },
+      NOW
+    );
+    assert.deepEqual(matches.map(match => [match.row.id, match.reasons]), [
+      ['local', ['local']],
+      ['os-dois', ['telefone', 'local']],
+      ['telefone', ['telefone']]
+    ]);
+    assert.ok(matches[0].distance! > 90 && matches[0].distance! < 110);
+  });
+
+  it('cancelados e os de mais de 2 h ficam de fora; sem local, a distância é nula', () => {
+    const matches = recentMatches(
+      [
+        row('cancelado', 10, { caller_phone: '15991234567', status: CallStatus.CANCELADO }),
+        row('antigo', 121, { caller_phone: '15991234567' }),
+        row('finalizado', 100, { caller_phone: '15991234567', status: CallStatus.FINALIZADO })
+      ],
+      { phone: '15991234567' },
+      NOW
+    );
+    assert.deepEqual(matches.map(match => [match.row.id, match.distance]), [['finalizado', null]]);
+  });
 });

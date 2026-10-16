@@ -6,7 +6,8 @@ import { useNow } from '../hooks/useNow';
 import { setCallAlertsEnabled, useCallAlertsEnabled } from '../hooks/useCallAlerts';
 import { PriorityLabel } from '../ui/PriorityLabel';
 import { signalsText } from '../utils/triage';
-import { AmbulanceIcon, BellIcon, BellOffIcon, CheckCircleIcon, LocationIcon, PersonIcon, TimerIcon } from '../ui/icons';
+import { formatPhone } from '../utils/documents';
+import { AmbulanceIcon, BellIcon, BellOffIcon, CallIcon, CheckCircleIcon, LocationIcon, PersonIcon, TimerIcon } from '../ui/icons';
 import styles from './CallList.module.css';
 
 interface CallListProps {
@@ -131,10 +132,11 @@ export default function CallList({ calls, ambulances, selectedCallId, onFocus, o
                 <p className={styles.description}>{call.description}</p>
                 {call.triage?.signals.length ? <p className={styles.signals}>Sinais: {signalsText(call.triage.signals)}</p> : null}
 
-                {(call.patientInfo.age || gender) && (
+                {(call.patientInfo.age || gender || call.callerPhone) && (
                   <div className={styles.patient}>
                     {call.patientInfo.age && <span><PersonIcon /> {call.patientInfo.age} anos</span>}
                     {gender && <span>{gender}</span>}
+                    {call.callerPhone && <span title="Telefone de quem ligou"><CallIcon /> {formatPhone(call.callerPhone)}</span>}
                   </div>
                 )}
 

@@ -29,6 +29,7 @@ import { EFFECT_META, expiryLabel, incidentTypeLabel, sourceLabel } from '../map
 import { PRIORITIES_BY_SEVERITY, PRIORITY_META } from '../utils/calls';
 import { signalsText } from '../utils/triage';
 import { PriorityLabel } from '../ui/PriorityLabel';
+import { formatPhone } from '../utils/documents';
 import { getTimeAgo, reversePlace, withAuthRequest } from '../services/api';
 import { ExpandLessIcon, ExpandMoreIcon, LocationIcon, PinDropIcon } from '../ui/icons';
 import { Avatar } from '../ui/Avatar';
@@ -228,6 +229,7 @@ export default function Map({
             <p><PriorityLabel priority={call.priority} /></p>
             <p><strong>Endereço:</strong> {call.address}</p>
             {call.reference && <p><strong>Referência:</strong> {call.reference}</p>}
+            {call.callerPhone && <p><strong>Telefone:</strong> {formatPhone(call.callerPhone)}</p>}
             <p><strong>Descrição:</strong> {call.description}</p>
             {call.triage?.signals.length ? <p><strong>Sinais:</strong> {signalsText(call.triage.signals)}</p> : null}
             {call.patientInfo.age && <p><strong>Idade:</strong> {call.patientInfo.age} anos</p>}

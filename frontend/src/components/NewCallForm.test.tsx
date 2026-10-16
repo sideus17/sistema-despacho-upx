@@ -1,8 +1,8 @@
 import { act, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createCall, reversePlace, searchPlaces } from '../services/api';
-import { CallPriority, Coordinates, EmergencyCall } from '../types';
+import { createCall, getRecentCalls, reversePlace, searchPlaces } from '../services/api';
+import { CallPriority, CallStatus, Coordinates, EmergencyCall } from '../types';
 import { renderWithAuth } from '../test/renderWithAuth';
 import NewCallForm from './NewCallForm';
 
@@ -10,7 +10,8 @@ vi.mock('../services/api', async importOriginal => ({
   ...(await importOriginal<typeof import('../services/api')>()),
   createCall: vi.fn(),
   searchPlaces: vi.fn(),
-  reversePlace: vi.fn()
+  reversePlace: vi.fn(),
+  getRecentCalls: vi.fn()
 }));
 
 beforeEach(() => {
@@ -19,6 +20,8 @@ beforeEach(() => {
   vi.mocked(searchPlaces).mockReset();
   vi.mocked(searchPlaces).mockResolvedValue([]);
   vi.mocked(reversePlace).mockReset();
+  vi.mocked(getRecentCalls).mockReset();
+  vi.mocked(getRecentCalls).mockResolvedValue([]);
 });
 
 const color = (name: string) => screen.getByRole('radio', { name: new RegExp(`^${name}`) });
@@ -150,5 +153,59 @@ describe('endereço do novo chamado', () => {
     await user.click(color('Amarelo'));
     await user.click(screen.getByRole('button', { name: 'Abrir Chamado' }));
     expect(createCall).toHaveBeenCalledWith(expect.objectContaining({ address: 'Rua da Penha, 890 - Centro, Sorocaba', location: point }));
+  });
+});
+
+describe('telefone de quem ligou', () => {
+  it('fixo ou celular com máscara; vai só com os dígitos', async () => {
+    const user = userEvent.setup();
+    renderWithAuth(<NewCallForm onCallCreated={vi.fn()} />);
+    const phone = screen.getByLabelText(/Telefone de quem ligou/);
+    await user.type(phone, '1532321234');
+    expect(phone).toHaveValue('(15) 3232-1234');
+
+    await fillBasics(user);
+    await user.click(color('Verde'));
+    await user.click(screen.getByRole('button', { name: 'Abrir Chamado' }));
+    expect(createCall).toHaveBeenCalledWith(expect.objectContaining({ callerPhone: '1532321234' }));
+  });
+
+  it('telefone incompleto não envia', async () => {
+    const user = userEvent.setup();
+    renderWithAuth(<NewCallForm onCallCreated={vi.fn()} />);
+    await user.type(screen.getByLabelText(/Telefone de quem ligou/), '159912');
+    await fillBasics(user);
+    await user.click(color('Verde'));
+    await user.click(screen.getByRole('button', { name: 'Abrir Chamado' }));
+    expect(createCall).not.toHaveBeenCalled();
+    expect(screen.getByText('Telefone incompleto ou inválido.')).toBeInTheDocument();
+  });
+
+  it('mesmo telefone nas últimas horas: avisa e deixa ver o chamado no mapa', async () => {
+    const previous = {
+      id: 'call-antigo',
+      priority: CallPriority.URGENTE,
+      status: CallStatus.EM_ATENDIMENTO,
+      ambulance_id: 'amb-1',
+      timestamp: new Date(Date.now() - 20 * 60_000).toISOString(),
+      address: 'Rua da Penha, 890 - Centro, Sorocaba',
+      location: { lat: -23.501, lng: -47.4617 },
+      description: 'Queda',
+      patientInfo: { symptoms: 'Queda' }
+    } as EmergencyCall;
+    vi.mocked(getRecentCalls).mockResolvedValue([{ call: previous, reasons: ['telefone'], distance: null }]);
+    const onShowCall = vi.fn();
+    const user = userEvent.setup();
+    renderWithAuth(
+      <NewCallForm onCallCreated={vi.fn()} onShowCall={onShowCall} ambulances={[{ id: 'amb-1', code: 'USA-01' } as any]} />
+    );
+    await user.type(screen.getByLabelText(/Telefone de quem ligou/), '15991234567');
+
+    expect(await screen.findByText('Possível chamado repetido')).toBeInTheDocument();
+    expect(getRecentCalls).toHaveBeenCalledWith({ phone: '15991234567', location: undefined }, expect.any(AbortSignal));
+    expect(screen.getByText('Mesmo telefone · 20 minutos atrás')).toBeInTheDocument();
+    expect(screen.getByText(/Amarelo · Em atendimento · USA-01/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Ver no mapa' }));
+    expect(onShowCall).toHaveBeenCalledWith(previous);
   });
 });

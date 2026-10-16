@@ -1,5 +1,7 @@
-import { CallPriority, CallTriage, Coordinates, EmergencyCall, UserRole } from '../types';
+import { CallPriority, CallStatus, CallTriage, Coordinates, EmergencyCall, UserRole } from '../types';
+import { distanceMeters } from './geo';
 import { insideServiceArea } from './geocodingService';
+import { isValidPhone, onlyDigits } from './profile';
 
 // Chamados: conversão da linha do banco e validação do que vem do formulário. Sem Supabase: dá para testar.
 
@@ -32,6 +34,14 @@ export function parseTriage(input: unknown): CallTriage | null {
     : [];
   const suggested = typeof raw.suggested === 'string' && PRIORITIES.includes(raw.suggested) ? (raw.suggested as CallPriority) : null;
   return signals.length > 0 || suggested ? { signals, suggested } : null;
+}
+
+// Telefone de quem ligou: opcional (nem sempre a central recebe o número); gravado só com os dígitos
+export function parseCallerPhone(input: unknown): string | null {
+  if (input == null || input === '') return null;
+  const phone = typeof input === 'string' ? onlyDigits(input) : '';
+  if (!isValidPhone(phone)) throw new CallError(400, 'Telefone inválido. Use DDD + número, ex.: (15) 3232-1234 ou (15) 99999-9999.');
+  return phone;
 }
 
 const MAX_REFERENCE = 200;
@@ -96,4 +106,43 @@ export function toCall(row: CallRow, role: UserRole): EmergencyCall {
     ...(row.triage ? { triage: row.triage } : {}),
     ...(role === UserRole.OPERADOR && row.caller_phone ? { callerPhone: row.caller_phone } : {})
   };
+}
+
+// ============================================
+// CHAMADO REPETIDO
+// ============================================
+// Quem não vê a ambulância chegar liga de novo; vizinhos ligam pelo mesmo acidente
+
+export const RECENT_WINDOW_MS = 2 * 60 * 60_000;
+export const SAME_PLACE_METERS = 150;
+// Relógio do servidor um pouco atrás do banco: chamado "do futuro" por poucos segundos ainda conta
+const CLOCK_SKEW_MS = 60_000;
+
+export type RepeatReason = 'telefone' | 'local';
+
+export interface RecentMatch {
+  row: CallRow;
+  reasons: RepeatReason[];
+  distance: number | null; // metros até o local informado
+}
+
+// Chamados das últimas 2 h (cancelados não contam) com o mesmo telefone ou a até 150 m; os mais novos primeiro
+export function recentMatches(
+  rows: CallRow[],
+  query: { phone?: string | null; location?: Coordinates | null },
+  now = Date.now()
+): RecentMatch[] {
+  const matches: RecentMatch[] = [];
+  for (const row of rows) {
+    if (row.status === CallStatus.CANCELADO) continue;
+    const age = now - Date.parse(row.timestamp);
+    if (!(age >= -CLOCK_SKEW_MS && age <= RECENT_WINDOW_MS)) continue;
+
+    const distance = query.location ? Math.round(distanceMeters(query.location, { lat: row.lat, lng: row.lng })) : null;
+    const reasons: RepeatReason[] = [];
+    if (query.phone && row.caller_phone === query.phone) reasons.push('telefone');
+    if (distance !== null && distance <= SAME_PLACE_METERS) reasons.push('local');
+    if (reasons.length > 0) matches.push({ row, reasons, distance });
+  }
+  return matches.sort((a, b) => Date.parse(b.row.timestamp) - Date.parse(a.row.timestamp));
 }

@@ -328,6 +328,8 @@ function App() {
                 onPickOnMap={startCallPick}
                 onCancelPick={cancelCallPick}
                 onDraftChange={setCallDraft}
+                ambulances={ambulances}
+                onShowCall={handleFocusCall}
               />
             )}
 

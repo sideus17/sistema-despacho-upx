@@ -207,6 +207,13 @@ export interface PlaceSuggestion {
   approximate?: boolean; // o número digitado não foi achado: o ponto é o da rua
 }
 
+// Chamado das últimas 2 h parecido com o que está sendo aberto (aviso de repetido)
+export interface RecentCallMatch {
+  call: EmergencyCall;
+  reasons: Array<'telefone' | 'local'>;
+  distance: number | null; // metros até o local escolhido
+}
+
 // Sugestão que só completa o texto (rua do CEP): a pessoa ainda digita o número
 export interface FillSuggestion {
   label: string;

@@ -1,9 +1,10 @@
 import { CSSProperties, useEffect, useMemo, useState } from 'react';
-import { CallPriority, Coordinates, EmergencyCall } from '../types';
-import { createCall, getErrorMessage, reversePlace } from '../services/api';
-import { PRIORITIES_BY_SEVERITY, PRIORITY_META } from '../utils/calls';
+import { Ambulance, CallPriority, Coordinates, EmergencyCall, RecentCallMatch } from '../types';
+import { createCall, getErrorMessage, getRecentCalls, getTimeAgo, reversePlace } from '../services/api';
+import { CALL_STATUS_LABEL, PRIORITIES_BY_SEVERITY, PRIORITY_META } from '../utils/calls';
+import { formatPhone, isValidPhone, onlyDigits } from '../utils/documents';
 import { TRIAGE_SIGNALS, suggestPriority } from '../utils/triage';
-import { LocationIcon } from '../ui/icons';
+import { LocationIcon, WarningIcon } from '../ui/icons';
 import AddressSearch, { PlaceValue, SearchAction } from './AddressSearch';
 import { useToast } from './Toast';
 import styles from './NewCallForm.module.css';
@@ -16,6 +17,17 @@ interface NewCallFormProps {
   onCancelPick?: () => void;
   // Local escolhido, para o pino de prévia no mapa
   onDraftChange?: (location: Coordinates | null) => void;
+  // Aviso de chamado repetido: viatura de cada um e "Ver no mapa"
+  ambulances?: Ambulance[];
+  onShowCall?: (call: EmergencyCall) => void;
+}
+
+const REPEAT_CHECK_DELAY_MS = 300;
+
+function repeatReason({ reasons, distance }: RecentCallMatch): string {
+  if (reasons.length === 2) return 'Mesmo telefone e mesmo local';
+  if (reasons[0] === 'telefone') return 'Mesmo telefone';
+  return distance ? `Mesmo local (a ${distance} m)` : 'Mesmo local';
 }
 
 const MAP_POINT = 'Ponto marcado no mapa';
@@ -31,7 +43,18 @@ const SIGNAL_GROUPS = PRIORITIES_BY_SEVERITY
   .map(priority => ({ priority, signals: TRIAGE_SIGNALS.filter(signal => signal.priority === priority) }))
   .filter(group => group.signals.length > 0);
 
-export default function NewCallForm({ onCallCreated, picking = false, onPickOnMap, onCancelPick, onDraftChange }: NewCallFormProps) {
+export default function NewCallForm({
+  onCallCreated,
+  picking = false,
+  onPickOnMap,
+  onCancelPick,
+  onDraftChange,
+  ambulances = [],
+  onShowCall
+}: NewCallFormProps) {
+  const [phone, setPhone] = useState('');
+  const [phoneBlurred, setPhoneBlurred] = useState(false);
+  const [repeats, setRepeats] = useState<RecentCallMatch[]>([]);
   const [age, setAge] = useState('');
   const [gender, setGender] = useState('M');
   // Local escolhido (sugestão ou mapa) ou só o texto digitado, que o servidor procura
@@ -49,6 +72,30 @@ export default function NewCallForm({ onCallCreated, picking = false, onPickOnMa
   const suggested = suggestPriority(signals);
   const priority = chosen ?? suggested;
   const milder = !!(priority && suggested && PRIORITY_META[priority].order > PRIORITY_META[suggested].order);
+
+  const phoneDigits = onlyDigits(phone);
+  const phoneOk = isValidPhone(phoneDigits);
+  const phoneInvalid = phoneDigits.length > 0 && !phoneOk && (phoneBlurred || phoneDigits.length >= 11);
+
+  // Mesmo telefone ou mesmo local nas últimas 2 h: avisa, sem impedir o chamado novo
+  const repeatPhone = phoneOk ? phoneDigits : undefined;
+  const repeatLocation = place?.location;
+  useEffect(() => {
+    setRepeats([]);
+    if (!repeatPhone && !repeatLocation) return;
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      getRecentCalls({ phone: repeatPhone, location: repeatLocation }, controller.signal)
+        .then(setRepeats)
+        .catch(() => {
+          // Sem a checagem o chamado abre do mesmo jeito
+        });
+    }, REPEAT_CHECK_DELAY_MS);
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, [repeatPhone, repeatLocation?.lat, repeatLocation?.lng]);
 
   // Pino de prévia no mapa; ao sair do formulário, some junto com a escolha no mapa
   useEffect(() => onDraftChange?.(place?.location ?? null), [place]);
@@ -81,6 +128,11 @@ export default function NewCallForm({ onCallCreated, picking = false, onPickOnMa
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
+    if (phoneDigits && !phoneOk) {
+      setPhoneBlurred(true);
+      toast('Telefone inválido. Use DDD + número, ex.: (15) 3232-1234 ou (15) 99999-9999.', 'error');
+      return;
+    }
     if ((!place && !addressText.trim()) || !description.trim()) {
       toast('Preencha o endereço e o que aconteceu.', 'error');
       return;
@@ -99,6 +151,7 @@ export default function NewCallForm({ onCallCreated, picking = false, onPickOnMa
         address: place ? addressOf(place) : addressText.trim(),
         location: place?.location,
         reference: reference.trim() || undefined,
+        callerPhone: phoneDigits || undefined,
         description,
         priority,
         triage: signals.length > 0 ? { signals, suggested } : undefined
@@ -106,6 +159,8 @@ export default function NewCallForm({ onCallCreated, picking = false, onPickOnMa
 
       toast('Chamado criado. Analisando despacho…', 'success');
 
+      setPhone('');
+      setPhoneBlurred(false);
       setAge('');
       setGender('M');
       setPlace(null);
@@ -133,6 +188,24 @@ export default function NewCallForm({ onCallCreated, picking = false, onPickOnMa
       </p>
 
       <form onSubmit={handleSubmit} className={styles.form}>
+        <div>
+          <label className={styles.label} htmlFor="call-phone">Telefone de quem ligou <span className={styles.optional}>(opcional)</span></label>
+          <input
+            id="call-phone"
+            type="tel"
+            inputMode="numeric"
+            autoComplete="off"
+            value={phone}
+            onChange={(e) => setPhone(formatPhone(e.target.value))}
+            onBlur={() => setPhoneBlurred(true)}
+            placeholder="(15) 99999-9999"
+            aria-invalid={phoneInvalid}
+            aria-describedby={phoneInvalid ? 'call-phone-error' : undefined}
+            className={styles.input}
+          />
+          {phoneInvalid && <p id="call-phone-error" className={styles.fieldError}>Telefone incompleto ou inválido.</p>}
+        </div>
+
         <div className={styles.address}>
           <label className={styles.label} htmlFor="call-address">Endereço</label>
           <AddressSearch
@@ -170,6 +243,33 @@ export default function NewCallForm({ onCallCreated, picking = false, onPickOnMa
             className={styles.input}
           />
         </div>
+
+        {repeats.length > 0 && (
+          <div className={styles.repeat} role="status">
+            <p className={styles.repeatTitle}><WarningIcon /> Possível chamado repetido</p>
+            <ul className={styles.repeatList}>
+              {repeats.map(match => {
+                const ambulance = ambulances.find(item => item.id === match.call.ambulance_id);
+                return (
+                  <li key={match.call.id}>
+                    <div className={styles.repeatText}>
+                      <strong>{repeatReason(match)} · {getTimeAgo(match.call.timestamp)}</strong>
+                      <span>{match.call.address}</span>
+                      <span>
+                        {PRIORITY_META[match.call.priority]?.name ?? match.call.priority} · {CALL_STATUS_LABEL[match.call.status] ?? match.call.status}
+                        {ambulance ? ` · ${ambulance.code}` : ''}
+                      </span>
+                    </div>
+                    {onShowCall && (
+                      <button type="button" className={styles.repeatShow} onClick={() => onShowCall(match.call)}>Ver no mapa</button>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+            <small>Confira antes de abrir outro. O aviso não impede abrir o chamado.</small>
+          </div>
+        )}
 
         <div>
           <label className={styles.label} htmlFor="call-description">O que aconteceu</label>

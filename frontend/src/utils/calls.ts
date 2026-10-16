@@ -1,4 +1,4 @@
-import { CallPriority, EmergencyCall } from '../types';
+import { CallPriority, CallStatus, EmergencyCall } from '../types';
 import { EmergencyIcon, IconComponent, InfoIcon, WarningIcon } from '../ui/icons';
 
 // Classificação de risco em 4 cores (Regulação Médica das Urgências, Ministério da Saúde).
@@ -8,6 +8,13 @@ export const PRIORITY_META: Record<CallPriority, { name: string; label: string; 
   [CallPriority.URGENTE]: { name: 'Amarelo', label: 'Urgência', color: '#eab308', onColor: '#422006', icon: WarningIcon, order: 1 },
   [CallPriority.PRIORITARIO]: { name: 'Verde', label: 'Pouco urgente', color: '#16a34a', onColor: '#ffffff', icon: InfoIcon, order: 2 },
   [CallPriority.NAO_URGENTE]: { name: 'Azul', label: 'Não urgente', color: '#2563eb', onColor: '#ffffff', icon: InfoIcon, order: 3 }
+};
+
+export const CALL_STATUS_LABEL: Record<CallStatus, string> = {
+  [CallStatus.PENDENTE]: 'Aguardando despacho',
+  [CallStatus.EM_ATENDIMENTO]: 'Em atendimento',
+  [CallStatus.FINALIZADO]: 'Finalizado',
+  [CallStatus.CANCELADO]: 'Cancelado'
 };
 
 // Ordem do mais grave para o menos grave (vermelho, amarelo, verde, azul)

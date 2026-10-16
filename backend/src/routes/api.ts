@@ -13,7 +13,17 @@ import {
 } from '../services/incidentService';
 import { officialStatus, triggerOfficialRefresh } from '../services/official/refresh';
 import { trafficTile, trafficTileAllowed } from '../services/trafficTiles';
-import { CallError, parseCallLocation, parsePriority, parseReference, parseTriage, toCall } from '../services/calls';
+import {
+  CallError,
+  RECENT_WINDOW_MS,
+  parseCallLocation,
+  parseCallerPhone,
+  parsePriority,
+  parseReference,
+  parseTriage,
+  recentMatches,
+  toCall
+} from '../services/calls';
 import { invalidateProfile, requireAuth, requireRole } from '../middleware/auth';
 import { duplicateMessage, parseCpf, parsePhone, profileUpdate, ProfileError, toMe } from '../services/profile';
 import {
@@ -367,6 +377,31 @@ router.get('/calls/pending', async (req: Request, res: Response) => {
   });
 });
 
+// Aviso de chamado repetido no formulário: mesmo telefone ou mesmo local nas últimas 2 h
+const MAX_RECENT = 5;
+router.get('/calls/recent', requireRole(UserRole.OPERADOR), async (req: Request, res: Response) => {
+  let phone: string | null;
+  try {
+    phone = parseCallerPhone(typeof req.query.phone === 'string' ? req.query.phone : null);
+  } catch (error) {
+    return fail(res, 400, (error as Error).message);
+  }
+  const location = req.query.lat == null ? null : parseCoordinates({ lat: Number(req.query.lat), lng: Number(req.query.lng) });
+  if (req.query.lat != null && !location) return fail(res, 400, 'Coordenadas inválidas.');
+  if (!phone && !location) return fail(res, 400, 'Informe o telefone ou o local.');
+
+  const since = new Date(Date.now() - RECENT_WINDOW_MS).toISOString();
+  const { data, error } = await supabase.from('calls').select('*').gte('timestamp', since).neq('status', CallStatus.CANCELADO);
+  if (error) return fail(res, 500, error.message);
+
+  const matches = recentMatches(data, { phone, location }).slice(0, MAX_RECENT);
+  res.json({
+    success: true,
+    data: matches.map(match => ({ call: toCall(match.row, req.user!.role), reasons: match.reasons, distance: match.distance })),
+    timestamp: new Date().toISOString()
+  });
+});
+
 router.post('/calls', requireRole(UserRole.OPERADOR), async (req: Request, res: Response) => {
   try {
     const { age, gender, address, description } = req.body ?? {};
@@ -377,6 +412,7 @@ router.post('/calls', requireRole(UserRole.OPERADOR), async (req: Request, res: 
     const priority = parsePriority(req.body.priority);
     const triage = parseTriage(req.body.triage);
     const reference = parseReference(req.body.reference);
+    const callerPhone = parseCallerPhone(req.body.callerPhone);
 
     // Ponto escolhido (sugestão ou mapa) vale como está; só texto livre é procurado aqui
     const chosen = parseCallLocation(req.body.location);
@@ -400,7 +436,8 @@ router.post('/calls', requireRole(UserRole.OPERADOR), async (req: Request, res: 
         patient_gender: gender || null,
         patient_symptoms: description,
         ...(triage && { triage }),
-        ...(reference && { reference_point: reference })
+        ...(reference && { reference_point: reference }),
+        ...(callerPhone && { caller_phone: callerPhone })
       }])
       .select();
 
