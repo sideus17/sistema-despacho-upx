@@ -181,3 +181,40 @@ textarea.input {
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+/* O campo de endereço (AddressSearch) com a mesma cara dos outros campos */
+.address input {
+  height: 42px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 8px;
+  background: var(--color-surface);
+}
+
+.placeHint {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 6px 0 0;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.placeHint svg {
+  flex-shrink: 0;
+  color: var(--color-danger);
+}
+
+.placeApproximate {
+  color: var(--tint-yellow-text);
+  font-weight: 600;
+}
+
+.placeApproximate svg {
+  color: inherit;
+}
+
+.optional {
+  color: var(--color-text-muted);
+  font-weight: 400;
+}

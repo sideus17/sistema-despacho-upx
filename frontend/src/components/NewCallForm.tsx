@@ -1,13 +1,29 @@
-import { CSSProperties, useState } from 'react';
-import { CallPriority, EmergencyCall } from '../types';
-import { createCall, getErrorMessage } from '../services/api';
+import { CSSProperties, useEffect, useMemo, useState } from 'react';
+import { CallPriority, Coordinates, EmergencyCall } from '../types';
+import { createCall, getErrorMessage, reversePlace } from '../services/api';
 import { PRIORITIES_BY_SEVERITY, PRIORITY_META } from '../utils/calls';
 import { TRIAGE_SIGNALS, suggestPriority } from '../utils/triage';
+import { LocationIcon } from '../ui/icons';
+import AddressSearch, { PlaceValue, SearchAction } from './AddressSearch';
 import { useToast } from './Toast';
 import styles from './NewCallForm.module.css';
 
 interface NewCallFormProps {
   onCallCreated: (call: EmergencyCall) => void;
+  // "Escolher no mapa": o mapa da central avisa o ponto clicado
+  picking?: boolean;
+  onPickOnMap?: (onPick: (location: Coordinates) => void) => void;
+  onCancelPick?: () => void;
+  // Local escolhido, para o pino de prévia no mapa
+  onDraftChange?: (location: Coordinates | null) => void;
+}
+
+const MAP_POINT = 'Ponto marcado no mapa';
+
+// Texto gravado no chamado: nome e bairro/cidade da sugestão; ponto sem nome leva as coordenadas
+function addressOf(place: PlaceValue): string {
+  if (place.label === MAP_POINT) return `${MAP_POINT} (${place.location.lat.toFixed(5)}, ${place.location.lng.toFixed(5)})`;
+  return [place.label, place.detail].filter(Boolean).join(' - ');
 }
 
 // Sinais agrupados pela cor que sugerem (o azul não tem sinal: é escolha do operador)
@@ -15,10 +31,14 @@ const SIGNAL_GROUPS = PRIORITIES_BY_SEVERITY
   .map(priority => ({ priority, signals: TRIAGE_SIGNALS.filter(signal => signal.priority === priority) }))
   .filter(group => group.signals.length > 0);
 
-export default function NewCallForm({ onCallCreated }: NewCallFormProps) {
+export default function NewCallForm({ onCallCreated, picking = false, onPickOnMap, onCancelPick, onDraftChange }: NewCallFormProps) {
   const [age, setAge] = useState('');
   const [gender, setGender] = useState('M');
-  const [address, setAddress] = useState('');
+  // Local escolhido (sugestão ou mapa) ou só o texto digitado, que o servidor procura
+  const [place, setPlace] = useState<PlaceValue | null>(null);
+  const [addressText, setAddressText] = useState('');
+  const [addressKey, setAddressKey] = useState(0);
+  const [reference, setReference] = useState('');
   const [description, setDescription] = useState('');
   const [signals, setSignals] = useState<string[]>([]);
   // Cor escolhida pelo operador; sem escolha, vale a sugerida pelos sinais
@@ -30,14 +50,39 @@ export default function NewCallForm({ onCallCreated }: NewCallFormProps) {
   const priority = chosen ?? suggested;
   const milder = !!(priority && suggested && PRIORITY_META[priority].order > PRIORITY_META[suggested].order);
 
+  // Pino de prévia no mapa; ao sair do formulário, some junto com a escolha no mapa
+  useEffect(() => onDraftChange?.(place?.location ?? null), [place]);
+  useEffect(() => () => {
+    onDraftChange?.(null);
+    onCancelPick?.();
+  }, []);
+
+  const mapAction = useMemo<SearchAction[]>(() => (onPickOnMap
+    ? [{
+        id: 'mapa',
+        label: 'Escolher no mapa',
+        kind: 'mapa',
+        run: () => onPickOnMap(async location => {
+          const point: PlaceValue = { label: MAP_POINT, location, kind: 'mapa' };
+          setPlace(point);
+          try {
+            const found = await reversePlace(location);
+            if (found) setPlace(current => (current?.location === location ? { ...point, label: found.label, detail: found.detail } : current));
+          } catch {
+            // Sem nome: fica o ponto com as coordenadas
+          }
+        })
+      }]
+    : []), [onPickOnMap]);
+
   const toggleSignal = (code: string) =>
     setSignals(current => (current.includes(code) ? current.filter(item => item !== code) : [...current, code]));
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
-    if (!address.trim() || !description.trim()) {
-      toast('Preencha a localização e a descrição do chamado.', 'error');
+    if ((!place && !addressText.trim()) || !description.trim()) {
+      toast('Preencha o endereço e o que aconteceu.', 'error');
       return;
     }
     if (!priority) {
@@ -51,7 +96,9 @@ export default function NewCallForm({ onCallCreated }: NewCallFormProps) {
       const newCall = await createCall({
         age: age ? Number(age) : undefined,
         gender,
-        address,
+        address: place ? addressOf(place) : addressText.trim(),
+        location: place?.location,
+        reference: reference.trim() || undefined,
         description,
         priority,
         triage: signals.length > 0 ? { signals, suggested } : undefined
@@ -61,7 +108,10 @@ export default function NewCallForm({ onCallCreated }: NewCallFormProps) {
 
       setAge('');
       setGender('M');
-      setAddress('');
+      setPlace(null);
+      setAddressText('');
+      setAddressKey(key => key + 1);
+      setReference('');
       setDescription('');
       setSignals([]);
       setChosen(null);
@@ -79,10 +129,60 @@ export default function NewCallForm({ onCallCreated }: NewCallFormProps) {
       <h2 className={styles.title}>Novo Chamado</h2>
 
       <p className={styles.intro}>
-        Simulação da abertura de chamado por um usuário. O endereço será convertido em coordenadas para aparecer no mapa e entrar no cálculo de distância.
+        Registre o chamado enquanto fala com quem ligou. No endereço, escolha uma sugestão (rua e número, local ou CEP) ou marque no mapa.
       </p>
 
       <form onSubmit={handleSubmit} className={styles.form}>
+        <div className={styles.address}>
+          <label className={styles.label} htmlFor="call-address">Endereço</label>
+          <AddressSearch
+            key={addressKey}
+            id="call-address"
+            label="Endereço"
+            placeholder="Rua e número, local ou CEP"
+            value={place}
+            onChange={setPlace}
+            onTextChange={setAddressText}
+            actions={mapAction}
+          />
+          {picking ? (
+            <p className={styles.placeHint}>Clique no mapa para marcar o local do chamado.</p>
+          ) : place?.approximate ? (
+            <p className={`${styles.placeHint} ${styles.placeApproximate}`}>
+              <LocationIcon /> Ponto aproximado: achamos a rua, não o número. Confira o pino ou use “Escolher no mapa”.
+            </p>
+          ) : place ? (
+            <p className={styles.placeHint}><LocationIcon /> {place.kind === 'mapa' ? 'Marcado no mapa' : 'Local confirmado'}{place.detail ? ` · ${place.detail}` : ''}</p>
+          ) : addressText.trim().length >= 3 ? (
+            <p className={styles.placeHint}>Sem sugestão escolhida: o endereço será procurado ao abrir o chamado.</p>
+          ) : null}
+        </div>
+
+        <div>
+          <label className={styles.label} htmlFor="call-reference">Ponto de referência <span className={styles.optional}>(opcional)</span></label>
+          <input
+            id="call-reference"
+            type="text"
+            maxLength={200}
+            value={reference}
+            onChange={(e) => setReference(e.target.value)}
+            placeholder="Ex: em frente à padaria, portão azul"
+            className={styles.input}
+          />
+        </div>
+
+        <div>
+          <label className={styles.label} htmlFor="call-description">O que aconteceu</label>
+          <textarea
+            id="call-description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Descreva o que está acontecendo com o paciente..."
+            rows={4}
+            className={styles.input}
+          />
+        </div>
+
         <div className={styles.row}>
           <div>
             <label className={styles.label} htmlFor="call-age">Idade</label>
@@ -106,30 +206,6 @@ export default function NewCallForm({ onCallCreated }: NewCallFormProps) {
               <option value="OUTRO">Outro / Não informado</option>
             </select>
           </div>
-        </div>
-
-        <div>
-          <label className={styles.label} htmlFor="call-address">Localização / Endereço</label>
-          <input
-            id="call-address"
-            type="text"
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            placeholder="Ex: Rua da Penha, 890 - Sorocaba"
-            className={styles.input}
-          />
-        </div>
-
-        <div>
-          <label className={styles.label} htmlFor="call-description">O que aconteceu</label>
-          <textarea
-            id="call-description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Descreva o que está acontecendo com o paciente..."
-            rows={4}
-            className={styles.input}
-          />
         </div>
 
         <fieldset className={styles.triage}>

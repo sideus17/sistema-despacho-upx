@@ -127,6 +127,7 @@ export default function CallList({ calls, ambulances, selectedCallId, onFocus, o
                 </header>
 
                 <p className={styles.address}><LocationIcon /> {call.address}</p>
+                {call.reference && <p className={styles.reference}>Referência: {call.reference}</p>}
                 <p className={styles.description}>{call.description}</p>
                 {call.triage?.signals.length ? <p className={styles.signals}>Sinais: {signalsText(call.triage.signals)}</p> : null}
 

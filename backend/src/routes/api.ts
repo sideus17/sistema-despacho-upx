@@ -13,7 +13,7 @@ import {
 } from '../services/incidentService';
 import { officialStatus, triggerOfficialRefresh } from '../services/official/refresh';
 import { trafficTile, trafficTileAllowed } from '../services/trafficTiles';
-import { CallError, parsePriority, parseTriage, toCall } from '../services/calls';
+import { CallError, parseCallLocation, parsePriority, parseReference, parseTriage, toCall } from '../services/calls';
 import { invalidateProfile, requireAuth, requireRole } from '../middleware/auth';
 import { duplicateMessage, parseCpf, parsePhone, profileUpdate, ProfileError, toMe } from '../services/profile';
 import {
@@ -376,10 +376,15 @@ router.post('/calls', requireRole(UserRole.OPERADOR), async (req: Request, res: 
     }
     const priority = parsePriority(req.body.priority);
     const triage = parseTriage(req.body.triage);
+    const reference = parseReference(req.body.reference);
 
-    const location = await geocodeAddress(address);
+    // Ponto escolhido (sugestão ou mapa) vale como está; só texto livre é procurado aqui
+    const chosen = parseCallLocation(req.body.location);
+    const location = chosen ?? (await geocodeAddress(address));
+    if (!location) throw new CallError(422, 'Não encontramos esse endereço. Escolha uma sugestão ou marque no mapa.');
+
     const callId = `call-${Date.now()}`;
-    const formattedAddress = address.toLowerCase().includes('sorocaba') ? address : `${address}, Sorocaba/SP`;
+    const formattedAddress = chosen || address.toLowerCase().includes('sorocaba') ? address : `${address}, Sorocaba/SP`;
 
     const { data, error } = await supabase
       .from('calls')
@@ -394,7 +399,8 @@ router.post('/calls', requireRole(UserRole.OPERADOR), async (req: Request, res: 
         patient_age: age ? Number(age) : null,
         patient_gender: gender || null,
         patient_symptoms: description,
-        ...(triage && { triage })
+        ...(triage && { triage }),
+        ...(reference && { reference_point: reference })
       }])
       .select();
 

@@ -1,4 +1,5 @@
-import { CallPriority, CallTriage, EmergencyCall, UserRole } from '../types';
+import { CallPriority, CallTriage, Coordinates, EmergencyCall, UserRole } from '../types';
+import { insideServiceArea } from './geocodingService';
 
 // Chamados: conversão da linha do banco e validação do que vem do formulário. Sem Supabase: dá para testar.
 
@@ -31,6 +32,29 @@ export function parseTriage(input: unknown): CallTriage | null {
     : [];
   const suggested = typeof raw.suggested === 'string' && PRIORITIES.includes(raw.suggested) ? (raw.suggested as CallPriority) : null;
   return signals.length > 0 || suggested ? { signals, suggested } : null;
+}
+
+const MAX_REFERENCE = 200;
+
+// Ponto de referência ("em frente à padaria"): opcional, até 200 caracteres
+export function parseReference(input: unknown): string | null {
+  if (input == null) return null;
+  if (typeof input !== 'string') throw new CallError(400, 'Ponto de referência inválido.');
+  const reference = input.trim().replace(/\s+/g, ' ');
+  if (reference.length > MAX_REFERENCE) throw new CallError(400, `O ponto de referência pode ter até ${MAX_REFERENCE} caracteres.`);
+  return reference || null;
+}
+
+// Ponto escolhido no formulário (sugestão ou clique no mapa): precisa estar na região atendida
+export function parseCallLocation(input: unknown): Coordinates | null {
+  if (input == null) return null;
+  const point = input as { lat?: unknown; lng?: unknown };
+  const { lat, lng } = point;
+  if (typeof lat !== 'number' || typeof lng !== 'number' || !Number.isFinite(lat) || !Number.isFinite(lng)) {
+    throw new CallError(400, 'Local do chamado inválido.');
+  }
+  if (!insideServiceArea({ lat, lng })) throw new CallError(422, 'O local do chamado está fora da região atendida.');
+  return { lat, lng };
 }
 
 // Linha da tabela calls (as colunas da migração 005 podem faltar se ela ainda não rodou)

@@ -199,11 +199,19 @@ export interface SpeedLimitSegment {
   kmh: number;
 }
 
-// Sugestão da busca de endereço (Photon, pelo backend)
+// Sugestão da busca de endereço (Photon e TomTom, pelo backend)
 export interface PlaceSuggestion {
   label: string;
   detail: string;
   location: Coordinates;
+  approximate?: boolean; // o número digitado não foi achado: o ponto é o da rua
+}
+
+// Sugestão que só completa o texto (rua do CEP): a pessoa ainda digita o número
+export interface FillSuggestion {
+  label: string;
+  detail: string;
+  fill: string;
 }
 
 export interface RouteStep {

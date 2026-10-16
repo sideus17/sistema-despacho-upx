@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { CallPriority, CallStatus, UserRole } from '../types';
-import { CallError, CallRow, parsePriority, parseTriage, toCall } from './calls';
+import { CallError, CallRow, parseCallLocation, parsePriority, parseReference, parseTriage, toCall } from './calls';
 
 const ROW: CallRow = {
   id: 'call-1',
@@ -57,4 +57,20 @@ test('triagem: sinais conhecidos, sem repetir; o resto é ignorado', () => {
   assert.deepEqual(parseTriage({ signals: [], suggested: 'ROXO' }), null);
   assert.equal(parseTriage(undefined), null);
   assert.equal(parseTriage('DOR_PEITO'), null);
+});
+
+test('ponto de referência: opcional, espaços arrumados, até 200 caracteres', () => {
+  assert.equal(parseReference(undefined), null);
+  assert.equal(parseReference('   '), null);
+  assert.equal(parseReference('  em frente   à padaria '), 'em frente à padaria');
+  assert.throws(() => parseReference('x'.repeat(201)), (error: CallError) => error.status === 400);
+  assert.throws(() => parseReference(12), CallError);
+});
+
+test('local escolhido: número de verdade e dentro da região atendida', () => {
+  assert.equal(parseCallLocation(undefined), null);
+  assert.deepEqual(parseCallLocation({ lat: -23.5, lng: -47.45 }), { lat: -23.5, lng: -47.45 });
+  assert.throws(() => parseCallLocation({ lat: '-23.5', lng: -47.45 }), (error: CallError) => error.status === 400);
+  // São Paulo capital: fora da região
+  assert.throws(() => parseCallLocation({ lat: -23.55, lng: -46.63 }), (error: CallError) => error.status === 422);
 });

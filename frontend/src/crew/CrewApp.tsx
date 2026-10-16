@@ -493,6 +493,7 @@ export default function CrewApp() {
         {isNewDispatch && <p className={styles.newBadge}><BellIcon /> Novo despacho</p>}
         <p className={styles.priority}><PriorityLabel priority={activeCall.priority} /></p>
         <h1 className={styles.address}>{activeCall.address}</h1>
+        {activeCall.reference && <p className={styles.reference}>Referência: {activeCall.reference}</p>}
         <p className={styles.description}>{activeCall.description}</p>
         {activeCall.triage?.signals.length ? <p className={styles.signals}>Sinais: {signalsText(activeCall.triage.signals)}</p> : null}
         <p className={styles.patient}>

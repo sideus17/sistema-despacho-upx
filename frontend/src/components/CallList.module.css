@@ -137,6 +137,13 @@
   line-height: 1.4;
 }
 
+.reference {
+  margin-bottom: 4px;
+  color: var(--color-text-soft);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
 .description {
   color: var(--color-text-soft);
   font-size: 13px;

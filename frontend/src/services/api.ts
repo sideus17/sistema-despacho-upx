@@ -9,6 +9,7 @@ import {
   IncidentType,
   OfficialSourceStatus,
   PlaceSuggestion,
+  FillSuggestion,
   SpeedLimitSegment,
   DispatchRecommendation,
   RouteInfo,
@@ -171,6 +172,8 @@ export interface CreateCallRequest {
   description: string;
   priority: CallPriority;
   triage?: CallTriage;
+  location?: Coordinates; // ponto escolhido (sugestão ou mapa); sem ele, o servidor procura o endereço
+  reference?: string;
 }
 
 export async function createCall(call: CreateCallRequest): Promise<EmergencyCall> {
@@ -294,8 +297,8 @@ export async function getSpeedLimits(geometry: Coordinates[]): Promise<SpeedLimi
 }
 
 // Autocompletar de endereços e locais da região de Sorocaba
-export async function searchPlaces(query: string, signal?: AbortSignal): Promise<PlaceSuggestion[]> {
-  const response = await api.get<ApiResponse<PlaceSuggestion[]>>('/geocode/search', { params: { q: query }, signal });
+export async function searchPlaces(query: string, signal?: AbortSignal): Promise<Array<PlaceSuggestion | FillSuggestion>> {
+  const response = await api.get<ApiResponse<Array<PlaceSuggestion | FillSuggestion>>>('/geocode/search', { params: { q: query }, signal });
   return response.data.data ?? [];
 }
 

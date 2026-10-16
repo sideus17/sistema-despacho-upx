@@ -118,3 +118,8 @@
   color: var(--color-text-muted);
   font-size: 13px;
 }
+
+/* Sem marcador (formulário do chamado): a lista começa na borda do campo */
+.bare .list {
+  left: 0;
+}

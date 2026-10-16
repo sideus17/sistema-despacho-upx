@@ -137,6 +137,27 @@
   pointer-events: none;
 }
 
+/* Aviso com botão (no celular não há Esc para cancelar) */
+.pickHintAction {
+  padding-right: 6px;
+  pointer-events: auto;
+}
+
+.pickHintAction button {
+  margin-left: 4px;
+  padding: 4px 10px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.pickHintAction button:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
 /* Partida e destino do painel de rotas */
 .plannerOrigin {
   display: block;

@@ -85,6 +85,7 @@ export default function DispatchAnalysis({
           <span className={styles.waiting}>{waiting}</span>
         </div>
         <p className={styles.address}><LocationIcon /> {call.address}</p>
+        {call.reference && <p className={styles.reference}>Referência: {call.reference}</p>}
         <p className={styles.description}>{call.description}</p>
       </section>
 
