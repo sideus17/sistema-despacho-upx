@@ -216,7 +216,8 @@ export interface RouteStep {
 export interface DispatchScore {
   ambulanceId: string;
   totalScore: number;
-  distanceScore: number;
+  timeScore: number; // tempo de chegada (rota com trânsito ou estimativa)
+  arrivalSeconds: number;
   availabilityScore: number;
   typeScore: number;
   incidentPenalty: number;

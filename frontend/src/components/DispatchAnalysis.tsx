@@ -103,7 +103,7 @@ export default function DispatchAnalysis({
       {!loading && recommendation && (
         <>
           <p className={styles.algorithm}>
-            Score: distância 40% · disponibilidade 30% · tipo 20% · ocorrências 10%
+            Score: tempo de chegada 40% · disponibilidade 30% · tipo 20% · ocorrências 10%
           </p>
 
           <div className={styles.options}>
@@ -154,7 +154,7 @@ export default function DispatchAnalysis({
                   </header>
 
                   <dl className={styles.breakdown}>
-                    <div><dt>Distância</dt><dd>{rec.distanceScore}/100</dd></div>
+                    <div><dt>Tempo</dt><dd>{rec.timeScore}/100</dd></div>
                     <div><dt>Disponibilidade</dt><dd>{rec.availabilityScore}/100</dd></div>
                     <div><dt>Tipo</dt><dd>{rec.typeScore}/100</dd></div>
                     <div>
