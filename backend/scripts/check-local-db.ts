@@ -84,7 +84,7 @@ async function main() {
 
   // Seed
   const admin = createClient(API_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
-  for (const [table, expected] of [['bases', 2], ['ambulances', 4], ['profiles', 2]] as const) {
+  for (const [table, expected] of [['bases', 2], ['ambulances', 4], ['profiles', 2], ['hospitals', 8]] as const) {
     const { count, error } = await admin.from(table).select('*', { count: 'exact', head: true });
     if (error) throw error;
     check(count === expected, `${table}: ${expected} linhas do seed`);
@@ -92,7 +92,7 @@ async function main() {
 
   // RLS ligado e sem políticas: a anon key não lê nada
   const anon = createClient(API_URL, ANON_KEY, { auth: { persistSession: false } });
-  for (const table of ['bases', 'ambulances', 'calls', 'incidents', 'incident_votes', 'profiles']) {
+  for (const table of ['bases', 'ambulances', 'calls', 'incidents', 'incident_votes', 'profiles', 'hospitals']) {
     const { data, error } = await anon.from(table).select('*').limit(1);
     if (error) throw error;
     check(data.length === 0, `${table}: anon key não lê (RLS)`);
@@ -111,6 +111,8 @@ async function main() {
   check(driverMe.status === 200 && driverMe.body.data.missing.length === 0, 'backend carrega o perfil completo do motorista (sem CNH)');
   const ambulances = await backend('/ambulances', { token: operatorToken });
   check(ambulances.status === 200 && ambulances.body.data.length === 4, 'backend lista as 4 viaturas');
+  const hospitals = await backend('/hospitals', { token: driverToken });
+  check(hospitals.status === 200 && hospitals.body.data.length === 8, 'backend lista os 8 hospitais da migração 006');
 
   const signup = await backend('/auth/signup', {
     method: 'POST',

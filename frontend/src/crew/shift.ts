@@ -27,8 +27,10 @@ export function pickerOrder(ambulances: Ambulance[], position: Coordinates | nul
     .map(({ entry }) => entry);
 }
 
-// Envio da posição durante o turno: no máximo a cada 30 s, quando andou ou de 5 em 5 min
+// Envio da posição durante o turno: no máximo a cada 30 s (10 s em atendimento, quando a posição marca
+// as etapas), quando andou ou de 5 em 5 min
 export const LOCATION_MIN_INTERVAL = 30_000;
+export const LOCATION_BUSY_INTERVAL = 10_000;
 export const LOCATION_HEARTBEAT = 5 * 60_000;
 export const LOCATION_MIN_MOVE = 30; // metros
 export const LOCATION_MAX_ACCURACY = 100; // metros; pior que isso, a leitura não serve para a central
@@ -41,11 +43,12 @@ export interface SentLocation {
 export function shouldSendLocation(
   last: SentLocation | null,
   next: { position: Coordinates; accuracy: number },
-  now: number
+  now: number,
+  busy = false
 ): boolean {
   if (next.accuracy > LOCATION_MAX_ACCURACY) return false;
   if (!last) return true;
   const elapsed = now - last.at;
-  if (elapsed < LOCATION_MIN_INTERVAL) return false;
+  if (elapsed < (busy ? LOCATION_BUSY_INTERVAL : LOCATION_MIN_INTERVAL)) return false;
   return distance(last.position, next.position) > LOCATION_MIN_MOVE || elapsed >= LOCATION_HEARTBEAT;
 }

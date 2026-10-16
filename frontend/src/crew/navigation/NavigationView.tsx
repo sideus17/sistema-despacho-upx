@@ -3,7 +3,8 @@ import { createPortal } from 'react-dom';
 import { Map as MapLibreMap, Marker, GeoJSONSource, VectorTileSource } from 'maplibre-gl';
 import type { LayerSpecification, StyleSpecification } from 'maplibre-gl';
 import '../../map/maplibre';
-import { Ambulance, Coordinates, EmergencyCall, Incident, RouteInfo, SpeedLimitSegment } from '../../types';
+import { Ambulance, CallPriority, Coordinates, Incident, RouteInfo, SpeedLimitSegment } from '../../types';
+import type { Destination } from '../destination';
 import { calculateRoute, getErrorMessage, getSpeedLimits, trafficTileUrl, updateAmbulanceLocation, voteIncident, withAuthRequest } from '../../services/api';
 import { TRAFFIC_LAYER, TRAFFIC_SOURCE, useTrafficEnabled, useTrafficVersion, withTrafficLayer } from '../../map/traffic';
 import { TrafficToggle } from '../../map/TrafficToggle';
@@ -21,7 +22,7 @@ import { DATA_ATTRIBUTION } from '../../map/attribution';
 import { nextThemePreference, setThemePreference, THEME_OPTIONS, useTheme } from '../../theme/theme';
 import { MapTheme, ROUTE_COLORS } from '../../map/mapStyle';
 import { lineFeature, toLngLat } from '../../map/geojson';
-import { CallMarker } from '../../map/Markers';
+import { CallMarker, HospitalMarker } from '../../map/Markers';
 import {
   DASHED_OUTLINE_FILTER,
   EFFECT_META,
@@ -82,23 +83,21 @@ function readVoicePreference(): boolean {
 
 interface NavigationViewProps {
   ambulance: Ambulance;
-  call: EmergencyCall;
+  destination: Destination; // o chamado e, depois do local, o hospital
   initialRoute: RouteInfo;
   incidents: Incident[];
   simulate: boolean;
   onExit: () => void;
-  onFinish: () => Promise<void>;
   onIncidentsChange: () => void; // relato ou resposta enviada: atualiza a lista
 }
 
 export default function NavigationView({
   ambulance,
-  call,
+  destination,
   initialRoute,
   incidents,
   simulate,
   onExit,
-  onFinish,
   onIncidentsChange
 }: NavigationViewProps) {
   const { me } = useAuth();
@@ -107,7 +106,6 @@ export default function NavigationView({
   const [rerouting, setRerouting] = useState(false);
   const [following, setFollowing] = useState(true);
   const [voiceOn, setVoiceOn] = useState(readVoicePreference);
-  const [finishing, setFinishing] = useState(false);
   const toast = useToast();
   const { theme, preference } = useTheme();
   const mapStyle = useMapStyle(theme);
@@ -117,7 +115,8 @@ export default function NavigationView({
   const real = useGeolocation(!simulate);
   const sim = useSimulatedGeolocation(route.geometry, simulate);
   const fix = simulate ? sim.fix : real.fix;
-  const nav = useNavigation(route, call.location, fix);
+  const nav = useNavigation(route, destination.location, fix);
+  const arrivalText = destination.kind === 'hospital' ? 'Você chegou ao hospital' : 'Você chegou ao local';
 
   // Limites de velocidade da rota atual (início e cada recálculo); sem resposta, a placa não aparece
   const [limits, setLimits] = useState<SpeedLimitSegment[]>([]);
@@ -138,7 +137,7 @@ export default function NavigationView({
   // Deitado, o painel vira uma coluna à esquerda e começa recolhido; em pé, ele pode descer
   const landscape = useMediaQuery(LANDSCAPE_PHONE);
   const [panelCollapsed, setPanelCollapsed] = usePanelCollapsed(landscape);
-  // Ao chegar, o painel abre sozinho para o "Finalizar atendimento"
+  // Ao chegar, o painel abre sozinho para o "Sair da navegação" (finalizar é no card do chamado)
   const collapsed = panelCollapsed && !nav.arrived;
   const landscapeRef = useRef(landscape);
   landscapeRef.current = landscape;
@@ -200,7 +199,9 @@ export default function NavigationView({
     map.on('dragstart', stopFollowing);
     map.on('rotatestart', stopFollowing);
 
-    new Marker({ element: destinationEl, anchor: 'bottom' }).setLngLat(toLngLat(call.location)).addTo(map);
+    new Marker({ element: destinationEl, anchor: destination.kind === 'hospital' ? 'center' : 'bottom' })
+      .setLngLat(toLngLat(destination.location))
+      .addTo(map);
 
     const vehicle = document.createElement('div');
     vehicle.className = styles.vehicle;
@@ -291,14 +292,14 @@ export default function NavigationView({
     setRerouting(true);
     speak(message);
 
-    calculateRoute(current.position, call.location)
+    calculateRoute(current.position, destination.location)
       .then(newRoute => {
         announced.current.clear();
         setRoute(newRoute);
       })
       .catch(error => toast(getErrorMessage(error, 'Não foi possível recalcular a rota.'), 'error'))
       .finally(() => setRerouting(false));
-  }, [rerouting, call.location, speak, toast]);
+  }, [rerouting, destination.location, speak, toast]);
 
   const alerts = useIncidentAlerts({
     incidents,
@@ -344,7 +345,7 @@ export default function NavigationView({
     };
 
     if (nav.arrived) {
-      once('arrived', 'Você chegou ao destino');
+      once('arrived', arrivalText);
       return;
     }
 
@@ -413,17 +414,8 @@ export default function NavigationView({
     }
   };
 
-  const handleFinish = async () => {
-    setFinishing(true);
-    try {
-      await onFinish();
-    } finally {
-      setFinishing(false);
-    }
-  };
-
   const eta = new Date(Date.now() + nav.durationRemaining * 1000).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-  const mapsUrl = googleMapsUrl(fix?.position ?? ambulance.location, call.location, nav.remaining, route.waypoints);
+  const mapsUrl = googleMapsUrl(fix?.position ?? ambulance.location, destination.location, nav.remaining, route.waypoints);
   const StepIcon = step ? maneuverIcon(step) : null;
   const themeOption = THEME_OPTIONS.find(option => option.value === preference) ?? THEME_OPTIONS[0];
   const ThemeIcon = themeOption.Icon;
@@ -431,7 +423,10 @@ export default function NavigationView({
   return (
     <div ref={screenRef} className={styles.screen} data-theme={theme}>
       <div ref={containerRef} className={styles.map} />
-      {createPortal(<CallMarker priority={call.priority} />, destinationEl)}
+      {createPortal(
+        destination.kind === 'hospital' ? <HospitalMarker /> : <CallMarker priority={destination.priority ?? CallPriority.EMERGENCIA} />,
+        destinationEl
+      )}
 
       {/* Instrução e, logo abaixo, avisos (empilhados: a instrução pode ter duas linhas) */}
       <div className={styles.top}>
@@ -441,7 +436,7 @@ export default function NavigationView({
           ) : nav.arrived ? (
             <>
               <span className={styles.icon}><ArrivalIcon /></span>
-              <p className={styles.bannerText}>Você chegou ao destino</p>
+              <p className={styles.bannerText}>{arrivalText}</p>
             </>
           ) : step && StepIcon ? (
             <>
@@ -521,8 +516,8 @@ export default function NavigationView({
       <footer ref={panelRef} className={`${styles.panel} ${collapsed ? styles.collapsed : ''}`}>
         {!nav.arrived && <PanelHandle collapsed={collapsed} onChange={setPanelCollapsed} label="painel da navegação" />}
         {nav.arrived ? (
-          <button className={styles.finish} disabled={finishing} onClick={handleFinish}>
-            {finishing ? 'Finalizando…' : <><CheckCircleIcon /> Finalizar atendimento</>}
+          <button className={styles.finish} onClick={onExit}>
+            <CheckCircleIcon /> Sair da navegação
           </button>
         ) : (
           <div className={styles.summary}>

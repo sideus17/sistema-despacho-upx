@@ -1,10 +1,11 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Ambulance, AmbulanceStatus, AmbulanceType, Base, CallStatus, Coordinates, EmergencyCall, Incident, RouteInfo } from '../types';
+import { Ambulance, AmbulanceStatus, AmbulanceType, Base, CallOutcome, CallStatus, Coordinates, EmergencyCall, Hospital, Incident, RouteInfo } from '../types';
 import {
   getAmbulances,
   getBases,
   getPendingCalls,
   getIncidents,
+  getHospitals,
   calculateRoute,
   finishDispatch,
   startShift,
@@ -17,7 +18,10 @@ import {
 } from '../services/api';
 import { usePolling } from '../hooks/usePolling';
 import { useToast } from '../components/Toast';
-import { PRIORITY_META, formatGender } from '../utils/calls';
+import { PRIORITY_META, STAGE_META, callStage, elapsedLabel, formatGender, needsOutcome, timeline } from '../utils/calls';
+import { useNow } from '../hooks/useNow';
+import { OutcomeChoice } from '../ui/OutcomeChoice';
+import { AMBULANCE_STATUS_LABEL } from '../utils/ambulances';
 import { fastestIndex, routeOptions, routeVia, trafficNote } from '../utils/routes';
 import { PriorityLabel } from '../ui/PriorityLabel';
 import { signalsText } from '../utils/triage';
@@ -33,7 +37,9 @@ import { LANDSCAPE_PHONE, useMediaQuery } from '../ui/useMediaQuery';
 import { formatNavDistance } from './navigation/instructions';
 import { PickerEntry, pickerOrder } from './shift';
 import { useShiftLocation } from './useShiftLocation';
-import { googleMapsUrl } from './navigation/mapsLink';
+import { googleMapsUrl, wazeUrl } from './navigation/mapsLink';
+import { callDestination } from './destination';
+import HospitalSheet from './HospitalSheet';
 import styles from './CrewApp.module.css';
 import '../styles/index.css';
 
@@ -108,14 +114,8 @@ const TYPE_FILTERS: Array<{ value: AmbulanceType | 'ALL'; label: string }> = [
   { value: AmbulanceType.MOTOLANCIA, label: 'Motolância' }
 ];
 
-const STATUS_LABEL: Record<AmbulanceStatus, string> = {
-  [AmbulanceStatus.DISPONIVEL]: 'Disponível',
-  [AmbulanceStatus.EM_ATENDIMENTO]: 'Em atendimento',
-  [AmbulanceStatus.INDISPONIVEL]: 'Indisponível'
-};
-
 function StatusPill({ status }: { status: AmbulanceStatus }) {
-  return <span className={`${styles.pill} ${styles[`pill_${status}`]}`}>{STATUS_LABEL[status] ?? status}</span>;
+  return <span className={`${styles.pill} ${styles[`pill_${status}`]}`}>{AMBULANCE_STATUS_LABEL[status] ?? status}</span>;
 }
 
 export default function CrewApp() {
@@ -125,6 +125,10 @@ export default function CrewApp() {
   const [ambulances, setAmbulances] = useState<Ambulance[]>(snapshot?.ambulances ?? []);
   const [calls, setCalls] = useState<EmergencyCall[]>(snapshot?.calls ?? []);
   const [incidents, setIncidents] = useState<Incident[]>(snapshot?.incidents ?? []);
+  const [hospitals, setHospitals] = useState<Hospital[]>([]);
+  // Hospitais quase não mudam: carregam uma vez (de novo só se a tentativa falhou)
+  const hospitalsLoaded = useRef(false);
+  const [choosingHospital, setChoosingHospital] = useState(false);
   const [pending, setPending] = useState(pendingReports);
   const [reporting, setReporting] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(snapshot?.savedAt ?? null);
@@ -173,6 +177,10 @@ export default function CrewApp() {
       setConnection('online');
       saveSnapshot({ ambulances: ambData, calls: callData, incidents: incidentData, savedAt: now });
       flushQueue();
+      if (!hospitalsLoaded.current) {
+        hospitalsLoaded.current = true;
+        getHospitals().then(setHospitals).catch(() => { hospitalsLoaded.current = false; });
+      }
       return true;
     } catch {
       setConnection('error');
@@ -203,8 +211,15 @@ export default function CrewApp() {
     ? calls.find(c => c.status === CallStatus.EM_ATENDIMENTO && c.ambulance_id === ambulance.id)
     : undefined;
 
-  // O celular é o GPS da viatura durante o turno (na navegação quem manda é ela; na simulação, a viatura anda sozinha)
-  useShiftLocation(ambulance?.id, !navigating && !SIMULATE);
+  // Para onde ir agora: o chamado e, depois de chegar ao local, o hospital escolhido (pela central ou aqui)
+  const destination = useMemo(() => (activeCall ? callDestination(activeCall, hospitals) : undefined), [activeCall, hospitals]);
+  const destinationKey = destination ? `${destination.kind}:${destination.id}` : '';
+  const stage = activeCall ? callStage(activeCall) : null;
+  const now = useNow(30_000, !!activeCall);
+
+  // O celular é o GPS da viatura durante o turno (na navegação quem manda é ela; na simulação, a viatura anda sozinha).
+  // Em atendimento manda mais vezes: é a posição que marca as etapas (saiu, chegou, hospital)
+  useShiftLocation(ambulance?.id, !navigating && !SIMULATE, !!activeCall);
 
   // Sem turno: localiza o celular e as bases para ordenar e descrever as viaturas
   const choosing = !ambulance;
@@ -236,12 +251,12 @@ export default function CrewApp() {
     lastCallId.current = currentId;
   }, [activeCall?.id, ambulance, toast]);
 
-  // Chamado ou viatura novos: começa do zero
+  // Chamado, viatura ou destino novos (chegou ao local e há hospital): começa do zero
   useEffect(() => {
     setRoute(null);
     setConfirmingFinish(false);
     setNavigating(false);
-  }, [activeCall?.id, ambulance?.id]);
+  }, [activeCall?.id, ambulance?.id, destinationKey]);
 
   // Ocorrências com área: quando mudam, a prévia da rota é refeita (o servidor responde do cache se nada mudou no caminho)
   const incidentsKey = useMemo(() => incidents
@@ -250,12 +265,12 @@ export default function CrewApp() {
     .sort()
     .join('|'), [incidents]);
 
-  // Rota da viatura até o chamado atual (na navegação, quem recalcula é ela)
+  // Rota da viatura até o destino atual (na navegação, quem recalcula é ela)
   useEffect(() => {
-    if (!activeCall || !ambulance || navigating) return;
+    if (!destination || !ambulance || navigating) return;
 
     let cancelled = false;
-    calculateRoute(ambulance.location, activeCall.location, { alternatives: true })
+    calculateRoute(ambulance.location, destination.location, { alternatives: true })
       .then(result => {
         if (cancelled) return;
         setRoute(result);
@@ -264,7 +279,7 @@ export default function CrewApp() {
       .catch(() => { /* sem rota: o mapa mostra só os dois pontos */ });
 
     return () => { cancelled = true; };
-  }, [activeCall?.id, ambulance?.id, incidentsKey, navigating]);
+  }, [destinationKey, ambulance?.id, incidentsKey, navigating]);
 
   const handleStartShift = async (target: Ambulance) => {
     setBusy(true);
@@ -305,11 +320,11 @@ export default function CrewApp() {
     await signOut();
   };
 
-  const handleFinish = async () => {
+  const handleFinish = async (outcome?: CallOutcome) => {
     if (!activeCall) return;
     setBusy(true);
     try {
-      await finishDispatch(activeCall.id);
+      await finishDispatch(activeCall.id, outcome);
       toast('Atendimento finalizado. Viatura disponível.', 'success');
       await loadData();
     } catch (error) {
@@ -431,6 +446,16 @@ export default function CrewApp() {
   const reportButton = (
     <button className={styles.reportButton} onClick={() => setReporting(true)}><ReportIcon /> Reportar</button>
   );
+  const hospitalSheet = choosingHospital && activeCall && (
+    <HospitalSheet
+      callId={activeCall.id}
+      hospitals={hospitals}
+      current={activeCall.hospitalId}
+      from={ambulance.location}
+      onClose={() => setChoosingHospital(false)}
+      onChosen={loadData}
+    />
+  );
   const reportSheet = reporting && (
     <ReportSheet
       getPosition={() => currentPosition(ambulance.location)}
@@ -445,17 +470,16 @@ export default function CrewApp() {
   const meta = activeCall ? PRIORITY_META[activeCall.priority] : undefined;
   const gender = activeCall ? formatGender(activeCall.patientInfo.gender) : null;
 
-  if (navigating && activeCall && chosenRoute) {
+  if (navigating && destination && chosenRoute) {
     return (
       <Suspense fallback={<div className={styles.shell}><div className={styles.centered}><div className={styles.spinner} /></div></div>}>
         <NavigationView
           ambulance={ambulance}
-          call={activeCall}
+          destination={destination}
           initialRoute={chosenRoute}
           incidents={incidents}
           simulate={SIMULATE}
           onExit={() => setNavigating(false)}
-          onFinish={handleFinish}
           onIncidentsChange={loadData}
         />
       </Suspense>
@@ -483,7 +507,9 @@ export default function CrewApp() {
   let mapView: React.ReactNode;
   let actionBar: React.ReactNode;
 
-  if (activeCall && meta) {
+  if (activeCall && meta && destination) {
+    const hospital = hospitals.find(item => item.id === activeCall.hospitalId);
+    const steps = timeline(activeCall);
     info = (
       <section
         className={`${styles.callCard} ${isNewDispatch ? styles.callCardNew : ''}`}
@@ -501,6 +527,24 @@ export default function CrewApp() {
             .filter(Boolean)
             .join(' · ')}
         </p>
+
+        {/* Etapa marcada sozinha pelo GPS: a equipe só confere */}
+        <div className={styles.progress} onClick={event => event.stopPropagation()}>
+          {stage && (
+            <p className={`${styles.stage} ${styles[`stage_${STAGE_META[stage.stage].tint}`]}`}>
+              {STAGE_META[stage.stage].label} · {elapsedLabel(stage.since, now)}
+            </p>
+          )}
+          {steps.length > 0 && <p className={styles.timeline}>{steps.map(step => `${step.label} ${step.time}`).join(' · ')}</p>}
+          <div className={styles.hospitalRow}>
+            <span>Hospital: <strong>{hospital?.shortName ?? 'a definir'}</strong></span>
+            {!activeCall.times?.atHospital && hospitals.length > 0 && (
+              <button className={styles.hospitalButton} onClick={() => setChoosingHospital(true)}>
+                {hospital ? 'Trocar' : 'Escolher'}
+              </button>
+            )}
+          </div>
+        </div>
       </section>
     );
 
@@ -509,7 +553,7 @@ export default function CrewApp() {
         <Suspense fallback={null}>
           <CrewMap
             ambulance={ambulance}
-            call={activeCall}
+            destination={destination}
             routes={routeChoices.map(option => option.geometry)}
             selectedRoute={routeIndex}
             onSelectRoute={setRouteIndex}
@@ -570,18 +614,23 @@ export default function CrewApp() {
           {chosenRoute && (
             <a
               className={styles.mapsLink}
-              href={googleMapsUrl(ambulance.location, activeCall.location, chosenRoute.geometry, chosenRoute.waypoints)}
+              href={googleMapsUrl(ambulance.location, destination.location, chosenRoute.geometry, chosenRoute.waypoints)}
               target="_blank"
               rel="noopener noreferrer"
             >
               Google Maps
             </a>
           )}
+          <a className={styles.mapsLink} href={wazeUrl(destination.location)} target="_blank" rel="noopener noreferrer">
+            Waze
+          </a>
         </div>
 
-        {confirmingFinish ? (
+        {confirmingFinish && needsOutcome(activeCall) ? (
+          <OutcomeChoice busy={busy} onChoose={handleFinish} onCancel={() => setConfirmingFinish(false)} large />
+        ) : confirmingFinish ? (
           <div className={styles.navRow}>
-            <button className={styles.finishConfirm} disabled={busy} onClick={handleFinish}>
+            <button className={styles.finishConfirm} disabled={busy} onClick={() => handleFinish()}>
               {busy ? 'Finalizando…' : 'Confirmar finalização'}
             </button>
             <button className={styles.secondaryButton} disabled={busy} onClick={() => setConfirmingFinish(false)}>
@@ -605,7 +654,7 @@ export default function CrewApp() {
           </>
         ) : (
           <>
-            <p className={styles.idleTitle}>{STATUS_LABEL[ambulance.status]}</p>
+            <p className={styles.idleTitle}>{AMBULANCE_STATUS_LABEL[ambulance.status]}</p>
             <p className={styles.muted}>A central não vai despachar esta viatura enquanto ela estiver fora de serviço.</p>
           </>
         )}
@@ -649,6 +698,7 @@ export default function CrewApp() {
         </div>
         {mapView}
         {reportSheet}
+        {hospitalSheet}
       </div>
     );
   }
@@ -659,6 +709,7 @@ export default function CrewApp() {
       {offlineBanner}
       <InstallBanner />
       {reportSheet}
+      {hospitalSheet}
 
       <main className={styles.main}>
         {info}

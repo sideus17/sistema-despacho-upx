@@ -19,6 +19,8 @@ import {
   Coordinates,
   CallPriority,
   CallTriage,
+  CallOutcome,
+  Hospital,
   Me,
   AvatarIcon,
   AvatarColor,
@@ -391,9 +393,20 @@ export function getTimeAgo(timestamp: string): string {
   return `${diffDays} dias atrás`;
 }
 
-export async function finishDispatch(callId: string): Promise<any> {
-  const response = await api.post<ApiResponse<any>>('/dispatch/finish', { callId });
+// Sem chegada ao hospital, quem finaliza diz como terminou (com ela, o servidor marca o transporte)
+export async function finishDispatch(callId: string, outcome?: CallOutcome): Promise<any> {
+  const response = await api.post<ApiResponse<any>>('/dispatch/finish', { callId, outcome });
   return response.data.data;
+}
+
+export async function getHospitals(): Promise<Hospital[]> {
+  const response = await api.get<ApiResponse<Hospital[]>>('/hospitals');
+  return response.data.data || [];
+}
+
+// Hospital de destino do atendimento (central ou equipe); null tira a escolha
+export async function setCallHospital(callId: string, hospitalId: string | null): Promise<void> {
+  await api.patch(`/calls/${callId}/hospital`, { hospitalId });
 }
 
 export async function updateAmbulanceStatus(ambulanceId: string, status: AmbulanceStatus): Promise<void> {

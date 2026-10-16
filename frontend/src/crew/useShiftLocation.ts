@@ -7,8 +7,11 @@ import { SentLocation, shouldSendLocation } from './shift';
  * está aberto. Fica desligado na navegação, que já manda a sua. Com a tela apagada o navegador
  * para de informar a posição (limite do navegador).
  */
-export function useShiftLocation(ambulanceId: string | undefined, enabled: boolean) {
+export function useShiftLocation(ambulanceId: string | undefined, enabled: boolean, busy = false) {
   const last = useRef<SentLocation | null>(null);
+  // Em atendimento manda mais vezes (a posição marca as etapas); muda sem reiniciar o GPS
+  const busyRef = useRef(busy);
+  busyRef.current = busy;
 
   useEffect(() => {
     if (!ambulanceId || !enabled || !('geolocation' in navigator)) return;
@@ -18,7 +21,7 @@ export function useShiftLocation(ambulanceId: string | undefined, enabled: boole
       ({ coords }) => {
         const next = { position: { lat: coords.latitude, lng: coords.longitude }, accuracy: coords.accuracy };
         const now = Date.now();
-        if (!shouldSendLocation(last.current, next, now)) return;
+        if (!shouldSendLocation(last.current, next, now, busyRef.current)) return;
         last.current = { position: next.position, at: now };
         updateAmbulanceLocation(ambulanceId, next.position, coords.speed).catch(() => {
           // Sem sinal: tenta de novo daqui a 30 s, mesmo parada (a posição "nula" conta como longe)

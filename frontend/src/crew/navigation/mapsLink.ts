@@ -48,3 +48,8 @@ export function googleMapsUrl(origin: Coordinates, destination: Coordinates, rou
 
   return `https://www.google.com/maps/dir/?${params.toString()}`;
 }
+
+// O Waze não aceita pontos de passagem por link: ele leva ao destino pelo caminho dele
+export function wazeUrl(destination: Coordinates): string {
+  return `https://waze.com/ul?ll=${format(destination)}&navigate=yes`;
+}

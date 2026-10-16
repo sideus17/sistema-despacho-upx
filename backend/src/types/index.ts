@@ -26,6 +26,15 @@ export enum CallStatus {
   CANCELADO = 'CANCELADO'
 }
 
+// Como o atendimento terminou (com chegada ao hospital, é sempre TRANSPORTADO)
+export enum CallOutcome {
+  TRANSPORTADO = 'TRANSPORTADO',
+  ATENDIDO_NO_LOCAL = 'ATENDIDO_NO_LOCAL',
+  RECUSA = 'RECUSA',
+  OBITO = 'OBITO',
+  NAO_LOCALIZADO = 'NAO_LOCALIZADO'
+}
+
 export enum IncidentType {
   ALAGAMENTO = 'ALAGAMENTO',
   QUEDA_ARVORE = 'QUEDA_ARVORE',
@@ -107,6 +116,29 @@ export interface EmergencyCall {
   callerPhone?: string; // só para a central
   reference?: string; // ponto de referência ("em frente à padaria")
   triage?: CallTriage;
+  times?: CallTimes; // horários do atendimento (só os que já aconteceram)
+  hospitalId?: string; // hospital de destino (escolhido ou onde a viatura chegou)
+  outcome?: CallOutcome;
+}
+
+// Etapas do atendimento: despacho e fim pelas rotas; as do meio, pelo GPS da viatura
+export interface CallTimes {
+  dispatched?: string;
+  enRoute?: string; // viatura saiu
+  onScene?: string; // chegou ao local
+  leftScene?: string; // saiu do local (transportando, se há hospital)
+  atHospital?: string;
+  finished?: string;
+}
+
+export interface Hospital {
+  id: string;
+  name: string;
+  shortName: string;
+  kind: 'HOSPITAL' | 'PRONTO_SOCORRO';
+  address: string;
+  location: Coordinates;
+  notes?: string;
 }
 
 // Sinais de alerta marcados na triagem e a cor que eles sugeriram (a escolhida é a priority)
@@ -184,7 +216,8 @@ export interface RouteStep {
 export interface DispatchScore {
   ambulanceId: string;
   totalScore: number;
-  distanceScore: number;
+  timeScore: number; // tempo de chegada (rota com trânsito ou estimativa)
+  arrivalSeconds: number;
   availabilityScore: number;
   typeScore: number;
   incidentPenalty: number;

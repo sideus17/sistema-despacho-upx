@@ -193,3 +193,10 @@
   height: 9px;
   border-radius: 50%;
 }
+
+/* Horários do atendimento no popup do chamado */
+.popupTimeline {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}

@@ -48,6 +48,27 @@
   height: 18px;
 }
 
+/* Hospital: placa azul com "H"; pronto-socorro um pouco menor */
+.hospital {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 2px solid white;
+  border-radius: 6px;
+  background: #1d4ed8;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  color: white;
+  font: 800 17px/1 system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.hospitalSmall {
+  width: 24px;
+  height: 24px;
+  font-size: 14px;
+}
+
 /* Bloqueio: quadrado, como placa de via interditada, para diferenciar do risco sem depender da cor */
 .incidentBlock {
   border-radius: 8px;

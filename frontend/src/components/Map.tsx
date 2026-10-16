@@ -5,6 +5,7 @@ import {
   Ambulance,
   EmergencyCall,
   Base,
+  Hospital,
   Incident,
   AmbulanceStatus,
   CallPriority,
@@ -21,12 +22,14 @@ import { useTheme } from '../theme/theme';
 import { RouteLayer } from '../map/RouteLayer';
 import { ROUTE_OPTIONS_LAYER, RouteOptionsLayer } from '../map/RouteOptionsLayer';
 import { boundsOf, toLngLat } from '../map/geojson';
-import { AmbulanceMarker, BaseMarker, CallMarker, IncidentMarker } from '../map/Markers';
+import { AmbulanceMarker, BaseMarker, CallMarker, HospitalMarker, IncidentMarker } from '../map/Markers';
 import { IncidentLayer } from '../map/IncidentLayer';
 import { TrafficLayer } from '../map/TrafficLayer';
 import { TRAFFIC_COLORS, useTrafficEnabled } from '../map/traffic';
 import { EFFECT_META, expiryLabel, incidentTypeLabel, sourceLabel } from '../map/incidents';
-import { PRIORITIES_BY_SEVERITY, PRIORITY_META } from '../utils/calls';
+import { PRIORITIES_BY_SEVERITY, PRIORITY_META, STAGE_META, callStage, elapsedLabel, timeline } from '../utils/calls';
+import { AMBULANCE_STATUS_LABEL } from '../utils/ambulances';
+import { HOSPITAL_KIND_LABEL } from '../utils/hospitals';
 import { signalsText } from '../utils/triage';
 import { PriorityLabel } from '../ui/PriorityLabel';
 import { formatPhone } from '../utils/documents';
@@ -42,12 +45,13 @@ import styles from './Map.module.css';
 // Sorocaba
 const INITIAL_VIEW = { longitude: -47.4526, latitude: -23.5015, zoom: 13 };
 
-type Selection = { kind: 'ambulance' | 'call' | 'base' | 'incident'; id: string } | null;
+type Selection = { kind: 'ambulance' | 'call' | 'base' | 'hospital' | 'incident'; id: string } | null;
 
 interface MapProps {
   ambulances: Ambulance[];
   calls: EmergencyCall[];
   bases: Base[];
+  hospitals?: Hospital[];
   incidents: Incident[];
   selectedCall?: EmergencyCall | null;
   routeGeometry?: Coordinates[] | null;
@@ -64,6 +68,7 @@ export default function Map({
   ambulances,
   calls,
   bases,
+  hospitals = [],
   incidents,
   selectedCall,
   routeGeometry,
@@ -192,7 +197,7 @@ export default function Map({
                 color: ambulance.status === AmbulanceStatus.DISPONIVEL ? '#22c55e' :
                        ambulance.status === AmbulanceStatus.EM_ATENDIMENTO ? '#f59e0b' : '#ef4444'
               }}>
-                {ambulance.status}
+                {AMBULANCE_STATUS_LABEL[ambulance.status] ?? ambulance.status}
               </span>
             </p>
             <p className={styles.popupDriver}>
@@ -220,6 +225,9 @@ export default function Map({
     if (popup.kind === 'call') {
       const call = calls.find(c => c.id === popup.id);
       if (!call) return null;
+      const stage = callStage(call);
+      const steps = timeline(call);
+      const destination = hospitals.find(hospital => hospital.id === call.hospitalId);
       return {
         location: call.location,
         offset: 48,
@@ -233,6 +241,9 @@ export default function Map({
             <p><strong>Descrição:</strong> {call.description}</p>
             {call.triage?.signals.length ? <p><strong>Sinais:</strong> {signalsText(call.triage.signals)}</p> : null}
             {call.patientInfo.age && <p><strong>Idade:</strong> {call.patientInfo.age} anos</p>}
+            {stage && <p><strong>Etapa:</strong> {STAGE_META[stage.stage].label} · {elapsedLabel(stage.since, Date.now())}</p>}
+            {destination && <p><strong>Hospital:</strong> {destination.shortName}</p>}
+            {steps.length > 0 && <p className={styles.popupTimeline}>{steps.map(step => `${step.label} ${step.time}`).join(' · ')}</p>}
           </>
         )
       };
@@ -249,6 +260,23 @@ export default function Map({
             <h3>{base.name}</h3>
             <p><strong>Endereço:</strong> {base.address}</p>
             <p><strong>Capacidade:</strong> {base.capacity} ambulâncias</p>
+          </>
+        )
+      };
+    }
+
+    if (popup.kind === 'hospital') {
+      const hospital = hospitals.find(h => h.id === popup.id);
+      if (!hospital) return null;
+      return {
+        location: hospital.location,
+        offset: 18,
+        content: (
+          <>
+            <h3>{hospital.name}</h3>
+            <p><strong>{HOSPITAL_KIND_LABEL[hospital.kind]}</strong></p>
+            <p>{hospital.address}</p>
+            {hospital.notes && <p>{hospital.notes}</p>}
           </>
         )
       };
@@ -356,6 +384,12 @@ export default function Map({
             </Marker>
           )}
 
+          {hospitals.map(hospital => (
+            <Marker key={hospital.id} longitude={hospital.location.lng} latitude={hospital.location.lat} onClick={open('hospital', hospital.id)}>
+              <HospitalMarker kind={hospital.kind} />
+            </Marker>
+          ))}
+
           {bases.map(base => (
             <Marker key={base.id} longitude={base.location.lng} latitude={base.location.lat} onClick={open('base', base.id)}>
               <BaseMarker />
@@ -458,6 +492,7 @@ export default function Map({
               </span>
             </li>
             <li><span className={styles.legendIcon}><BaseMarker /></span> Base</li>
+            {hospitals.length > 0 && <li><span className={styles.legendIcon}><HospitalMarker /></span> Hospital</li>}
             <li><span className={styles.legendIcon}><IncidentMarker type={IncidentType.VIA_BLOQUEADA} effect={IncidentEffect.BLOQUEIO} /></span> Bloqueio (rota desvia)</li>
             <li><span className={styles.legendIcon}><IncidentMarker type={IncidentType.ALAGAMENTO} effect={IncidentEffect.RISCO} /></span> Risco na via</li>
             {traffic && (

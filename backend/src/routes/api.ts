@@ -13,6 +13,8 @@ import {
 } from '../services/incidentService';
 import { officialStatus, triggerOfficialRefresh } from '../services/official/refresh';
 import { trafficTile, trafficTileAllowed } from '../services/trafficTiles';
+import { resolveOutcome } from '../services/attendance';
+import { listHospitals, trackCallProgress } from '../services/attendanceService';
 import {
   CallError,
   RECENT_WINDOW_MS,
@@ -340,6 +342,9 @@ router.patch('/ambulances/:id/location', requireRole(UserRole.MOTORISTA), async 
   // Depois de responder: passar normalmente por um relato de equipe ajuda a tirá-lo do mapa
   registerPassage(req.user!, req.params.id, { lat, lng }, typeof speed === 'number' ? speed : null)
     .catch(error => console.warn('Falha ao registrar passagem por ocorrência:', error));
+  // e a posição marca as etapas do atendimento (saiu, chegou ao local, ao hospital)
+  trackCallProgress(req.params.id, { lat, lng }, typeof speed === 'number' ? speed : null)
+    .catch(error => console.warn('Falha ao marcar a etapa do atendimento:', error));
 });
 
 // ============================================
@@ -453,6 +458,32 @@ router.post('/calls', requireRole(UserRole.OPERADOR), async (req: Request, res: 
   }
 });
 
+// Hospital de destino: a central define e a equipe confirma ou troca (null tira a escolha)
+router.patch('/calls/:id/hospital', async (req: Request, res: Response) => {
+  const hospitalId: unknown = req.body?.hospitalId;
+  if (hospitalId !== null && typeof hospitalId !== 'string') return fail(res, 400, 'Hospital inválido.');
+
+  try {
+    if (hospitalId !== null && !(await listHospitals()).some(hospital => hospital.id === hospitalId)) {
+      return fail(res, 400, 'Hospital inválido.');
+    }
+    const { data: call } = await supabase.from('calls').select('status, ambulance_id').eq('id', req.params.id).maybeSingle();
+    if (!call) return fail(res, 404, 'Chamado não encontrado.');
+    if (call.status !== CallStatus.EM_ATENDIMENTO) return fail(res, 409, 'Este chamado não está em atendimento.');
+    if (req.user!.role === UserRole.MOTORISTA) {
+      const { data: own } = await supabase.from('ambulances').select('id').eq('driver_id', req.user!.id).maybeSingle();
+      if (!own || own.id !== call.ambulance_id) return fail(res, 403, 'Este chamado não é da sua viatura.');
+    }
+
+    const { error } = await supabase.from('calls').update({ hospital_id: hospitalId }).eq('id', req.params.id);
+    if (error) throw new Error(error.message);
+    res.json({ success: true, data: { callId: req.params.id, hospitalId }, timestamp: new Date().toISOString() });
+  } catch (error) {
+    console.error('Falha ao escolher o hospital:', error);
+    fail(res, 500, 'Não foi possível escolher o hospital.');
+  }
+});
+
 router.patch('/calls/:id/status', requireRole(UserRole.OPERADOR), async (req: Request, res: Response) => {
   const { status } = req.body;
   
@@ -475,6 +506,15 @@ router.patch('/calls/:id/status', requireRole(UserRole.OPERADOR), async (req: Re
 // ============================================
 // BASES
 // ============================================
+
+router.get('/hospitals', async (req: Request, res: Response) => {
+  try {
+    res.json({ success: true, data: await listHospitals(), timestamp: new Date().toISOString() });
+  } catch (error) {
+    console.error('Falha ao listar hospitais:', error);
+    fail(res, 500, 'Não foi possível carregar os hospitais.');
+  }
+});
 
 router.get('/bases', async (req: Request, res: Response) => {
   const { data, error } = await supabase.from('bases').select('*');
@@ -614,7 +654,11 @@ router.post('/dispatch/execute', requireRole(UserRole.OPERADOR), async (req: Req
       .from('calls')
       .update({
         status: CallStatus.EM_ATENDIMENTO,
-        ambulance_id: ambulanceId
+        ambulance_id: ambulanceId,
+        // Onde a viatura estava: andar 100 m dali é sinal de que saiu
+        dispatched_at: new Date().toISOString(),
+        dispatch_lat: ambData.lat,
+        dispatch_lng: ambData.lng
       })
       .eq('id', callId)
       .eq('status', CallStatus.PENDENTE)
@@ -659,10 +703,15 @@ router.post('/dispatch/finish', async (req: Request, res: Response) => {
 
   try {
     // A ambulância vinculada vem do próprio chamado, não do frontend
-    const { data: callData, error: callError } = await supabase.from('calls').select('ambulance_id').eq('id', callId).single();
+    const { data: callData, error: callError } = await supabase
+      .from('calls')
+      .select('ambulance_id, status, hospital_arrival_at')
+      .eq('id', callId)
+      .single();
     if (callError || !callData) {
       return res.status(404).json({ success: false, error: 'Call not found', timestamp: new Date().toISOString() });
     }
+    if (callData.status !== CallStatus.EM_ATENDIMENTO) return fail(res, 409, 'Este chamado não está em atendimento.');
 
     // Motorista só finaliza o chamado da própria viatura; o operador pode finalizar qualquer um
     if (req.user!.role === UserRole.MOTORISTA) {
@@ -670,11 +719,13 @@ router.post('/dispatch/finish', async (req: Request, res: Response) => {
       if (!own || own.id !== callData.ambulance_id) return fail(res, 403, 'Este chamado não é da sua viatura.');
     }
 
-    // Finaliza o chamado
+    // Finaliza o chamado; a viatura continua nele (histórico)
+    const outcome = resolveOutcome(callData, req.body.outcome);
     const { error: finishError } = await supabase
       .from('calls')
-      .update({ status: CallStatus.FINALIZADO, ambulance_id: null })
-      .eq('id', callId);
+      .update({ status: CallStatus.FINALIZADO, finished_at: new Date().toISOString(), outcome })
+      .eq('id', callId)
+      .eq('status', CallStatus.EM_ATENDIMENTO);
     if (finishError) throw new Error(finishError.message);
 
     // Libera a ambulância
@@ -686,8 +737,9 @@ router.post('/dispatch/finish', async (req: Request, res: Response) => {
       if (releaseError) throw new Error(releaseError.message);
     }
 
-    res.json({ success: true, data: { callId, ambulanceId: callData.ambulance_id }, timestamp: new Date().toISOString() });
+    res.json({ success: true, data: { callId, ambulanceId: callData.ambulance_id, outcome }, timestamp: new Date().toISOString() });
   } catch (error) {
+    if (error instanceof CallError) return fail(res, error.status, error.message);
     res.status(500).json({ success: false, error: error instanceof Error ? error.message : 'Erro ao finalizar', timestamp: new Date().toISOString() });
   }
 });

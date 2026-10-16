@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Map as MapGL, Marker, NavigationControl, MapRef } from '@vis.gl/react-maplibre';
 import '../map/maplibre';
-import { Ambulance, EmergencyCall, Coordinates, Incident } from '../types';
+import { Ambulance, Coordinates, Incident } from '../types';
+import type { Destination } from './destination';
 import { useMapStyle } from '../map/useMapStyle';
 import { DATA_ATTRIBUTION } from '../map/attribution';
 import { MAP_BACKGROUND } from '../map/mapStyle';
@@ -14,18 +15,18 @@ import { TrafficToggle } from '../map/TrafficToggle';
 import { withAuthRequest } from '../services/api';
 import styles from './CrewMap.module.css';
 import { boundsOf, toLngLat } from '../map/geojson';
-import { AmbulanceMarker, CallMarker } from '../map/Markers';
+import { AmbulanceMarker, CallMarker, HospitalMarker } from '../map/Markers';
 
 interface CrewMapProps {
   ambulance: Ambulance;
-  call?: EmergencyCall;
+  destination?: Destination; // o chamado e, depois do local, o hospital
   routes?: Coordinates[][]; // principal e alternativas
   selectedRoute?: number;
   onSelectRoute?: (index: number) => void;
   incidents?: Incident[];
 }
 
-export default function CrewMap({ ambulance, call, routes = [], selectedRoute = 0, onSelectRoute, incidents = [] }: CrewMapProps) {
+export default function CrewMap({ ambulance, destination, routes = [], selectedRoute = 0, onSelectRoute, incidents = [] }: CrewMapProps) {
   const mapRef = useRef<MapRef>(null);
   const [loaded, setLoaded] = useState(false);
   const { theme } = useTheme();
@@ -34,8 +35,8 @@ export default function CrewMap({ ambulance, call, routes = [], selectedRoute = 
   const lines = routes.filter(line => line.length > 1);
   const points: Coordinates[] = lines.length > 0
     ? lines.flat()
-    : call
-      ? [ambulance.location, call.location]
+    : destination
+      ? [ambulance.location, destination.location]
       : [ambulance.location];
   const pointsKey = points.map(p => `${p.lat},${p.lng}`).join(';');
 
@@ -90,9 +91,14 @@ export default function CrewMap({ ambulance, call, routes = [], selectedRoute = 
         <AmbulanceMarker status={ambulance.status} />
       </Marker>
 
-      {call && (
-        <Marker longitude={call.location.lng} latitude={call.location.lat} anchor="bottom">
-          <CallMarker priority={call.priority} />
+      {destination?.kind === 'hospital' && (
+        <Marker longitude={destination.location.lng} latitude={destination.location.lat}>
+          <HospitalMarker />
+        </Marker>
+      )}
+      {destination?.kind === 'chamado' && destination.priority && (
+        <Marker longitude={destination.location.lng} latitude={destination.location.lat} anchor="bottom">
+          <CallMarker priority={destination.priority} />
         </Marker>
       )}
     </MapGL>

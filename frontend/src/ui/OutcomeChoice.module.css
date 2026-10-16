@@ -1,0 +1,66 @@
+.choice {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.title {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.option,
+.cancel {
+  min-height: var(--touch-target);
+  padding: 6px 10px;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.option {
+  border: 1px solid var(--tint-green-border);
+  background: var(--tint-green-bg);
+  color: var(--tint-green-text);
+}
+
+.cancel {
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-muted);
+}
+
+.option:disabled,
+.cancel:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+@media (hover: hover) {
+  .option:hover {
+    background: var(--tint-green-bg-strong);
+  }
+}
+
+/* App da equipe: alvos grandes, na zona do polegar */
+.large .title {
+  font-size: 15px;
+}
+
+.large .option,
+.large .cancel {
+  min-height: 52px;
+  border-radius: var(--radius);
+  font-size: 15px;
+}

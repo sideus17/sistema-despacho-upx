@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Ambulance, AmbulanceStatus, AmbulanceType } from '../types';
-import { LOCATION_HEARTBEAT, LOCATION_MIN_INTERVAL, pickerOrder, shouldSendLocation } from './shift';
+import { LOCATION_BUSY_INTERVAL, LOCATION_HEARTBEAT, LOCATION_MIN_INTERVAL, pickerOrder, shouldSendLocation } from './shift';
 
 const BASE = { lat: -23.5015, lng: -47.4526 };
 
@@ -52,6 +52,13 @@ describe('posição da viatura durante o turno', () => {
     expect(shouldSendLocation(last, at(200), now + LOCATION_MIN_INTERVAL - 1)).toBe(false);
     expect(shouldSendLocation(last, at(200), now + LOCATION_MIN_INTERVAL)).toBe(true);
     expect(shouldSendLocation(last, at(10), now + LOCATION_MIN_INTERVAL)).toBe(false);
+  });
+
+  it('em atendimento, a cada 10 s (a posição marca as etapas)', () => {
+    const last = { position: BASE, at: now };
+    expect(shouldSendLocation(last, at(200), now + LOCATION_BUSY_INTERVAL - 1, true)).toBe(false);
+    expect(shouldSendLocation(last, at(200), now + LOCATION_BUSY_INTERVAL, true)).toBe(true);
+    expect(shouldSendLocation(last, at(200), now + LOCATION_BUSY_INTERVAL, false)).toBe(false);
   });
 
   it('parada, manda de novo a cada 5 min para a central saber que a posição é atual', () => {
