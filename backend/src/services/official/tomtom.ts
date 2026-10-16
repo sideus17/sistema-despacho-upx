@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { Incident } from '../../types';
 import { parseTomTomIncidents } from './tomtomParser';
+import { tomtomBudget } from './tomtomBudget';
 
 // Incidentes de trânsito do TomTom: ficam só na memória (mudam a cada minuto e o TomTom é a fonte da verdade)
 
@@ -17,6 +18,7 @@ const STALE_AFTER = 30 * 60_000;
 let snapshot: { at: number; incidents: Incident[] } | null = null;
 
 export async function refreshTomTom(): Promise<{ total: number; kept: number }> {
+  if (!tomtomBudget.spend('request')) throw new Error('Limite diário de consultas ao TomTom atingido');
   let body: unknown;
   try {
     const response = await axios.get(`${tomtomUrl()}/traffic/services/5/incidentDetails`, {

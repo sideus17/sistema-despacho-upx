@@ -155,6 +155,8 @@ export interface RouteInfo {
   avoided: RouteIncident[]; // a rota desviou
   warnings: string[];
   alternatives?: RouteInfo[]; // outros caminhos, só quando pedidos
+  trafficDelay?: number; // segundos a mais por causa do trânsito (TomTom)
+  durationSource?: 'TRANSITO' | 'ESTIMATIVA'; // tempo com o trânsito de agora ou a estimativa do Valhalla
 }
 
 // Manobra no formato do OSRM; o texto em português é montado no app

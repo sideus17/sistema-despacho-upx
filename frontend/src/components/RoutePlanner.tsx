@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Ambulance, Base } from '../types';
 import { formatDistance, formatDuration } from '../services/api';
-import { fastestIndex, routeVia } from '../utils/routes';
+import { fastestIndex, routeVia, trafficNote } from '../utils/routes';
 import { useToast } from './Toast';
 import AddressSearch, { PlaceValue, SearchAction } from './AddressSearch';
 import RouteNotes from './RouteNotes';
@@ -129,6 +129,7 @@ export default function RoutePlanner({ planner, ambulances, bases, onPickOnMap }
               {error && <p className={`${styles.status} ${styles.error}`}>{error}</p>}
               {routes.map((route, index) => {
                 const via = routeVia(route);
+                const traffic = trafficNote(route);
                 const isSelected = index === selected;
                 return (
                   <div key={index} className={`${styles.option} ${isSelected ? styles.selected : ''}`}>
@@ -136,6 +137,7 @@ export default function RoutePlanner({ planner, ambulances, bases, onPickOnMap }
                       <span className={styles.optionTime}>{formatDuration(route.duration)}</span>
                       <span className={styles.optionInfo}>
                         {formatDistance(route.distance)}
+                        {traffic && <> · {traffic}</>}
                         {via && <> · via {via}</>}
                       </span>
                       {index === fastest && routes.length > 1 && <span className={styles.badge}><BoltIcon /> Mais rápida</span>}

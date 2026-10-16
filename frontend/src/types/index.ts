@@ -184,6 +184,8 @@ export interface RouteInfo {
   avoided: RouteIncident[];
   warnings: string[];
   alternatives?: RouteInfo[]; // outros caminhos, só quando pedidos
+  trafficDelay?: number; // segundos a mais por causa do trânsito (TomTom)
+  durationSource?: 'TRANSITO' | 'ESTIMATIVA'; // tempo com o trânsito de agora ou a estimativa do Valhalla
 }
 
 // Trecho da rota com limite de velocidade conhecido (metros desde o início da rota)

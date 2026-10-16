@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { RouteInfo } from '../types';
-import { fastestIndex, normalizeText, routeOptions, routeVia } from './routes';
+import { fastestIndex, normalizeText, routeOptions, routeVia, trafficNote } from './routes';
 
 const route = (duration: number, steps: [string, number][] = []): RouteInfo => ({
   distance: 1000,
@@ -34,5 +34,13 @@ describe('rotas do painel', () => {
 
   it('busca ignora acento e maiúscula', () => {
     expect(normalizeText('  São Paulo ')).toBe('sao paulo');
+  });
+});
+
+describe('atraso do trânsito', () => {
+  it('aparece a partir de 1 minuto, arredondado', () => {
+    expect(trafficNote({ ...route(600), trafficDelay: 250 })).toBe('+4 min de trânsito');
+    expect(trafficNote({ ...route(600), trafficDelay: 20 })).toBeNull();
+    expect(trafficNote(route(600))).toBeNull();
   });
 });

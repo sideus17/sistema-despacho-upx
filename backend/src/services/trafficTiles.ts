@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { tomtomConfigured, tomtomUrl } from './official/tomtom';
+import { tomtomBudget } from './official/tomtomBudget';
 
 // Blocos vetoriais de fluxo do TomTom, servidos pelo backend: a chave não vai para o navegador
 
@@ -30,6 +31,8 @@ export function trafficTileAllowed(z: number, x: number, y: number): boolean {
 const cache = new Map<string, { expires: number; tile: Promise<Buffer | null> }>();
 
 async function fetchTile(z: number, x: number, y: number): Promise<Buffer | null> {
+  // Passou do limite do dia: o mapa fica sem trânsito até a meia-noite (UTC)
+  if (!tomtomBudget.spend('tile')) return null;
   try {
     const response = await axios.get(`${tomtomUrl()}/traffic/map/4/tile/flow/relative/${z}/${x}/${y}.pbf`, {
       params: { key: process.env.TOMTOM_API_KEY },

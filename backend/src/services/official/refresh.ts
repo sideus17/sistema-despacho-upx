@@ -2,6 +2,7 @@ import { cemadenConfigured } from './cemadenApi';
 import { refreshCemaden } from './cemaden';
 import { refreshDefesaCivil } from './defesaCivil';
 import { refreshTomTom, tomtomConfigured } from './tomtom';
+import { tomtomUsageText } from './tomtomBudget';
 
 const MINUTE = 60_000;
 const BACKOFF = 15 * MINUTE; // fonte com erro espera antes de tentar de novo
@@ -21,6 +22,7 @@ interface Source {
   interval: number;
   enabled: () => boolean;
   run: () => Promise<string>;
+  details?: () => string; // informação ao vivo somada ao resumo (ex.: uso do dia)
   running: boolean;
   nextRun: number;
 }
@@ -62,6 +64,7 @@ const sources: Source[] = [
       const result = await refreshTomTom();
       return `${result.kept} incidentes de trânsito em Sorocaba (de ${result.total} informados)`;
     },
+    details: tomtomUsageText,
     running: false,
     nextRun: 0
   }
@@ -105,6 +108,10 @@ export function triggerOfficialRefresh(): void {
 export function officialStatus(): { enabled: boolean; sources: OfficialSourceStatus[] } {
   return {
     enabled: enabled(),
-    sources: sources.map(source => ({ ...source.status, enabled: enabled() && source.enabled() }))
+    sources: sources.map(source => ({
+      ...source.status,
+      enabled: enabled() && source.enabled(),
+      summary: source.status.summary && source.details ? `${source.status.summary}; ${source.details()}` : source.status.summary
+    }))
   };
 }

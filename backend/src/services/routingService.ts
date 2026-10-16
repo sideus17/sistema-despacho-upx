@@ -5,6 +5,7 @@ import { EngineRoute, osrmRoute } from './osrm';
 import { SpeedLimitSegment, maxExcludePerimeter, valhallaRoute, valhallaSpeedLimits } from './valhalla';
 import { routeAvoiding } from './avoidance';
 import { triggerOfficialRefresh } from './official/refresh';
+import { withTraffic } from './tomtomRouting';
 
 // Mesma rota pedida de novo (análise, despacho, prévia da equipe) sai do cache
 const CACHE_TTL = 10 * 60_000;
@@ -25,6 +26,7 @@ const cache = new Map<string, { expires: number; route: Promise<RouteInfo> }>();
  * Rota entre dois pontos desviando das ocorrências ativas no caminho.
  * Valhalla (desvia de áreas) → OSRM (sem desvio) → linha reta.
  * Com `alternatives`, vêm também até 2 caminhos diferentes, que desviam dos mesmos bloqueios.
+ * O tempo é o do trânsito de agora (TomTom), quando disponível; com alternativas, a mais rápida vem primeiro.
  */
 export async function calculateRoute(from: Coordinates, to: Coordinates, options: RouteOptions = {}): Promise<RouteInfo> {
   triggerOfficialRefresh();
@@ -39,8 +41,9 @@ export async function calculateRoute(from: Coordinates, to: Coordinates, options
     ...incidents.map(i => `${i.id}:${i.effect}:${i.radius}`).sort()
   ].join('|');
 
+  // O caminho fica 10 min no cache; o tempo com trânsito é refeito à parte (cache de 3 min)
   const cached = cache.get(key);
-  if (cached && cached.expires > Date.now()) return cached.route;
+  if (cached && cached.expires > Date.now()) return cached.route.then(withTraffic);
 
   const entry = { expires: Date.now() + CACHE_TTL, route: computeRoute(from, to, incidents, options, warning) };
   cache.set(key, entry);
@@ -54,7 +57,7 @@ export async function calculateRoute(from: Coordinates, to: Coordinates, options
     if (cache.size <= CACHE_MAX && old.expires > Date.now()) break;
     cache.delete(oldKey);
   }
-  return entry.route;
+  return entry.route.then(withTraffic);
 }
 
 // Ocorrências com área perto do trajeto (as de fora não mudam a rota nem o cache)
