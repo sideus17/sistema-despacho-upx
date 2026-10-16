@@ -16,7 +16,6 @@ import {
   ApiResponse,
   Coordinates,
   Me,
-  Cnh,
   AvatarIcon,
   AvatarColor,
   UserRole
@@ -77,7 +76,6 @@ export interface SignupRequest {
   role: UserRole;
   cpf: string;
   phone: string;
-  cnh?: Cnh; // só motorista
   inviteCode?: string;
 }
 
@@ -95,7 +93,6 @@ export interface ProfilePatch {
   fullName?: string;
   cpf?: string;
   phone?: string;
-  cnh?: Cnh;
   avatar?: AvatarIcon | null;
   avatarColor?: AvatarColor | null;
   theme?: 'auto' | 'day' | 'night';

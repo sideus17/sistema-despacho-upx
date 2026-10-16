@@ -1,13 +1,5 @@
-import { describe, expect, it, vi } from 'vitest';
-import {
-  formatCpf,
-  formatPhone,
-  isExpired,
-  isValidCellphone,
-  isValidCnh,
-  isValidCpf,
-  maskCpf
-} from './documents';
+import { describe, expect, it } from 'vitest';
+import { formatCpf, formatPhone, isValidCellphone, isValidCpf, maskCpf } from './documents';
 
 describe('CPF', () => {
   it('confere os dígitos verificadores', () => {
@@ -42,22 +34,5 @@ describe('celular', () => {
     expect(formatPhone('15')).toBe('(15');
     expect(formatPhone('15991')).toBe('(15) 991');
     expect(formatPhone('15991234567')).toBe('(15) 99123-4567');
-  });
-});
-
-describe('CNH', () => {
-  it('confere os dígitos verificadores', () => {
-    expect(isValidCnh('52601815980')).toBe(true);
-    expect(isValidCnh('08301661350')).toBe(true);
-    expect(isValidCnh('52601815981')).toBe(false);
-    expect(isValidCnh('00000000000')).toBe(false);
-  });
-
-  it('avisa quando a validade já passou', () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date(2026, 9, 15, 10, 0));
-    expect(isExpired('2026-10-14')).toBe(true);
-    expect(isExpired('2026-10-15')).toBe(false);
-    expect(isExpired('2031-01-01')).toBe(false);
   });
 });

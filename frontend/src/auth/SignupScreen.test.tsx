@@ -29,17 +29,15 @@ async function fillCommon(user: ReturnType<typeof userEvent.setup>, role: 'Motor
 }
 
 describe('cadastro', () => {
-  it('CNH só para motorista; código da central só para operador', async () => {
+  it('código da central só para operador; motorista não informa CNH', async () => {
     const user = userEvent.setup();
     render(<SignupScreen onLogin={vi.fn()} />);
-    expect(screen.queryByLabelText(/^Número de registro/)).not.toBeInTheDocument();
 
     await user.click(screen.getByText('Motorista'));
-    expect(screen.getByLabelText(/^Número de registro/)).toBeInTheDocument();
     expect(screen.queryByLabelText(/^Código da central/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/CNH/)).not.toBeInTheDocument();
 
     await user.click(screen.getByText('Operador'));
-    expect(screen.queryByLabelText(/^Número de registro/)).not.toBeInTheDocument();
     expect(screen.getByLabelText(/^Código da central/)).toBeInTheDocument();
   });
 
@@ -52,13 +50,10 @@ describe('cadastro', () => {
     expect(screen.getByLabelText(/^Celular com DDD/)).toHaveValue('(15) 99123-4567');
   });
 
-  it('motorista: envia só os dígitos e a CNH, e já entra na conta', async () => {
+  it('motorista: envia só os dígitos, sem CNH, e já entra na conta', async () => {
     const user = userEvent.setup();
     render(<SignupScreen onLogin={vi.fn()} />);
     await fillCommon(user, 'Motorista');
-    await user.type(screen.getByLabelText(/^Número de registro/), '52601815980');
-    await user.selectOptions(screen.getByLabelText('Categoria'), 'AB');
-    await user.type(screen.getByLabelText('Validade'), '2031-08-20');
     await user.click(screen.getByRole('button', { name: 'Criar conta' }));
 
     expect(signUp).toHaveBeenCalledWith({
@@ -68,31 +63,9 @@ describe('cadastro', () => {
       role: 'MOTORISTA',
       cpf: '52998224725',
       phone: '15991234567',
-      cnh: { number: '52601815980', category: 'AB', expiresOn: '2031-08-20' },
       inviteCode: undefined
     });
     expect(supabase.auth.signInWithPassword).toHaveBeenCalledWith({ email: 'lucas@samu.test', password: 'senha-segura' });
-  });
-
-  it('CNH com dígito errado não é enviada', async () => {
-    const user = userEvent.setup();
-    render(<SignupScreen onLogin={vi.fn()} />);
-    await fillCommon(user, 'Motorista');
-    await user.type(screen.getByLabelText(/^Número de registro/), '52601815981');
-    await user.selectOptions(screen.getByLabelText('Categoria'), 'B');
-    await user.type(screen.getByLabelText('Validade'), '2031-08-20');
-    await user.click(screen.getByRole('button', { name: 'Criar conta' }));
-
-    expect(screen.getByRole('alert')).toHaveTextContent('Número da CNH inválido');
-    expect(signUp).not.toHaveBeenCalled();
-  });
-
-  it('avisa quando a CNH está vencida', async () => {
-    const user = userEvent.setup();
-    render(<SignupScreen onLogin={vi.fn()} />);
-    await user.click(screen.getByText('Motorista'));
-    await user.type(screen.getByLabelText('Validade'), '2020-01-31');
-    expect(screen.getByText(/CNH está vencida/)).toBeInTheDocument();
   });
 
   it('mensagem do servidor aparece (ex.: CPF já cadastrado)', async () => {
@@ -104,6 +77,6 @@ describe('cadastro', () => {
     await user.click(screen.getByRole('button', { name: 'Criar conta' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Este CPF já está cadastrado em outra conta.');
-    expect(signUp).toHaveBeenCalledWith(expect.objectContaining({ role: 'OPERADOR', cnh: undefined, inviteCode: 'CENTRAL' }));
+    expect(signUp).toHaveBeenCalledWith(expect.objectContaining({ role: 'OPERADOR', inviteCode: 'CENTRAL' }));
   });
 });

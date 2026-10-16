@@ -6,18 +6,7 @@ import { Avatar, AVATAR_COLORS, AVATAR_ICONS, colorFromSeed } from '../ui/Avatar
 import { CheckIcon, CloseIcon } from '../ui/icons';
 import { useFocusTrap } from '../ui/useFocusTrap';
 import { ThemePicker } from '../theme/ThemePicker';
-import {
-  CNH_CATEGORIES,
-  formatCnh,
-  formatCpf,
-  formatPhone,
-  isExpired,
-  isValidCellphone,
-  isValidCnh,
-  isValidCpf,
-  maskCpf,
-  onlyDigits
-} from '../utils/documents';
+import { formatCpf, formatPhone, isValidCellphone, isValidCpf, maskCpf, onlyDigits } from '../utils/documents';
 import { useToast } from './Toast';
 import styles from './AccountPage.module.css';
 
@@ -26,15 +15,12 @@ export const ROLE_LABEL: Record<UserRole, string> = {
   [UserRole.MOTORISTA]: 'Motorista'
 };
 
-const FIELD_LABEL: Record<ProfileField, string> = { cpf: 'CPF', phone: 'celular', cnh: 'CNH' };
+const FIELD_LABEL: Record<ProfileField, string> = { cpf: 'CPF', phone: 'celular' };
 
 interface Form {
   fullName: string;
   cpf: string;
   phone: string;
-  cnhNumber: string;
-  cnhCategory: string;
-  cnhExpiresOn: string;
   avatar: AvatarIcon | null;
   avatarColor: AvatarColor;
 }
@@ -45,9 +31,6 @@ const toForm = (profile: Me): Form => ({
   fullName: profile.fullName,
   cpf: formatCpf(profile.cpf ?? ''),
   phone: formatPhone(profile.phone ?? ''),
-  cnhNumber: profile.cnh?.number ?? '',
-  cnhCategory: profile.cnh?.category ?? '',
-  cnhExpiresOn: profile.cnh?.expiresOn ?? '',
   avatar: profile.avatar ?? null,
   avatarColor: profile.avatarColor ?? colorFromSeed(profile.id)
 });
@@ -56,7 +39,7 @@ const listJoin = (items: string[]) =>
   items.length <= 1 ? items.join('') : `${items.slice(0, -1).join(', ')} e ${items[items.length - 1]}`;
 
 // Só o que mudou vai para o servidor; campo vazio que já era vazio não é cobrado
-function buildPatch(form: Form, initial: Form, isDriver: boolean): { patch: ProfilePatch; errors: Errors } {
+function buildPatch(form: Form, initial: Form): { patch: ProfilePatch; errors: Errors } {
   const patch: ProfilePatch = {};
   const errors: Errors = {};
 
@@ -72,15 +55,6 @@ function buildPatch(form: Form, initial: Form, isDriver: boolean): { patch: Prof
   if (form.phone !== initial.phone) {
     if (!isValidCellphone(form.phone)) errors.phone = 'Celular inválido. Use DDD + número, ex.: (15) 99999-9999.';
     else patch.phone = onlyDigits(form.phone);
-  }
-  const cnhChanged = form.cnhNumber !== initial.cnhNumber || form.cnhCategory !== initial.cnhCategory || form.cnhExpiresOn !== initial.cnhExpiresOn;
-  if (isDriver && cnhChanged) {
-    if (!isValidCnh(form.cnhNumber)) errors.cnhNumber = 'Número da CNH inválido. Confira os 11 dígitos.';
-    if (!form.cnhCategory) errors.cnhCategory = 'Escolha a categoria.';
-    if (!form.cnhExpiresOn) errors.cnhExpiresOn = 'Informe a validade.';
-    if (!errors.cnhNumber && !errors.cnhCategory && !errors.cnhExpiresOn) {
-      patch.cnh = { number: form.cnhNumber, category: form.cnhCategory, expiresOn: form.cnhExpiresOn };
-    }
   }
   if (form.avatar !== initial.avatar) patch.avatar = form.avatar;
   if (form.avatarColor !== initial.avatarColor) patch.avatarColor = form.avatarColor;
@@ -142,7 +116,7 @@ function PasswordForm({ onDone }: { onDone: () => void }) {
   );
 }
 
-// "Gerenciar sua conta": foto, dados pessoais, CNH, acesso e aparência
+// "Gerenciar sua conta": foto, dados pessoais, acesso e aparência
 export function AccountPage({ onClose }: { onClose: () => void }) {
   const { me, updateMe } = useAuth();
   const toast = useToast();
@@ -157,9 +131,8 @@ export function AccountPage({ onClose }: { onClose: () => void }) {
   const [showCpf, setShowCpf] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
 
-  const isDriver = me.role === UserRole.MOTORISTA;
 
-  // CPF e CNH não ficam no aparelho: busca o perfil completo ao abrir
+  // O CPF não fica no aparelho: busca o perfil completo ao abrir
   useEffect(() => {
     let cancelled = false;
     getMe()
@@ -190,7 +163,7 @@ export function AccountPage({ onClose }: { onClose: () => void }) {
 
   const save = async () => {
     if (!form || !initial) return;
-    const { patch, errors: found } = buildPatch(form, initial, isDriver);
+    const { patch, errors: found } = buildPatch(form, initial);
     setErrors(found);
     if (Object.values(found).some(Boolean)) return setSaveError('Confira os campos destacados.');
     if (Object.keys(patch).length === 0) return onClose();
@@ -208,7 +181,6 @@ export function AccountPage({ onClose }: { onClose: () => void }) {
   };
 
   const missing = profile?.missing ?? [];
-  const cnhExpired = isDriver && !!form?.cnhExpiresOn && isExpired(form.cnhExpiresOn);
 
   return (
     <div className={styles.backdrop} onMouseDown={event => event.target === event.currentTarget && requestClose()}>
@@ -320,33 +292,6 @@ export function AccountPage({ onClose }: { onClose: () => void }) {
                   />
                 </Field>
               </section>
-
-              {isDriver && (
-                <section className={styles.section} aria-labelledby="account-cnh">
-                  <h3 id="account-cnh">CNH</h3>
-                  {cnhExpired && <p className={styles.warning} role="status">Sua CNH está vencida. Renove antes de dirigir a viatura.</p>}
-                  <Field label="Número de registro" error={errors.cnhNumber} hint={missing.includes('cnh') ? 'Obrigatório para motoristas' : '11 dígitos, no verso ou na frente da CNH'}>
-                    <input
-                      inputMode="numeric"
-                      autoComplete="off"
-                      placeholder="00000000000"
-                      value={form.cnhNumber}
-                      onChange={e => set('cnhNumber', formatCnh(e.target.value))}
-                    />
-                  </Field>
-                  <div className={styles.row}>
-                    <Field label="Categoria" error={errors.cnhCategory}>
-                      <select value={form.cnhCategory} onChange={e => set('cnhCategory', e.target.value)}>
-                        <option value="">Escolha</option>
-                        {CNH_CATEGORIES.map(category => <option key={category} value={category}>{category}</option>)}
-                      </select>
-                    </Field>
-                    <Field label="Validade" error={errors.cnhExpiresOn}>
-                      <input type="date" value={form.cnhExpiresOn} onChange={e => set('cnhExpiresOn', e.target.value)} />
-                    </Field>
-                  </div>
-                </section>
-              )}
 
               <section className={styles.section} aria-labelledby="account-access">
                 <h3 id="account-access">Acesso</h3>
