@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CallPriority, CallStatus, EmergencyCall } from '../types';
-import { formatGender, sortCallsByPriority } from './calls';
+import { formatGender, formatWait, sortCallsByPriority, waitLevel } from './calls';
 
 const call = (id: string, priority: CallPriority, timestamp: string): EmergencyCall => ({
   id,
@@ -35,5 +35,31 @@ describe('fila de chamados', () => {
     expect(formatGender('F')).toBe('Feminino');
     expect(formatGender('OUTRO')).toBe('Outro');
     expect(formatGender(undefined)).toBeNull();
+  });
+});
+
+describe('cronômetro de espera', () => {
+  it('amarelo a partir de 2 min, vermelho a partir de 5 min', () => {
+    expect(waitLevel(119_000)).toBe('normal');
+    expect(waitLevel(120_000)).toBe('atencao');
+    expect(waitLevel(299_000)).toBe('atencao');
+    expect(waitLevel(300_000)).toBe('critico');
+  });
+
+  it('mm:ss, e h:mm:ss depois de 1 hora', () => {
+    expect(formatWait(0)).toBe('00:00');
+    expect(formatWait(247_900)).toBe('04:07');
+    expect(formatWait(3_729_000)).toBe('1:02:09');
+    expect(formatWait(-5000)).toBe('00:00');
+  });
+});
+
+describe('azul na fila', () => {
+  it('o azul (não urgente) vem depois do verde', () => {
+    const calls = [
+      call('azul', CallPriority.NAO_URGENTE, '2026-10-16T10:00:00Z'),
+      call('verde', CallPriority.PRIORITARIO, '2026-10-16T11:00:00Z')
+    ];
+    expect(sortCallsByPriority(calls).map(c => c.id)).toEqual(['verde', 'azul']);
   });
 });

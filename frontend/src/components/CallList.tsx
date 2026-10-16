@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { EmergencyCall, CallStatus, Ambulance } from '../types';
 import { getTimeAgo } from '../services/api';
-import { PRIORITY_META, sortCallsByPriority, formatGender } from '../utils/calls';
+import { PRIORITY_META, sortCallsByPriority, formatGender, formatWait, waitLevel } from '../utils/calls';
+import { useNow } from '../hooks/useNow';
+import { setCallAlertsEnabled, useCallAlertsEnabled } from '../hooks/useCallAlerts';
 import { PriorityLabel } from '../ui/PriorityLabel';
 import { signalsText } from '../utils/triage';
-import { AmbulanceIcon, CheckCircleIcon, LocationIcon, PersonIcon } from '../ui/icons';
+import { AmbulanceIcon, BellIcon, BellOffIcon, CheckCircleIcon, LocationIcon, PersonIcon, TimerIcon } from '../ui/icons';
 import styles from './CallList.module.css';
 
 interface CallListProps {
@@ -24,6 +26,9 @@ export default function CallList({ calls, ambulances, selectedCallId, onFocus, o
   const [finishingId, setFinishingId] = useState<string | null>(null);
 
   const pendingCalls = calls.filter(call => call.status === CallStatus.PENDENTE);
+  // Cronômetro de espera ao vivo, só enquanto há chamado pendente
+  const now = useNow(1000, pendingCalls.length > 0);
+  const alertsOn = useCallAlertsEnabled();
   const activeCalls = calls.filter(call => call.status === CallStatus.EM_ATENDIMENTO);
   // Pendentes (que exigem ação) sempre antes dos que já estão em atendimento
   const visibleCalls = [
@@ -49,18 +54,29 @@ export default function CallList({ calls, ambulances, selectedCallId, onFocus, o
 
   return (
     <div className={styles.container}>
-      <div className={styles.filters} role="tablist" aria-label="Filtrar chamados">
-        {filters.map(f => (
-          <button
-            key={f.key}
-            role="tab"
-            aria-selected={filter === f.key}
-            className={`${styles.chip} ${filter === f.key ? styles.chipActive : ''}`}
-            onClick={() => setFilter(f.key)}
-          >
-            {f.label} <span className={styles.chipCount}>{f.count}</span>
-          </button>
-        ))}
+      <div className={styles.toolbar}>
+        <div className={styles.filters} role="tablist" aria-label="Filtrar chamados">
+          {filters.map(f => (
+            <button
+              key={f.key}
+              role="tab"
+              aria-selected={filter === f.key}
+              className={`${styles.chip} ${filter === f.key ? styles.chipActive : ''}`}
+              onClick={() => setFilter(f.key)}
+            >
+              {f.label} <span className={styles.chipCount}>{f.count}</span>
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          className={`${styles.alerts} ${alertsOn ? styles.alertsOn : ''}`}
+          aria-pressed={alertsOn}
+          onClick={() => setCallAlertsEnabled(!alertsOn)}
+          title={alertsOn ? 'Som e notificação ligados para chamado novo e espera longa' : 'Som e notificação desligados'}
+        >
+          {alertsOn ? <BellIcon /> : <BellOffIcon />} Alertas
+        </button>
       </div>
 
       {visibleCalls.length === 0 ? (
@@ -96,7 +112,18 @@ export default function CallList({ calls, ambulances, selectedCallId, onFocus, o
               >
                 <header className={styles.cardHeader}>
                   <span className={styles.priority}><PriorityLabel priority={call.priority} /></span>
-                  <span className={styles.time}>{getTimeAgo(call.timestamp)}</span>
+                  {isActive ? (
+                    <span className={styles.time}>{getTimeAgo(call.timestamp)}</span>
+                  ) : (
+                    // Pendente: quanto tempo quem ligou está esperando (amarelo com 2 min, vermelho com 5)
+                    <span
+                      className={`${styles.wait} ${styles[`wait_${waitLevel(now - Date.parse(call.timestamp))}`]}`}
+                      title="Tempo de espera"
+                      aria-label={`Aguardando há ${formatWait(now - Date.parse(call.timestamp))}`}
+                    >
+                      <TimerIcon /> {formatWait(now - Date.parse(call.timestamp))}
+                    </span>
+                  )}
                 </header>
 
                 <p className={styles.address}><LocationIcon /> {call.address}</p>

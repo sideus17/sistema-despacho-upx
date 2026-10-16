@@ -1,4 +1,4 @@
-import { useState, useCallback, lazy, Suspense } from 'react';
+import { useState, useCallback, useRef, lazy, Suspense } from 'react';
 import CallList from './components/CallList';
 import DispatchAnalysis from './components/DispatchAnalysis';
 import Incidents from './components/Incidents';
@@ -7,6 +7,7 @@ import Fleet from './components/Fleet';
 import { useToast } from './components/Toast';
 import { useAuth } from './auth/AuthContext';
 import { usePolling } from './hooks/usePolling';
+import { useCallAlerts } from './hooks/useCallAlerts';
 import {
   Ambulance,
   EmergencyCall,
@@ -79,8 +80,12 @@ function App() {
     }
   }, []);
 
-  // Atualiza a cada 30s; se falhar (ex.: servidor acordando), tenta de novo em 10s
-  usePolling(loadData, 30000, 10000);
+  // Atualiza a cada 10 s, como o app da equipe: chamado novo aparece (e alerta) logo; se falhar, tenta de novo em 10 s
+  usePolling(loadData, 10000, 10000);
+
+  // Chamados abertos nesta tela não disparam o alerta de "novo chamado"
+  const ownCallIds = useRef(new Set<string>());
+  useCallAlerts(calls, ownCallIds, toast);
 
   // Seleciona o chamado no mapa sem abrir a análise
   const handleFocusCall = (call: EmergencyCall) => {
@@ -110,6 +115,7 @@ function App() {
   };
 
   const handleCallCreated = (call: EmergencyCall) => {
+    ownCallIds.current.add(call.id);
     loadData();
     handleAnalyze(call);
   };

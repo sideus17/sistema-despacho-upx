@@ -29,3 +29,24 @@ export function formatGender(gender?: string): string | null {
   if (gender) return 'Outro';
   return null;
 }
+
+// Espera de um chamado pendente: amarelo a partir de 2 min, vermelho a partir de 5 min
+export const WAIT_WARNING_MS = 2 * 60_000;
+export const WAIT_CRITICAL_MS = 5 * 60_000;
+export type WaitLevel = 'normal' | 'atencao' | 'critico';
+
+export function waitLevel(ms: number): WaitLevel {
+  if (ms >= WAIT_CRITICAL_MS) return 'critico';
+  if (ms >= WAIT_WARNING_MS) return 'atencao';
+  return 'normal';
+}
+
+// "04:07"; passando de 1 h, "1:02:09"
+export function formatWait(ms: number): string {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const seconds = total % 60;
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return hours > 0 ? `${hours}:${pad(minutes)}:${pad(seconds)}` : `${pad(minutes)}:${pad(seconds)}`;
+}
