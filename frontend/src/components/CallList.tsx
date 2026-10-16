@@ -1,7 +1,19 @@
 import { useState } from 'react';
-import { EmergencyCall, CallStatus, Ambulance, CallOutcome } from '../types';
-import { getTimeAgo } from '../services/api';
-import { PRIORITY_META, sortCallsByPriority, formatGender, formatWait, needsOutcome, waitLevel } from '../utils/calls';
+import { EmergencyCall, CallStatus, Ambulance, CallOutcome, Hospital } from '../types';
+import {
+  PRIORITY_META,
+  STAGE_META,
+  callStage,
+  elapsedLabel,
+  formatClock,
+  formatGender,
+  formatWait,
+  needsOutcome,
+  sortCallsByPriority,
+  timeline,
+  waitLevel
+} from '../utils/calls';
+import { formatKm, hospitalsByDistance } from '../utils/hospitals';
 import { useNow } from '../hooks/useNow';
 import { setCallAlertsEnabled, useCallAlertsEnabled } from '../hooks/useCallAlerts';
 import { PriorityLabel } from '../ui/PriorityLabel';
@@ -18,18 +30,29 @@ interface CallListProps {
   onFocus: (call: EmergencyCall) => void;
   onDispatch: (call: EmergencyCall) => void;
   onFinish: (call: EmergencyCall, outcome?: CallOutcome) => Promise<void>;
+  hospitals?: Hospital[];
+  onHospitalChange?: (call: EmergencyCall, hospitalId: string | null) => void;
 }
 
 type Filter = 'all' | 'pending' | 'active';
 
-export default function CallList({ calls, ambulances, selectedCallId, onFocus, onDispatch, onFinish }: CallListProps) {
+export default function CallList({
+  calls,
+  ambulances,
+  selectedCallId,
+  onFocus,
+  onDispatch,
+  onFinish,
+  hospitals = [],
+  onHospitalChange
+}: CallListProps) {
   const [filter, setFilter] = useState<Filter>('all');
   const [confirmingFinishId, setConfirmingFinishId] = useState<string | null>(null);
   const [finishingId, setFinishingId] = useState<string | null>(null);
 
   const pendingCalls = calls.filter(call => call.status === CallStatus.PENDENTE);
-  // Cronômetro de espera ao vivo, só enquanto há chamado pendente
-  const now = useNow(1000, pendingCalls.length > 0);
+  // Cronômetro de espera e tempo na etapa, ao vivo, só enquanto há chamado na lista
+  const now = useNow(1000, calls.length > 0);
   const alertsOn = useCallAlertsEnabled();
   const activeCalls = calls.filter(call => call.status === CallStatus.EM_ATENDIMENTO);
   // Pendentes (que exigem ação) sempre antes dos que já estão em atendimento
@@ -91,6 +114,9 @@ export default function CallList({ calls, ambulances, selectedCallId, onFocus, o
             const assignedAmbulance = isActive ? ambulances.find(a => a.id === call.ambulance_id) : undefined;
             const gender = formatGender(call.patientInfo.gender);
             const isConfirming = confirmingFinishId === call.id;
+            const stage = isActive ? callStage(call) : null;
+            const stageMeta = stage ? STAGE_META[stage.stage] : null;
+            const hospital = hospitals.find(item => item.id === call.hospitalId);
 
             return (
               <article
@@ -114,8 +140,11 @@ export default function CallList({ calls, ambulances, selectedCallId, onFocus, o
               >
                 <header className={styles.cardHeader}>
                   <span className={styles.priority}><PriorityLabel priority={call.priority} /></span>
-                  {isActive ? (
-                    <span className={styles.time}>{getTimeAgo(call.timestamp)}</span>
+                  {stage && stageMeta ? (
+                    // Em atendimento: etapa marcada pelo GPS da viatura e há quanto tempo
+                    <span className={`${styles.stage} ${styles[`stage_${stageMeta.tint}`]}`}>
+                      {stageMeta.label}{stage.stage === 'TRANSPORTANDO' && hospital ? ` → ${hospital.shortName}` : ''} · {elapsedLabel(stage.since, now)}
+                    </span>
                   ) : (
                     // Pendente: quanto tempo quem ligou está esperando (amarelo com 2 min, vermelho com 5)
                     <span
@@ -138,6 +167,33 @@ export default function CallList({ calls, ambulances, selectedCallId, onFocus, o
                     {call.patientInfo.age && <span><PersonIcon /> {call.patientInfo.age} anos</span>}
                     {gender && <span>{gender}</span>}
                     {call.callerPhone && <span title="Telefone de quem ligou"><CallIcon /> {formatPhone(call.callerPhone)}</span>}
+                  </div>
+                )}
+
+                {isActive && (
+                  <div className={styles.progress} onClick={(e) => e.stopPropagation()}>
+                    {timeline(call).length > 0 && (
+                      <p className={styles.timeline}>{timeline(call).map(step => `${step.label} ${step.time}`).join(' · ')}</p>
+                    )}
+                    {call.times?.atHospital ? (
+                      <p className={styles.hospitalDone}>
+                        Hospital: <strong>{hospital?.shortName ?? 'registrado'}</strong> (chegou às {formatClock(call.times.atHospital)})
+                      </p>
+                    ) : (
+                      <label className={styles.hospitalPick}>
+                        <span>Hospital de destino</span>
+                        <select
+                          value={call.hospitalId ?? ''}
+                          disabled={!onHospitalChange || hospitals.length === 0}
+                          onChange={(e) => onHospitalChange?.(call, e.target.value || null)}
+                        >
+                          <option value="">{hospitals.length === 0 ? 'Carregando…' : 'Sem escolha (a equipe decide)'}</option>
+                          {hospitalsByDistance(hospitals, call.location).map(({ hospital: option, meters }) => (
+                            <option key={option.id} value={option.id}>{option.shortName} · {formatKm(meters)}</option>
+                          ))}
+                        </select>
+                      </label>
+                    )}
                   </div>
                 )}
 

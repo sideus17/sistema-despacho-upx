@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import { Ambulance, CallOutcome, CallPriority, CallStatus, EmergencyCall } from '../types';
+import { Ambulance, CallOutcome, CallPriority, CallStatus, EmergencyCall, Hospital } from '../types';
 import CallList from './CallList';
 
 const active = (overrides: Partial<EmergencyCall> = {}): EmergencyCall => ({
@@ -53,5 +53,76 @@ describe('finalizar atendimento na central', () => {
     await user.click(screen.getByRole('button', { name: 'Cancelar' }));
     expect(screen.getByRole('button', { name: 'Finalizar atendimento' })).toBeInTheDocument();
     expect(onFinish).not.toHaveBeenCalled();
+  });
+});
+
+describe('atendimento na central', () => {
+  const HOSPITALS: Hospital[] = [
+    { id: 'hosp-longe', name: 'Hospital Longe', shortName: 'Longe', kind: 'HOSPITAL', address: '', location: { lat: -23.6, lng: -47.45 } },
+    { id: 'hosp-perto', name: 'Hospital Perto', shortName: 'Perto', kind: 'HOSPITAL', address: '', location: { lat: -23.51, lng: -47.45 } }
+  ];
+
+  it('mostra a etapa marcada pelo GPS e os horários', () => {
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60_000).toISOString();
+    render(
+      <CallList
+        calls={[active({ times: { dispatched: tenMinutesAgo, onScene: tenMinutesAgo } })]}
+        ambulances={AMBULANCES}
+        onFocus={vi.fn()}
+        onDispatch={vi.fn()}
+        onFinish={vi.fn()}
+      />
+    );
+    expect(screen.getByText('No local · há 10 min')).toBeInTheDocument();
+    expect(screen.getByText(/^Despacho \d{2}:\d{2} · Local \d{2}:\d{2}$/)).toBeInTheDocument();
+  });
+
+  it('hospital de destino: lista do mais perto ao mais longe; escolher avisa o App', async () => {
+    const user = userEvent.setup();
+    const onHospitalChange = vi.fn();
+    render(
+      <CallList
+        calls={[active()]}
+        ambulances={AMBULANCES}
+        onFocus={vi.fn()}
+        onDispatch={vi.fn()}
+        onFinish={vi.fn()}
+        hospitals={HOSPITALS}
+        onHospitalChange={onHospitalChange}
+      />
+    );
+    const select = screen.getByRole('combobox', { name: 'Hospital de destino' });
+    expect([...select.querySelectorAll('option')].map(option => option.textContent)).toEqual([
+      'Sem escolha (a equipe decide)', 'Perto · 1,1 km', 'Longe · 11,1 km'
+    ]);
+    await user.selectOptions(select, 'hosp-perto');
+    expect(onHospitalChange).toHaveBeenCalledWith(expect.objectContaining({ id: 'call-1' }), 'hosp-perto');
+  });
+
+  it('transportando mostra o destino; depois da chegada, o hospital fica fixo', () => {
+    const { rerender } = render(
+      <CallList
+        calls={[active({ times: { leftScene: new Date().toISOString() }, hospitalId: 'hosp-perto' })]}
+        ambulances={AMBULANCES}
+        onFocus={vi.fn()}
+        onDispatch={vi.fn()}
+        onFinish={vi.fn()}
+        hospitals={HOSPITALS}
+      />
+    );
+    expect(screen.getByText(/^Transportando → Perto/)).toBeInTheDocument();
+
+    rerender(
+      <CallList
+        calls={[active({ times: { atHospital: '2026-10-16T10:40:00Z' }, hospitalId: 'hosp-perto' })]}
+        ambulances={AMBULANCES}
+        onFocus={vi.fn()}
+        onDispatch={vi.fn()}
+        onFinish={vi.fn()}
+        hospitals={HOSPITALS}
+      />
+    );
+    expect(screen.queryByRole('combobox', { name: 'Hospital de destino' })).not.toBeInTheDocument();
+    expect(screen.getByText(/chegou às/)).toHaveTextContent('Hospital: Perto');
   });
 });

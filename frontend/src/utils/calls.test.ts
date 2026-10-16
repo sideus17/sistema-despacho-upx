@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CallPriority, CallStatus, EmergencyCall } from '../types';
-import { formatGender, formatWait, sortCallsByPriority, waitLevel } from './calls';
+import { callStage, elapsedLabel, formatGender, formatWait, sortCallsByPriority, timeline, waitLevel } from './calls';
 
 const call = (id: string, priority: CallPriority, timestamp: string): EmergencyCall => ({
   id,
@@ -61,5 +61,42 @@ describe('azul na fila', () => {
       call('verde', CallPriority.PRIORITARIO, '2026-10-16T11:00:00Z')
     ];
     expect(sortCallsByPriority(calls).map(c => c.id)).toEqual(['verde', 'azul']);
+  });
+});
+
+describe('etapas do atendimento', () => {
+  const active = (times: EmergencyCall['times'], hospitalId?: string): EmergencyCall => ({
+    ...call('a', CallPriority.URGENTE, '2026-10-16T09:58:00Z'),
+    status: CallStatus.EM_ATENDIMENTO,
+    times,
+    hospitalId
+  });
+
+  it('a etapa é a do último horário marcado; saiu do local com hospital é transporte', () => {
+    expect(callStage(active({ dispatched: '2026-10-16T10:00:00Z' }))).toEqual({ stage: 'DESPACHADA', since: '2026-10-16T10:00:00Z' });
+    expect(callStage(active({ dispatched: '2026-10-16T10:00:00Z', enRoute: '2026-10-16T10:01:00Z' }))?.stage).toBe('A_CAMINHO');
+    expect(callStage(active({ onScene: '2026-10-16T10:09:00Z', enRoute: '2026-10-16T10:01:00Z' }))?.stage).toBe('NO_LOCAL');
+    expect(callStage(active({ leftScene: '2026-10-16T10:25:00Z' }))?.stage).toBe('SAIU_DO_LOCAL');
+    expect(callStage(active({ leftScene: '2026-10-16T10:25:00Z' }, 'hosp-chs'))?.stage).toBe('TRANSPORTANDO');
+    expect(callStage(active({ leftScene: '2026-10-16T10:25:00Z', atHospital: '2026-10-16T10:40:00Z' }))?.stage).toBe('NO_HOSPITAL');
+  });
+
+  it('despachado antes dos horários existirem conta da abertura; pendente não tem etapa', () => {
+    expect(callStage(active(undefined))).toEqual({ stage: 'DESPACHADA', since: '2026-10-16T09:58:00Z' });
+    expect(callStage(call('p', CallPriority.URGENTE, '2026-10-16T09:58:00Z'))).toBeNull();
+  });
+
+  it('linha do tempo só com o que aconteceu, na ordem', () => {
+    const steps = timeline(active({ onScene: '2026-10-16T13:11:00Z', dispatched: '2026-10-16T13:02:00Z' }));
+    expect(steps.map(step => step.label)).toEqual(['Despacho', 'Local']);
+    expect(steps[0].time).toMatch(/^\d{2}:\d{2}$/);
+  });
+
+  it('tempo na etapa', () => {
+    const since = '2026-10-16T10:00:00Z';
+    const at = (minutes: number) => Date.parse(since) + minutes * 60_000;
+    expect(elapsedLabel(since, at(0.5))).toBe('agora');
+    expect(elapsedLabel(since, at(12))).toBe('há 12 min');
+    expect(elapsedLabel(since, at(75))).toBe('há 1 h 15 min');
   });
 });

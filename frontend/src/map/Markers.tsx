@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import { AmbulanceStatus, CallPriority, IncidentEffect, IncidentType } from '../types';
+import { AmbulanceStatus, CallPriority, Hospital, IncidentEffect, IncidentType } from '../types';
 import { PRIORITY_META } from '../utils/calls';
 import { AmbulanceMarkerIcon, EmergencyIcon, HospitalIcon } from '../ui/icons';
 import { IncidentIcon } from '../ui/IncidentIcon';
@@ -57,6 +57,15 @@ export function BaseMarker() {
   return (
     <div className={styles.base}>
       <HospitalIcon />
+    </div>
+  );
+}
+
+// Hospital: "H" branco no quadrado azul, como a placa (a base usa o prédio com a cruz)
+export function HospitalMarker({ kind }: { kind?: Hospital['kind'] }) {
+  return (
+    <div className={`${styles.hospital} ${kind === 'PRONTO_SOCORRO' ? styles.hospitalSmall : ''}`} aria-hidden="true">
+      H
     </div>
   );
 }

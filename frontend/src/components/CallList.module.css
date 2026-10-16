@@ -108,11 +108,13 @@
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
 }
 
+/* A etapa longa ("Transportando → Santa Casa · há 3 min") desce para a linha de baixo */
 .cardHeader {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
-  gap: 8px;
+  gap: 6px 8px;
   margin-bottom: 8px;
 }
 
@@ -122,12 +124,6 @@
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.02em;
-}
-
-.time {
-  color: var(--color-text-muted);
-  font-size: 12px;
-  white-space: nowrap;
 }
 
 .address {
@@ -292,4 +288,61 @@
   border: 1px solid var(--tint-red-border);
   background: var(--tint-red-bg-strong);
   color: var(--tint-red-text);
+}
+
+/* Etapa do atendimento (marcada pelo GPS da viatura) */
+.stage {
+  padding: 2px 8px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.stage_blue { border-color: var(--tint-blue-border); background: var(--tint-blue-bg); color: var(--tint-blue-text); }
+.stage_sky { border-color: var(--tint-sky-border); background: var(--tint-sky-bg); color: var(--tint-sky-text); }
+.stage_orange { border-color: var(--tint-orange-border); background: var(--tint-orange-bg); color: var(--tint-orange-text); }
+.stage_violet { border-color: var(--tint-violet-border); background: var(--tint-violet-bg); color: var(--tint-violet-text); }
+.stage_green { border-color: var(--tint-green-border); background: var(--tint-green-bg); color: var(--tint-green-text); }
+
+.progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+  cursor: default;
+}
+
+.timeline {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.4;
+}
+
+.hospitalDone {
+  color: var(--color-text-soft);
+  font-size: 13px;
+}
+
+.hospitalPick {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--color-text-soft);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.hospitalPick select {
+  min-height: 36px;
+  padding: 0 8px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 8px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
 }

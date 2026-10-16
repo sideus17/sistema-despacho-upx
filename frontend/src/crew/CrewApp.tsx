@@ -19,6 +19,7 @@ import { usePolling } from '../hooks/usePolling';
 import { useToast } from '../components/Toast';
 import { PRIORITY_META, formatGender, needsOutcome } from '../utils/calls';
 import { OutcomeChoice } from '../ui/OutcomeChoice';
+import { AMBULANCE_STATUS_LABEL } from '../utils/ambulances';
 import { fastestIndex, routeOptions, routeVia, trafficNote } from '../utils/routes';
 import { PriorityLabel } from '../ui/PriorityLabel';
 import { signalsText } from '../utils/triage';
@@ -109,14 +110,8 @@ const TYPE_FILTERS: Array<{ value: AmbulanceType | 'ALL'; label: string }> = [
   { value: AmbulanceType.MOTOLANCIA, label: 'Motolância' }
 ];
 
-const STATUS_LABEL: Record<AmbulanceStatus, string> = {
-  [AmbulanceStatus.DISPONIVEL]: 'Disponível',
-  [AmbulanceStatus.EM_ATENDIMENTO]: 'Em atendimento',
-  [AmbulanceStatus.INDISPONIVEL]: 'Indisponível'
-};
-
 function StatusPill({ status }: { status: AmbulanceStatus }) {
-  return <span className={`${styles.pill} ${styles[`pill_${status}`]}`}>{STATUS_LABEL[status] ?? status}</span>;
+  return <span className={`${styles.pill} ${styles[`pill_${status}`]}`}>{AMBULANCE_STATUS_LABEL[status] ?? status}</span>;
 }
 
 export default function CrewApp() {
@@ -607,7 +602,7 @@ export default function CrewApp() {
           </>
         ) : (
           <>
-            <p className={styles.idleTitle}>{STATUS_LABEL[ambulance.status]}</p>
+            <p className={styles.idleTitle}>{AMBULANCE_STATUS_LABEL[ambulance.status]}</p>
             <p className={styles.muted}>A central não vai despachar esta viatura enquanto ela estiver fora de serviço.</p>
           </>
         )}

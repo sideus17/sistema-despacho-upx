@@ -16,7 +16,8 @@ import {
   DispatchRecommendation,
   Stats,
   Coordinates,
-  CallOutcome
+  CallOutcome,
+  Hospital
 } from './types';
 import {
   getAmbulances,
@@ -28,7 +29,9 @@ import {
   finishDispatch,
   calculateRoute,
   getStats,
-  getErrorMessage
+  getErrorMessage,
+  getHospitals,
+  setCallHospital
 } from './services/api';
 import { AddIcon, AmbulanceIcon, AnalyticsIcon, CallIcon, WarningIcon } from './ui/icons';
 import { AccountMenu } from './components/AccountMenu';
@@ -45,6 +48,9 @@ function App() {
   const [ambulances, setAmbulances] = useState<Ambulance[]>([]);
   const [calls, setCalls] = useState<EmergencyCall[]>([]);
   const [bases, setBases] = useState<Base[]>([]);
+  const [hospitals, setHospitals] = useState<Hospital[]>([]);
+  // Hospitais quase não mudam: carregam uma vez (de novo só se a tentativa falhou)
+  const hospitalsLoaded = useRef(false);
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [focusIncident, setFocusIncident] = useState<{ id: string; at: number } | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
@@ -71,6 +77,10 @@ function App() {
       setAmbulances(ambData);
       setCalls(callData);
       setBases(baseData);
+      if (!hospitalsLoaded.current) {
+        hospitalsLoaded.current = true;
+        getHospitals().then(setHospitals).catch(() => { hospitalsLoaded.current = false; });
+      }
       setIncidents(incidentData);
       setStats(statsData);
       setConnection('online');
@@ -191,6 +201,18 @@ function App() {
     await loadData();
   };
 
+  // Hospital de destino (a equipe vê na hora e pode trocar)
+  const handleHospitalChange = async (call: EmergencyCall, hospitalId: string | null) => {
+    const hospital = hospitals.find(item => item.id === hospitalId);
+    try {
+      await setCallHospital(call.id, hospitalId);
+      toast(hospital ? `Destino: ${hospital.shortName}` : 'Destino retirado: a equipe decide', 'success');
+    } catch (error) {
+      toast(getErrorMessage(error, 'Não foi possível escolher o hospital.'), 'error');
+    }
+    await loadData();
+  };
+
   const handleFinish = async (call: EmergencyCall, outcome?: CallOutcome) => {
     try {
       await finishDispatch(call.id, outcome);
@@ -237,6 +259,7 @@ function App() {
               ambulances={ambulances}
               calls={calls}
               bases={bases}
+              hospitals={hospitals}
               incidents={incidents}
               selectedCall={selectedCall}
               routeGeometry={recommendation?.recommendations[selectedRouteIndex]?.route?.geometry}
@@ -319,6 +342,8 @@ function App() {
                 onFocus={handleFocusCall}
                 onDispatch={handleAnalyze}
                 onFinish={handleFinish}
+                hospitals={hospitals}
+                onHospitalChange={handleHospitalChange}
               />
             )}
 

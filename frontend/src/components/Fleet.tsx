@@ -4,13 +4,8 @@ import { AmbulanceTypeIcon } from '../ui/AmbulanceTypeIcon';
 import { CallIcon, LocationIcon } from '../ui/icons';
 import { Avatar } from '../ui/Avatar';
 import { formatPhone } from '../utils/documents';
+import { AMBULANCE_STATUS_LABEL } from '../utils/ambulances';
 import styles from './Fleet.module.css';
-
-const STATUS_LABEL: Record<AmbulanceStatus, string> = {
-  [AmbulanceStatus.DISPONIVEL]: 'Disponível',
-  [AmbulanceStatus.EM_ATENDIMENTO]: 'Em atendimento',
-  [AmbulanceStatus.INDISPONIVEL]: 'Indisponível'
-};
 
 // Em turno primeiro (disponíveis no topo); sem motorista por último
 function fleetOrder(a: Ambulance): number {
@@ -38,7 +33,7 @@ export default function Fleet({ ambulances }: { ambulances: Ambulance[] }) {
               <div className={styles.header}>
                 <span className={styles.code}><AmbulanceTypeIcon type={ambulance.type} /> {ambulance.code} <small>{ambulance.type}</small></span>
                 <span className={`${styles.pill} ${styles[`pill_${status}`]}`}>
-                  {ambulance.driver ? STATUS_LABEL[ambulance.status] : 'Fora de serviço'}
+                  {ambulance.driver ? AMBULANCE_STATUS_LABEL[ambulance.status] : 'Fora de serviço'}
                 </span>
               </div>
               {ambulance.driver ? (
