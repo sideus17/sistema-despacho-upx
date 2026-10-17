@@ -1,0 +1,106 @@
+import { CSSProperties, ReactNode } from 'react';
+import { CallPriority } from '../types';
+import { PRIORITIES_BY_SEVERITY, PRIORITY_META } from '../utils/calls';
+import { TRIAGE_SIGNALS } from '../utils/triage';
+import styles from './RiskClassification.module.css';
+
+interface RiskClassificationProps {
+  signals: string[];
+  // Sem ela, os sinais só aparecem (a regulação vê o que foi marcado no registro)
+  onToggleSignal?: (code: string) => void;
+  value: CallPriority | null;
+  onChange: (priority: CallPriority) => void;
+  suggested: CallPriority | null;
+  legend?: string;
+  footnote?: ReactNode;
+}
+
+// Sinais agrupados pela cor que sugerem (o azul não tem sinal: é escolha de quem classifica)
+const SIGNAL_GROUPS = PRIORITIES_BY_SEVERITY
+  .map(priority => ({ priority, signals: TRIAGE_SIGNALS.filter(signal => signal.priority === priority) }))
+  .filter(group => group.signals.length > 0);
+
+const riskStyle = (priority: CallPriority) =>
+  ({ '--risk-color': PRIORITY_META[priority].color, '--risk-on-color': PRIORITY_META[priority].onColor }) as CSSProperties;
+
+// Classificação de risco em 4 cores: sinais de alerta, a cor que eles sugerem e a escolhida
+export default function RiskClassification({
+  signals,
+  onToggleSignal,
+  value,
+  onChange,
+  suggested,
+  legend = 'Classificação de risco',
+  footnote
+}: RiskClassificationProps) {
+  const milder = !!(value && suggested && PRIORITY_META[value].order > PRIORITY_META[suggested].order);
+  const editable = !!onToggleSignal;
+  const groups = editable
+    ? SIGNAL_GROUPS
+    : SIGNAL_GROUPS.map(group => ({ ...group, signals: group.signals.filter(signal => signals.includes(signal.code)) })).filter(
+        group => group.signals.length > 0
+      );
+
+  return (
+    <fieldset className={styles.triage}>
+      <legend className={styles.label}>{legend}</legend>
+      {editable ? (
+        <p className={styles.hint}>Marque os sinais de alerta que quem ligou relatar.</p>
+      ) : groups.length === 0 ? (
+        <p className={styles.hint}>Nenhum sinal de alerta marcado no registro.</p>
+      ) : (
+        <p className={styles.hint}>Sinais de alerta marcados no registro:</p>
+      )}
+
+      {groups.map(group => (
+        <div key={group.priority} className={styles.signalGroup} style={riskStyle(group.priority)}>
+          <span className={styles.groupName}>{PRIORITY_META[group.priority].name}</span>
+          <div className={styles.chips}>
+            {group.signals.map(signal =>
+              editable ? (
+                <button
+                  key={signal.code}
+                  type="button"
+                  className={styles.chip}
+                  aria-pressed={signals.includes(signal.code)}
+                  onClick={() => onToggleSignal(signal.code)}
+                >
+                  {signal.label}
+                </button>
+              ) : (
+                <span key={signal.code} className={`${styles.chip} ${styles.chipMarked}`}>{signal.label}</span>
+              )
+            )}
+          </div>
+        </div>
+      ))}
+
+      <p className={styles.suggestion} role="status">
+        {suggested ? <>Sugerida pelos sinais: <strong>{PRIORITY_META[suggested].name}</strong></> : 'Sem sinais marcados: escolha a cor.'}
+      </p>
+
+      <div className={styles.colors} role="radiogroup" aria-label={legend}>
+        {PRIORITIES_BY_SEVERITY.map(option => {
+          const meta = PRIORITY_META[option];
+          return (
+            <button
+              key={option}
+              type="button"
+              role="radio"
+              aria-checked={value === option}
+              className={styles.color}
+              style={riskStyle(option)}
+              onClick={() => onChange(option)}
+            >
+              <strong>{meta.name}</strong>
+              <span>{meta.label}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {milder && <p className={styles.warning}>A cor escolhida é menos grave que a sugerida pelos sinais.</p>}
+      {footnote && <small className={styles.hint}>{footnote}</small>}
+    </fieldset>
+  );
+}

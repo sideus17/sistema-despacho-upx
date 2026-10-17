@@ -18,7 +18,7 @@ beforeEach(() => {
   vi.mocked(signUp).mockReset();
 });
 
-async function fillCommon(user: ReturnType<typeof userEvent.setup>, role: 'Motorista' | 'Operador') {
+async function fillCommon(user: ReturnType<typeof userEvent.setup>, role: 'Motorista' | 'Atendente') {
   await user.click(screen.getByText(role));
   await user.type(screen.getByLabelText('Nome completo'), 'Lucas Martins');
   await user.type(screen.getByLabelText('CPF'), '52998224725');
@@ -29,7 +29,7 @@ async function fillCommon(user: ReturnType<typeof userEvent.setup>, role: 'Motor
 }
 
 describe('cadastro', () => {
-  it('código da central só para operador; motorista não informa CNH', async () => {
+  it('código da central só para atendente; motorista não informa CNH', async () => {
     const user = userEvent.setup();
     render(<SignupScreen onLogin={vi.fn()} />);
 
@@ -37,7 +37,7 @@ describe('cadastro', () => {
     expect(screen.queryByLabelText(/^Código da central/)).not.toBeInTheDocument();
     expect(screen.queryByText(/CNH/)).not.toBeInTheDocument();
 
-    await user.click(screen.getByText('Operador'));
+    await user.click(screen.getByText('Atendente'));
     expect(screen.getByLabelText(/^Código da central/)).toBeInTheDocument();
   });
 
@@ -72,7 +72,7 @@ describe('cadastro', () => {
     vi.mocked(signUp).mockRejectedValueOnce({ response: { data: { error: 'Este CPF já está cadastrado em outra conta.' } } });
     const user = userEvent.setup();
     render(<SignupScreen onLogin={vi.fn()} />);
-    await fillCommon(user, 'Operador');
+    await fillCommon(user, 'Atendente');
     await user.type(screen.getByLabelText(/^Código da central/), 'CENTRAL');
     await user.click(screen.getByRole('button', { name: 'Criar conta' }));
 

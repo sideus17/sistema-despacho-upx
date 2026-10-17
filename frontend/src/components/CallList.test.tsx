@@ -21,7 +21,7 @@ const AMBULANCES = [{ id: 'amb-1', code: 'USA-01' } as Ambulance];
 
 function renderList(call: EmergencyCall) {
   const onFinish = vi.fn(async () => {});
-  render(<CallList calls={[call]} ambulances={AMBULANCES} onFocus={vi.fn()} onDispatch={vi.fn()} onFinish={onFinish} />);
+  render(<CallList calls={[call]} ambulances={AMBULANCES} onFocus={vi.fn()} onRegulate={vi.fn()} onDispatch={vi.fn()} onFinish={onFinish} />);
   return onFinish;
 }
 
@@ -69,6 +69,7 @@ describe('atendimento na central', () => {
         calls={[active({ times: { dispatched: tenMinutesAgo, onScene: tenMinutesAgo } })]}
         ambulances={AMBULANCES}
         onFocus={vi.fn()}
+        onRegulate={vi.fn()}
         onDispatch={vi.fn()}
         onFinish={vi.fn()}
       />
@@ -85,6 +86,7 @@ describe('atendimento na central', () => {
         calls={[active()]}
         ambulances={AMBULANCES}
         onFocus={vi.fn()}
+        onRegulate={vi.fn()}
         onDispatch={vi.fn()}
         onFinish={vi.fn()}
         hospitals={HOSPITALS}
@@ -105,6 +107,7 @@ describe('atendimento na central', () => {
         calls={[active({ times: { leftScene: new Date().toISOString() }, hospitalId: 'hosp-perto' })]}
         ambulances={AMBULANCES}
         onFocus={vi.fn()}
+        onRegulate={vi.fn()}
         onDispatch={vi.fn()}
         onFinish={vi.fn()}
         hospitals={HOSPITALS}
@@ -117,6 +120,7 @@ describe('atendimento na central', () => {
         calls={[active({ times: { atHospital: '2026-10-16T10:40:00Z' }, hospitalId: 'hosp-perto' })]}
         ambulances={AMBULANCES}
         onFocus={vi.fn()}
+        onRegulate={vi.fn()}
         onDispatch={vi.fn()}
         onFinish={vi.fn()}
         hospitals={HOSPITALS}
@@ -124,5 +128,64 @@ describe('atendimento na central', () => {
     );
     expect(screen.queryByRole('combobox', { name: 'Hospital de destino' })).not.toBeInTheDocument();
     expect(screen.getByText(/chegou às/)).toHaveTextContent('Hospital: Perto');
+  });
+});
+
+describe('filas da central', () => {
+  const opened = (id: string, minutesAgo: number, overrides: Partial<EmergencyCall> = {}) =>
+    active({
+      id,
+      status: CallStatus.AGUARDANDO_REGULACAO,
+      ambulance_id: undefined,
+      address: `Rua ${id}, 1`,
+      timestamp: new Date(Date.now() - minutesAgo * 60_000).toISOString(),
+      ...overrides
+    });
+
+  function renderQueues(calls: EmergencyCall[]) {
+    const onRegulate = vi.fn();
+    const onDispatch = vi.fn();
+    render(<CallList calls={calls} ambulances={AMBULANCES} onFocus={vi.fn()} onRegulate={onRegulate} onDispatch={onDispatch} onFinish={vi.fn()} />);
+    return { onRegulate, onDispatch };
+  }
+
+  it('"Todos" separa regulação, despacho e em atendimento, nessa ordem', () => {
+    renderQueues([active({ id: 'ativo' }), opened('despacho', 6, { status: CallStatus.PENDENTE }), opened('novo', 1)]);
+    const titles = screen.getAllByRole('heading', { level: 3 }).map(heading => heading.textContent);
+    expect(titles).toEqual(['Aguardando regulação 1', 'Aguardando despacho 1', 'Em atendimento 1']);
+    expect(screen.getByRole('tab', { name: 'Regulação 1' })).toBeInTheDocument();
+  });
+
+  it('chamado novo tem cor sugerida e botão Regular; o regulado, Despachar e Reclassificar', async () => {
+    const user = userEvent.setup();
+    const { onRegulate, onDispatch } = renderQueues([
+      opened('novo', 1),
+      opened('regulado', 6, { status: CallStatus.PENDENTE, times: { regulated: new Date().toISOString() } })
+    ]);
+    expect(screen.getByText('sugerida')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Regular' }));
+    expect(onRegulate).toHaveBeenCalledWith(expect.objectContaining({ id: 'novo' }));
+    await user.click(screen.getByRole('button', { name: 'Despachar' }));
+    expect(onDispatch).toHaveBeenCalledWith(expect.objectContaining({ id: 'regulado' }));
+    await user.click(screen.getByRole('button', { name: 'Reclassificar' }));
+    expect(onRegulate).toHaveBeenCalledWith(expect.objectContaining({ id: 'regulado' }));
+  });
+
+  it('cronômetro de cada fila: regulação desde a abertura, despacho desde a regulação', () => {
+    renderQueues([
+      opened('novo', 2),
+      opened('regulado', 30, { status: CallStatus.PENDENTE, times: { regulated: new Date(Date.now() - 60_000).toISOString() } })
+    ]);
+    // Regulação: 2 min já é amarelo; despacho: 1 min desde a regulação (não os 30 desde a abertura)
+    expect(screen.getByLabelText(/^Aguardando regulação há 02:0\d$/)).toHaveClass(/wait_atencao/);
+    expect(screen.getByLabelText(/^Aguardando despacho há 01:0\d$/)).toHaveClass(/wait_normal/);
+  });
+
+  it('filtro sem chamados avisa', async () => {
+    const user = userEvent.setup();
+    renderQueues([opened('novo', 1)]);
+    await user.click(screen.getByRole('tab', { name: 'Despacho 0' }));
+    expect(screen.getByText('Nenhum chamado aguardando despacho')).toBeInTheDocument();
   });
 });

@@ -30,7 +30,7 @@ export const TRIAGE_SIGNALS: TriageSignal[] = [
 
 const BY_CODE = new Map(TRIAGE_SIGNALS.map(signal => [signal.code, signal]));
 
-// A cor mais grave entre os sinais marcados; sem sinal, nenhuma (o operador escolhe)
+// A cor mais grave entre os sinais marcados; sem sinal, nenhuma (quem classifica escolhe)
 export function suggestPriority(codes: string[]): CallPriority | null {
   return codes
     .map(code => BY_CODE.get(code)?.priority)

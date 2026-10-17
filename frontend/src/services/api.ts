@@ -20,6 +20,7 @@ import {
   CallPriority,
   CallTriage,
   CallOutcome,
+  RegulationRequest,
   Hospital,
   Me,
   Indicators,
@@ -194,6 +195,12 @@ export async function getRecentCalls(query: { phone?: string; location?: Coordin
 
 export async function createCall(call: CreateCallRequest): Promise<EmergencyCall> {
   const response = await api.post<ApiResponse<EmergencyCall>>('/calls', call);
+  return response.data.data!;
+}
+
+// Regulação: cor final, hospital e a decisão (mandar viatura, orientar por telefone ou cancelar)
+export async function regulateCall(callId: string, regulation: RegulationRequest): Promise<EmergencyCall> {
+  const response = await api.post<ApiResponse<EmergencyCall>>(`/calls/${callId}/regulate`, regulation);
   return response.data.data!;
 }
 

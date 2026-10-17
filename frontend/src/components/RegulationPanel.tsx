@@ -1,0 +1,197 @@
+import { CSSProperties, useState } from 'react';
+import { CallPriority, CallStatus, CloseReason, EmergencyCall, Hospital, RegulationDecision, RegulationRequest } from '../types';
+import { getErrorMessage, regulateCall } from '../services/api';
+import { CALL_STATUS_LABEL, CLOSE_REASON_LABEL, PRIORITY_META, formatGender, formatWait, queueOf, waitLevel, waitingSince } from '../utils/calls';
+import { formatKm, hospitalsByDistance } from '../utils/hospitals';
+import { formatPhone } from '../utils/documents';
+import { useNow } from '../hooks/useNow';
+import { PriorityLabel } from '../ui/PriorityLabel';
+import { BackIcon, CallIcon, LocationIcon, PersonIcon, TimerIcon } from '../ui/icons';
+import RiskClassification from './RiskClassification';
+import { useToast } from './Toast';
+import styles from './RegulationPanel.module.css';
+
+interface RegulationPanelProps {
+  // O chamado como está agora (a lista atualiza a cada 10 s); null: saiu das filas
+  call: EmergencyCall | null;
+  hospitals: Hospital[];
+  onDone: (call: EmergencyCall, decision: RegulationDecision) => void;
+  onBack: () => void;
+}
+
+type Mode = 'main' | 'orientacao' | 'cancelar';
+
+const MAX_NOTE = 500;
+
+// Regulação: confirmar ou mudar a cor, escolher o hospital e decidir se vai viatura,
+// se o caso se resolve com orientação por telefone ou se o chamado é cancelado
+export default function RegulationPanel(props: RegulationPanelProps) {
+  if (props.call) return <RegulationForm {...props} call={props.call} />;
+  return (
+    <div className={styles.container}>
+      <button className={styles.back} onClick={props.onBack}><BackIcon /> Voltar aos chamados</button>
+      <p className={styles.notice} role="status">Este chamado não está mais nas filas: outra pessoa já o encerrou.</p>
+    </div>
+  );
+}
+
+function RegulationForm({ call, hospitals, onDone, onBack }: RegulationPanelProps & { call: EmergencyCall }) {
+  // Status de quando o painel abriu: se mudar, outra pessoa regulou ou despachou enquanto isso
+  const [openedStatus] = useState(call.status);
+  const [priority, setPriority] = useState<CallPriority>(call.priority);
+  const [hospitalId, setHospitalId] = useState(call.hospitalId ?? '');
+  const [mode, setMode] = useState<Mode>('main');
+  const [note, setNote] = useState('');
+  const [reason, setReason] = useState<CloseReason | null>(null);
+  const [busy, setBusy] = useState(false);
+  const toast = useToast();
+  const now = useNow(1000);
+
+  const queue = queueOf(call);
+  const changedElsewhere = call.status !== openedStatus;
+  const regulated = openedStatus === CallStatus.PENDENTE;
+  const meta = PRIORITY_META[priority];
+  const waited = now - Date.parse(waitingSince(call));
+  const gender = formatGender(call.patientInfo.gender);
+
+  const submit = async (decision: RegulationDecision) => {
+    const request: RegulationRequest = { decision, priority };
+    if (decision === RegulationDecision.DESPACHAR) request.hospitalId = hospitalId || null;
+    if (decision !== RegulationDecision.DESPACHAR && note.trim()) request.note = note.trim();
+    if (decision === RegulationDecision.CANCELAR && reason) request.reason = reason;
+
+    setBusy(true);
+    try {
+      onDone(await regulateCall(call.id, request), decision);
+    } catch (error) {
+      toast(getErrorMessage(error, 'Não foi possível salvar a regulação.'), 'error');
+      setBusy(false);
+    }
+  };
+
+  if (changedElsewhere || !queue) {
+    return (
+      <div className={styles.container}>
+        <button className={styles.back} onClick={onBack}><BackIcon /> Voltar aos chamados</button>
+        <p className={styles.notice} role="status">
+          Este chamado mudou enquanto você regulava: agora está <strong>{CALL_STATUS_LABEL[call.status].toLowerCase()}</strong>.
+        </p>
+      </div>
+    );
+  }
+
+  const cancelReady = !!reason && (reason !== CloseReason.OUTRO || !!note.trim());
+
+  return (
+    <div className={styles.container}>
+      <button className={styles.back} onClick={onBack}><BackIcon /> Voltar aos chamados</button>
+      <h2 className={styles.title}>{regulated ? 'Reclassificar chamado' : 'Regulação'}</h2>
+
+      <section className={styles.summary} style={{ '--priority-color': meta.color } as CSSProperties}>
+        <div className={styles.summaryHeader}>
+          <PriorityLabel priority={call.priority} />
+          <span
+            className={`${styles.wait} ${styles[`wait_${waitLevel(waited, queue)}`]}`}
+            aria-label={`${regulated ? 'Aguardando despacho' : 'Aguardando regulação'} há ${formatWait(waited)}`}
+          >
+            <TimerIcon /> {formatWait(waited)}
+          </span>
+        </div>
+        {call.initialPriority && call.initialPriority !== call.priority && (
+          <p className={styles.muted}>Registrado como {PRIORITY_META[call.initialPriority].name}</p>
+        )}
+        <p className={styles.address}><LocationIcon /> {call.address}</p>
+        {call.reference && <p className={styles.muted}>Referência: {call.reference}</p>}
+        <p className={styles.description}>{call.description}</p>
+        {(call.patientInfo.age || gender || call.callerPhone) && (
+          <p className={styles.patient}>
+            {call.patientInfo.age && <span><PersonIcon /> {call.patientInfo.age} anos</span>}
+            {gender && <span>{gender}</span>}
+            {call.callerPhone && (
+              <a href={`tel:${call.callerPhone}`} title="Ligar para quem chamou"><CallIcon /> {formatPhone(call.callerPhone)}</a>
+            )}
+          </p>
+        )}
+      </section>
+
+      <RiskClassification
+        legend="Cor final"
+        signals={call.triage?.signals ?? []}
+        value={priority}
+        onChange={setPriority}
+        suggested={call.triage?.suggested ?? null}
+      />
+
+      {mode === 'main' && (
+        <>
+          <label className={styles.field}>
+            <span>Hospital de destino <em>(opcional)</em></span>
+            <select value={hospitalId} disabled={hospitals.length === 0} onChange={(e) => setHospitalId(e.target.value)}>
+              <option value="">{hospitals.length === 0 ? 'Carregando…' : 'Sem escolha (a equipe decide)'}</option>
+              {hospitalsByDistance(hospitals, call.location).map(({ hospital, meters }) => (
+                <option key={hospital.id} value={hospital.id}>{hospital.shortName} · {formatKm(meters)}</option>
+              ))}
+            </select>
+          </label>
+
+          <div className={styles.actions}>
+            <button className={styles.primary} disabled={busy} onClick={() => submit(RegulationDecision.DESPACHAR)}>
+              {busy ? 'Salvando…' : regulated ? 'Salvar regulação' : 'Enviar viatura'}
+            </button>
+            <div className={styles.secondaryRow}>
+              <button className={styles.secondary} disabled={busy} onClick={() => setMode('orientacao')}>Orientação por telefone</button>
+              <button className={styles.secondary} disabled={busy} onClick={() => setMode('cancelar')}>Cancelar chamado</button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {mode === 'orientacao' && (
+        <div className={styles.closing}>
+          <label className={styles.field}>
+            <span>Orientação dada por telefone</span>
+            <textarea
+              rows={3}
+              maxLength={MAX_NOTE}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="Ex: procurar a UBS amanhã; ligar de novo se piorar"
+              autoFocus
+            />
+          </label>
+          <p className={styles.muted}>O chamado é encerrado sem viatura.</p>
+          <div className={styles.secondaryRow}>
+            <button className={styles.primary} disabled={busy || !note.trim()} onClick={() => submit(RegulationDecision.ORIENTACAO)}>
+              {busy ? 'Salvando…' : 'Encerrar com orientação'}
+            </button>
+            <button className={styles.ghost} disabled={busy} onClick={() => setMode('main')}>Voltar</button>
+          </div>
+        </div>
+      )}
+
+      {mode === 'cancelar' && (
+        <div className={styles.closing}>
+          <fieldset className={styles.reasons}>
+            <legend>Motivo do cancelamento</legend>
+            {Object.values(CloseReason).map(option => (
+              <label key={option} className={styles.reason}>
+                <input type="radio" name="close-reason" checked={reason === option} onChange={() => setReason(option)} />
+                {CLOSE_REASON_LABEL[option]}
+              </label>
+            ))}
+          </fieldset>
+          <label className={styles.field}>
+            <span>Observação {reason === CloseReason.OUTRO ? '' : <em>(opcional)</em>}</span>
+            <textarea rows={2} maxLength={MAX_NOTE} value={note} onChange={(e) => setNote(e.target.value)} />
+          </label>
+          <div className={styles.secondaryRow}>
+            <button className={styles.danger} disabled={busy || !cancelReady} onClick={() => submit(RegulationDecision.CANCELAR)}>
+              {busy ? 'Cancelando…' : 'Cancelar chamado'}
+            </button>
+            <button className={styles.ghost} disabled={busy} onClick={() => setMode('main')}>Voltar</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

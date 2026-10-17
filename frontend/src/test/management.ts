@@ -10,7 +10,7 @@ export function indicators(overrides: Partial<Indicators> = {}): Indicators {
     targets: { EMERGENCIA: 10, URGENTE: 20, PRIORITARIO: 30, NAO_URGENTE: 60 },
     truncated: false,
     total: 140,
-    byStatus: { PENDENTE: 0, EM_ATENDIMENTO: 0, FINALIZADO: 137, CANCELADO: 3 },
+    byStatus: { AGUARDANDO_REGULACAO: 0, PENDENTE: 0, EM_ATENDIMENTO: 0, FINALIZADO: 137, ORIENTADO: 0, CANCELADO: 3 },
     byPriority: { EMERGENCIA: 14, URGENTE: 51, PRIORITARIO: 51, NAO_URGENTE: 24 },
     stages: {
       queue: stats(136, 391, 860),

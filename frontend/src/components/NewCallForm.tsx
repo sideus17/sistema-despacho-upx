@@ -1,11 +1,12 @@
-import { CSSProperties, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Ambulance, CallPriority, Coordinates, EmergencyCall, RecentCallMatch } from '../types';
 import { createCall, getErrorMessage, getRecentCalls, getTimeAgo, reversePlace } from '../services/api';
-import { CALL_STATUS_LABEL, PRIORITIES_BY_SEVERITY, PRIORITY_META } from '../utils/calls';
+import { CALL_STATUS_LABEL, PRIORITY_META } from '../utils/calls';
 import { formatPhone, isValidPhone, onlyDigits } from '../utils/documents';
-import { TRIAGE_SIGNALS, suggestPriority } from '../utils/triage';
+import { suggestPriority } from '../utils/triage';
 import { LocationIcon, WarningIcon } from '../ui/icons';
 import AddressSearch, { PlaceValue, SearchAction } from './AddressSearch';
+import RiskClassification from './RiskClassification';
 import { useToast } from './Toast';
 import styles from './NewCallForm.module.css';
 
@@ -38,11 +39,6 @@ function addressOf(place: PlaceValue): string {
   return [place.label, place.detail].filter(Boolean).join(' - ');
 }
 
-// Sinais agrupados pela cor que sugerem (o azul não tem sinal: é escolha do operador)
-const SIGNAL_GROUPS = PRIORITIES_BY_SEVERITY
-  .map(priority => ({ priority, signals: TRIAGE_SIGNALS.filter(signal => signal.priority === priority) }))
-  .filter(group => group.signals.length > 0);
-
 export default function NewCallForm({
   onCallCreated,
   picking = false,
@@ -64,14 +60,13 @@ export default function NewCallForm({
   const [reference, setReference] = useState('');
   const [description, setDescription] = useState('');
   const [signals, setSignals] = useState<string[]>([]);
-  // Cor escolhida pelo operador; sem escolha, vale a sugerida pelos sinais
+  // Cor escolhida no registro; sem escolha, vale a sugerida pelos sinais (a final sai na regulação)
   const [chosen, setChosen] = useState<CallPriority | null>(null);
   const [loading, setLoading] = useState(false);
   const toast = useToast();
 
   const suggested = suggestPriority(signals);
   const priority = chosen ?? suggested;
-  const milder = !!(priority && suggested && PRIORITY_META[priority].order > PRIORITY_META[suggested].order);
 
   const phoneDigits = onlyDigits(phone);
   const phoneOk = isValidPhone(phoneDigits);
@@ -157,7 +152,7 @@ export default function NewCallForm({
         triage: signals.length > 0 ? { signals, suggested } : undefined
       });
 
-      toast('Chamado criado. Analisando despacho…', 'success');
+      toast('Chamado registrado. Aguardando regulação.', 'success');
 
       setPhone('');
       setPhoneBlurred(false);
@@ -308,60 +303,14 @@ export default function NewCallForm({
           </div>
         </div>
 
-        <fieldset className={styles.triage}>
-          <legend className={styles.label}>Classificação de risco</legend>
-          <p className={styles.hint}>Marque os sinais de alerta que quem ligou relatar.</p>
-
-          {SIGNAL_GROUPS.map(group => (
-            <div
-              key={group.priority}
-              className={styles.signalGroup}
-              style={{ '--risk-color': PRIORITY_META[group.priority].color, '--risk-on-color': PRIORITY_META[group.priority].onColor } as CSSProperties}
-            >
-              <span className={styles.groupName}>{PRIORITY_META[group.priority].name}</span>
-              <div className={styles.chips}>
-                {group.signals.map(signal => (
-                  <button
-                    key={signal.code}
-                    type="button"
-                    className={styles.chip}
-                    aria-pressed={signals.includes(signal.code)}
-                    onClick={() => toggleSignal(signal.code)}
-                  >
-                    {signal.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ))}
-
-          <p className={styles.suggestion} role="status">
-            {suggested ? <>Sugerida pelos sinais: <strong>{PRIORITY_META[suggested].name}</strong></> : 'Sem sinais marcados: escolha a cor.'}
-          </p>
-
-          <div className={styles.colors} role="radiogroup" aria-label="Classificação de risco">
-            {PRIORITIES_BY_SEVERITY.map(option => {
-              const meta = PRIORITY_META[option];
-              return (
-                <button
-                  key={option}
-                  type="button"
-                  role="radio"
-                  aria-checked={priority === option}
-                  className={styles.color}
-                  style={{ '--risk-color': meta.color, '--risk-on-color': meta.onColor } as CSSProperties}
-                  onClick={() => setChosen(option)}
-                >
-                  <strong>{meta.name}</strong>
-                  <span>{meta.label}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          {milder && <p className={styles.warning}>A cor escolhida é menos grave que a sugerida pelos sinais.</p>}
-          <small className={styles.hint}>Classificação inicial — a final é do médico regulador.</small>
-        </fieldset>
+        <RiskClassification
+          signals={signals}
+          onToggleSignal={toggleSignal}
+          value={priority}
+          onChange={setChosen}
+          suggested={suggested}
+          footnote="Cor sugerida no registro — a final é definida na regulação."
+        />
 
         <button type="submit" disabled={loading} className={styles.submit}>
           {loading ? 'Criando chamado...' : 'Abrir Chamado'}

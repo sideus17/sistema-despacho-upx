@@ -27,7 +27,7 @@ import { IncidentLayer } from '../map/IncidentLayer';
 import { TrafficLayer } from '../map/TrafficLayer';
 import { TRAFFIC_COLORS, useTrafficEnabled } from '../map/traffic';
 import { EFFECT_META, expiryLabel, incidentTypeLabel, sourceLabel } from '../map/incidents';
-import { PRIORITIES_BY_SEVERITY, PRIORITY_META, STAGE_META, callStage, elapsedLabel, timeline } from '../utils/calls';
+import { CALL_STATUS_LABEL, PRIORITIES_BY_SEVERITY, PRIORITY_META, STAGE_META, callStage, elapsedLabel, timeline } from '../utils/calls';
 import { AMBULANCE_STATUS_LABEL } from '../utils/ambulances';
 import { HOSPITAL_KIND_LABEL } from '../utils/hospitals';
 import { signalsText } from '../utils/triage';
@@ -235,6 +235,7 @@ export default function Map({
           <>
             <h3>Chamado de Emergência</h3>
             <p><PriorityLabel priority={call.priority} /></p>
+            {!stage && <p><strong>Situação:</strong> {CALL_STATUS_LABEL[call.status]}</p>}
             <p><strong>Endereço:</strong> {call.address}</p>
             {call.reference && <p><strong>Referência:</strong> {call.reference}</p>}
             {call.callerPhone && <p><strong>Telefone:</strong> {formatPhone(call.callerPhone)}</p>}
@@ -415,6 +416,7 @@ export default function Map({
 
           {calls.map(call => {
             const selected = selectedCall?.id === call.id;
+            const waiting = call.status === CallStatus.AGUARDANDO_REGULACAO || call.status === CallStatus.PENDENTE;
             return (
               <Marker
                 key={call.id}
@@ -424,11 +426,16 @@ export default function Map({
                 style={{ zIndex: selected ? 2 : 1 }}
                 onClick={event => {
                   open('call', call.id)(event);
-                  // Só chamados pendentes abrem a análise; os demais mostram apenas o popup
-                  if (call.status === CallStatus.PENDENTE) onCallSelect?.(call);
+                  // Chamados nas filas abrem a regulação ou a análise; os demais mostram apenas o popup
+                  if (waiting) onCallSelect?.(call);
                 }}
               >
-                <CallMarker priority={call.priority} selected={selected} pulsing={call.status === CallStatus.PENDENTE} />
+                <CallMarker
+                  priority={call.priority}
+                  selected={selected}
+                  pulsing={waiting}
+                  provisional={call.status === CallStatus.AGUARDANDO_REGULACAO}
+                />
               </Marker>
             );
           })}

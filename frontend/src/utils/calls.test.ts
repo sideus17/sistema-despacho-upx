@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CallPriority, CallStatus, EmergencyCall } from '../types';
-import { callStage, elapsedLabel, formatGender, formatWait, sortCallsByPriority, timeline, waitLevel } from './calls';
+import { callStage, elapsedLabel, formatGender, formatWait, queueOf, sortCallsByPriority, timeline, waitLevel, waitingSince } from './calls';
 
 const call = (id: string, priority: CallPriority, timestamp: string): EmergencyCall => ({
   id,
@@ -44,6 +44,23 @@ describe('cronômetro de espera', () => {
     expect(waitLevel(120_000)).toBe('atencao');
     expect(waitLevel(299_000)).toBe('atencao');
     expect(waitLevel(300_000)).toBe('critico');
+    // A regulação é mais apertada: 1 min e 3 min
+    expect(waitLevel(59_000, 'regulacao')).toBe('normal');
+    expect(waitLevel(60_000, 'regulacao')).toBe('atencao');
+    expect(waitLevel(180_000, 'regulacao')).toBe('critico');
+  });
+
+  it('a regulação conta da abertura; o despacho, da regulação', () => {
+    const opened = { ...call('a', CallPriority.URGENTE, '2026-10-15T10:00:00Z'), status: CallStatus.AGUARDANDO_REGULACAO };
+    expect(queueOf(opened)).toBe('regulacao');
+    expect(waitingSince(opened)).toBe('2026-10-15T10:00:00Z');
+
+    const regulated = { ...opened, status: CallStatus.PENDENTE, times: { regulated: '2026-10-15T10:02:00Z' } };
+    expect(queueOf(regulated)).toBe('despacho');
+    expect(waitingSince(regulated)).toBe('2026-10-15T10:02:00Z');
+    // Chamado de antes da regulação: da abertura
+    expect(waitingSince({ ...regulated, times: undefined })).toBe('2026-10-15T10:00:00Z');
+    expect(queueOf({ ...opened, status: CallStatus.EM_ATENDIMENTO })).toBeNull();
   });
 
   it('mm:ss, e h:mm:ss depois de 1 hora', () => {

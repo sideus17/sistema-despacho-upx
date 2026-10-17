@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { DispatchRecommendation, Ambulance, AmbulanceStatus, EmergencyCall } from '../types';
 import { formatDistance, formatDuration, getTimeAgo } from '../services/api';
 import { trafficNote } from '../utils/routes';
-import { PRIORITY_META } from '../utils/calls';
+import { PRIORITY_META, waitingSince } from '../utils/calls';
 import { PriorityLabel } from '../ui/PriorityLabel';
 import { AmbulanceTypeIcon } from '../ui/AmbulanceTypeIcon';
 import RouteNotes from './RouteNotes';
@@ -62,7 +62,8 @@ export default function DispatchAnalysis({
   }
 
   const meta = PRIORITY_META[call.priority];
-  const timeAgo = getTimeAgo(call.timestamp);
+  // Espera pela viatura: desde a regulação (chamado de antes da regulação: desde a abertura)
+  const timeAgo = getTimeAgo(waitingSince(call));
   const waiting = timeAgo === 'agora' ? 'aberto agora' : `aguardando há ${timeAgo.replace(' atrás', '')}`;
 
   const handleConfirm = async (ambulanceId: string) => {

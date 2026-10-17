@@ -346,3 +346,40 @@
   font-size: 14px;
   font-weight: 500;
 }
+
+/* Filas em "Todos": regulação, despacho e em atendimento */
+.section + .section {
+  margin-top: 20px;
+}
+
+.sectionTitle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 8px;
+  color: var(--color-text-soft);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.sectionTitle span {
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--color-surface-hover);
+  color: var(--color-text-muted);
+  font-size: 11px;
+}
+
+/* Cor ainda não regulada */
+.suggestedTag {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border: 1px dashed var(--color-border-strong);
+  border-radius: 999px;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  vertical-align: middle;
+}

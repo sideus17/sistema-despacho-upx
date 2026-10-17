@@ -45,7 +45,7 @@ describe('classificação de risco no novo chamado', () => {
     expect(color('Vermelho')).toHaveAttribute('aria-checked', 'true');
   });
 
-  it('o operador pode trocar a cor; mais branda que a sugerida, avisa', async () => {
+  it('o atendente pode trocar a cor; mais branda que a sugerida, avisa', async () => {
     const user = userEvent.setup();
     renderWithAuth(<NewCallForm onCallCreated={vi.fn()} />);
     await user.click(screen.getByRole('button', { name: 'Falta de ar' }));

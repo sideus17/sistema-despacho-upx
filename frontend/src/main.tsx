@@ -7,7 +7,7 @@ import { startDocumentTheme } from './theme/theme'
 
 startDocumentTheme()
 
-// A tela depende de quem entrou: motorista vê a viatura, operador vê a central
+// A tela depende de quem entrou: motorista vê a viatura, atendente vê a central
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <ToastProvider>
