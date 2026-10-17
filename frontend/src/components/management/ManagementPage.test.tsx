@@ -10,6 +10,7 @@ const { show } = vi.hoisted(() => ({
     `${name}: ${scope.demo ? 'com' : 'sem'} demonstração, desde ${new Date(scope.from).toLocaleDateString('pt-BR')}`
 }));
 vi.mock('./Indicators', () => ({ default: show('Indicadores') }));
+vi.mock('./People', () => ({ default: show('Por pessoa') }));
 vi.mock('./History', () => ({ default: show('Histórico') }));
 vi.mock('./HeatMap', () => ({ default: show('Mapa de calor') }));
 
@@ -25,6 +26,13 @@ describe('tela de gestão', () => {
     renderPage();
     expect(screen.getByRole('tab', { name: 'Indicadores' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByText(`Indicadores: com demonstração, desde ${daysAgo(29)}`)).toBeInTheDocument();
+  });
+
+  it('aba "Por pessoa" com o mesmo período', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await user.click(screen.getByRole('tab', { name: 'Por pessoa' }));
+    expect(screen.getByText(`Por pessoa: com demonstração, desde ${daysAgo(29)}`)).toBeInTheDocument();
   });
 
   it('período, demonstração e aba valem para tudo e ficam lembrados', async () => {

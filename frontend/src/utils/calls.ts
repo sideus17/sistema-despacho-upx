@@ -1,4 +1,4 @@
-import { CallOutcome, CallPriority, CallStatus, EmergencyCall } from '../types';
+import { CallOutcome, CallPriority, CallStatus, CloseReason, EmergencyCall } from '../types';
 import { EmergencyIcon, IconComponent, InfoIcon, WarningIcon } from '../ui/icons';
 
 // Classificação de risco em 4 cores (Regulação Médica das Urgências, Ministério da Saúde).
@@ -11,10 +11,20 @@ export const PRIORITY_META: Record<CallPriority, { name: string; label: string; 
 };
 
 export const CALL_STATUS_LABEL: Record<CallStatus, string> = {
+  [CallStatus.AGUARDANDO_REGULACAO]: 'Aguardando regulação',
   [CallStatus.PENDENTE]: 'Aguardando despacho',
   [CallStatus.EM_ATENDIMENTO]: 'Em atendimento',
   [CallStatus.FINALIZADO]: 'Finalizado',
+  [CallStatus.ORIENTADO]: 'Orientado por telefone',
   [CallStatus.CANCELADO]: 'Cancelado'
+};
+
+export const CLOSE_REASON_LABEL: Record<CloseReason, string> = {
+  [CloseReason.TROTE]: 'Trote',
+  [CloseReason.REPETIDO]: 'Chamado repetido',
+  [CloseReason.ENGANO]: 'Ligação por engano',
+  [CloseReason.DESISTENCIA]: 'Desistência',
+  [CloseReason.OUTRO]: 'Outro motivo'
 };
 
 export const OUTCOME_LABEL: Record<CallOutcome, string> = {
@@ -96,14 +106,31 @@ export function formatGender(gender?: string): string | null {
   return null;
 }
 
-// Espera de um chamado pendente: amarelo a partir de 2 min, vermelho a partir de 5 min
-export const WAIT_WARNING_MS = 2 * 60_000;
-export const WAIT_CRITICAL_MS = 5 * 60_000;
+// Filas da central: o chamado novo espera a regulação; o regulado, a viatura
+export type Queue = 'regulacao' | 'despacho';
+
+export function queueOf(call: EmergencyCall): Queue | null {
+  if (call.status === CallStatus.AGUARDANDO_REGULACAO) return 'regulacao';
+  if (call.status === CallStatus.PENDENTE) return 'despacho';
+  return null;
+}
+
+// Desde quando espera na fila atual: a regulação conta da abertura; o despacho, da regulação
+// (chamado de antes da regulação: da abertura)
+export function waitingSince(call: EmergencyCall): string {
+  return call.status === CallStatus.PENDENTE ? call.times?.regulated ?? call.timestamp : call.timestamp;
+}
+
+// Espera: regulação amarela com 1 min e vermelha com 3 min; despacho amarelo com 2 min e vermelho com 5 min
+export const QUEUE_WAIT: Record<Queue, { warning: number; critical: number }> = {
+  regulacao: { warning: 60_000, critical: 3 * 60_000 },
+  despacho: { warning: 2 * 60_000, critical: 5 * 60_000 }
+};
 export type WaitLevel = 'normal' | 'atencao' | 'critico';
 
-export function waitLevel(ms: number): WaitLevel {
-  if (ms >= WAIT_CRITICAL_MS) return 'critico';
-  if (ms >= WAIT_WARNING_MS) return 'atencao';
+export function waitLevel(ms: number, queue: Queue = 'despacho'): WaitLevel {
+  if (ms >= QUEUE_WAIT[queue].critical) return 'critico';
+  if (ms >= QUEUE_WAIT[queue].warning) return 'atencao';
   return 'normal';
 }
 

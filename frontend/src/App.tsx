@@ -3,11 +3,12 @@ import CallList from './components/CallList';
 import DispatchAnalysis from './components/DispatchAnalysis';
 import Incidents from './components/Incidents';
 import NewCallForm from './components/NewCallForm';
+import RegulationPanel from './components/RegulationPanel';
 import Fleet from './components/Fleet';
 import { useToast } from './components/Toast';
 import { useAuth } from './auth/AuthContext';
 import { usePolling } from './hooks/usePolling';
-import { useCallAlerts } from './hooks/useCallAlerts';
+import { queueKey, useCallAlerts } from './hooks/useCallAlerts';
 import {
   Ambulance,
   EmergencyCall,
@@ -17,7 +18,9 @@ import {
   Stats,
   Coordinates,
   CallOutcome,
-  Hospital
+  CallStatus,
+  Hospital,
+  RegulationDecision
 } from './types';
 import {
   getAmbulances,
@@ -43,7 +46,7 @@ const Map = lazy(() => import('./components/Map'));
 const ManagementPage = lazy(() => import('./components/management/ManagementPage'));
 
 type Connection = 'connecting' | 'online' | 'error';
-type Tab = 'calls' | 'new-call' | 'analysis' | 'fleet' | 'incidents';
+type Tab = 'calls' | 'new-call' | 'regulation' | 'analysis' | 'fleet' | 'incidents';
 type View = 'operacao' | 'gestao';
 
 function App() {
@@ -60,6 +63,8 @@ function App() {
   const [selectedRouteIndex, setSelectedRouteIndex] = useState<number>(0);
   const [selectedCall, setSelectedCall] = useState<EmergencyCall | null>(null);
   const [recommendation, setRecommendation] = useState<DispatchRecommendation | null>(null);
+  // Chamado aberto na regulação (o painel acompanha a versão da lista, atualizada a cada 10 s)
+  const [regulatingId, setRegulatingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [routeLoadingId, setRouteLoadingId] = useState<string | null>(null);
   const [connection, setConnection] = useState<Connection>('connecting');
@@ -100,9 +105,9 @@ function App() {
   // Atualiza a cada 10 s, como o app da equipe: chamado novo aparece (e alerta) logo; se falhar, tenta de novo em 10 s
   usePolling(loadData, 10000, 10000);
 
-  // Chamados abertos nesta tela não disparam o alerta de "novo chamado"
-  const ownCallIds = useRef(new Set<string>());
-  useCallAlerts(calls, ownCallIds, toast);
+  // Chamados abertos ou regulados nesta tela não disparam os alertas de chegada na fila
+  const ownQueueKeys = useRef(new Set<string>());
+  useCallAlerts(calls, ownQueueKeys, toast);
 
   // "Escolher no mapa" do formulário de chamado: o próximo clique no mapa vira o local
   const callPickHandler = useRef<((location: Coordinates) => void) | null>(null);
@@ -157,11 +162,54 @@ function App() {
     }
   };
 
-  const handleCallCreated = (call: EmergencyCall) => {
-    ownCallIds.current.add(call.id);
-    loadData();
-    handleAnalyze(call);
+  // Regulação: o mesmo atendente que registrou já pode regular (ou outro, pela fila)
+  const handleRegulate = (call: EmergencyCall) => {
+    setSelectedCall(call);
+    setRecommendation(null);
+    setRegulatingId(call.id);
+    setActiveTab('regulation');
   };
+
+  const handleCallCreated = (call: EmergencyCall) => {
+    ownQueueKeys.current.add(queueKey(call));
+    // Já entra na lista: o painel de regulação acompanha o chamado por ela
+    setCalls(current => [...current.filter(item => item.id !== call.id), call]);
+    handleRegulate(call);
+    loadData();
+  };
+
+  const handleRegulated = (call: EmergencyCall, decision: RegulationDecision) => {
+    const wasWaitingDispatch = calls.find(item => item.id === call.id)?.status === CallStatus.PENDENTE;
+    ownQueueKeys.current.add(queueKey(call));
+    setCalls(current => current.map(item => (item.id === call.id ? call : item)));
+    setRegulatingId(null);
+    if (decision === RegulationDecision.DESPACHAR && !wasWaitingDispatch) {
+      // Regulado para mandar viatura: segue direto para a escolha da viatura
+      handleAnalyze(call);
+    } else {
+      toast(
+        decision === RegulationDecision.ORIENTACAO
+          ? 'Chamado encerrado com orientação por telefone.'
+          : decision === RegulationDecision.CANCELAR
+            ? 'Chamado cancelado.'
+            : 'Regulação salva.',
+        'success'
+      );
+      if (decision !== RegulationDecision.DESPACHAR) setSelectedCall(null);
+      setActiveTab('calls');
+    }
+    loadData();
+  };
+
+  // Lista e mapa: chamado na fila de regulação abre a regulação; na de despacho, a análise
+  const handleOpenCall = (call: EmergencyCall) => {
+    if (call.status === CallStatus.AGUARDANDO_REGULACAO) handleRegulate(call);
+    else if (call.status === CallStatus.PENDENTE) handleAnalyze(call);
+    else handleFocusCall(call);
+  };
+
+  const waitingTotal = (stats?.pendingCalls ?? 0) + (stats?.awaitingRegulation ?? 0);
+  const regulatingCall = regulatingId ? calls.find(call => call.id === regulatingId) ?? null : null;
 
   // Calcula sob demanda a rota da opção selecionada (o backend só traz a da melhor)
   const handleSelectRoute = async (index: number) => {
@@ -247,13 +295,18 @@ function App() {
               <button
                 type="button"
                 className="header-view"
-                aria-label={stats?.pendingCalls ? `Voltar à operação (${stats.pendingCalls} aguardando despacho)` : 'Voltar à operação'}
+                aria-label={waitingTotal ? `Voltar à operação (${waitingTotal} aguardando regulação ou despacho)` : 'Voltar à operação'}
                 onClick={() => setView('operacao')}
               >
                 <BackIcon /> <span className="header-view-long">Voltar à operação</span>
                 <span className="header-view-short">Operação</span>
-                {!!stats?.pendingCalls && (
-                  <span className="header-view-badge" title={`${stats.pendingCalls} aguardando despacho`}>{stats.pendingCalls}</span>
+                {!!waitingTotal && (
+                  <span
+                    className="header-view-badge"
+                    title={`${stats?.awaitingRegulation ?? 0} aguardando regulação · ${stats?.pendingCalls ?? 0} aguardando despacho`}
+                  >
+                    {waitingTotal}
+                  </span>
                 )}
               </button>
             )}
@@ -296,7 +349,7 @@ function App() {
               incidents={incidents}
               selectedCall={selectedCall}
               routeGeometry={recommendation?.recommendations[selectedRouteIndex]?.route?.geometry}
-              onCallSelect={handleAnalyze}
+              onCallSelect={handleOpenCall}
               focusIncident={focusIncident}
               callPick={callPick}
               callDraft={callDraft}
@@ -318,11 +371,20 @@ function App() {
                 <span>Viaturas</span>
               </button>
               <button
+                className={`sidebar-stat ${stats.awaitingRegulation > 0 ? 'sidebar-stat-alert' : ''}`}
+                title="Chamados aguardando regulação"
+                onClick={() => setActiveTab('calls')}
+              >
+                <strong>{stats.awaitingRegulation}</strong>
+                <span>Regulação</span>
+              </button>
+              <button
                 className={`sidebar-stat ${stats.pendingCalls > 0 ? 'sidebar-stat-alert' : ''}`}
+                title="Chamados regulados aguardando despacho"
                 onClick={() => setActiveTab('calls')}
               >
                 <strong>{stats.pendingCalls}</strong>
-                <span>Pendentes</span>
+                <span>Despacho</span>
               </button>
               <button className="sidebar-stat" onClick={() => setActiveTab('incidents')}>
                 <strong>{stats.activeIncidents}</strong>
@@ -373,6 +435,7 @@ function App() {
                 ambulances={ambulances}
                 selectedCallId={selectedCall?.id}
                 onFocus={handleFocusCall}
+                onRegulate={handleRegulate}
                 onDispatch={handleAnalyze}
                 onFinish={handleFinish}
                 hospitals={hospitals}
@@ -389,6 +452,19 @@ function App() {
                 onDraftChange={setCallDraft}
                 ambulances={ambulances}
                 onShowCall={handleFocusCall}
+              />
+            )}
+
+            {activeTab === 'regulation' && (
+              <RegulationPanel
+                key={regulatingId ?? 'nenhum'}
+                call={regulatingCall}
+                hospitals={hospitals}
+                onDone={handleRegulated}
+                onBack={() => {
+                  setRegulatingId(null);
+                  setActiveTab('calls');
+                }}
               />
             )}
 

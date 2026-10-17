@@ -62,7 +62,14 @@ test('hora e dia no fuso de Sorocaba', () => {
 test('totais por status e por cor', () => {
   const result = computeIndicators(ROWS, PERIOD);
   assert.equal(result.total, 6);
-  assert.deepEqual(result.byStatus, { PENDENTE: 0, EM_ATENDIMENTO: 1, FINALIZADO: 4, CANCELADO: 1 });
+  assert.deepEqual(result.byStatus, {
+    AGUARDANDO_REGULACAO: 0,
+    PENDENTE: 0,
+    EM_ATENDIMENTO: 1,
+    FINALIZADO: 4,
+    ORIENTADO: 0,
+    CANCELADO: 1
+  });
   assert.deepEqual(result.byPriority, { EMERGENCIA: 2, URGENTE: 2, PRIORITARIO: 1, NAO_URGENTE: 1 });
 });
 
@@ -78,6 +85,23 @@ test('tempos de cada etapa usam só os chamados com os dois horários', () => {
   assert.deepEqual(stages.onScene, { n: 3, median: 1200, p90: 1200 });
   assert.deepEqual(stages.transport, { n: 1, median: 600, p90: 600 });
   assert.deepEqual(stages.total, { n: 4, median: 2050, p90: 2730 });
+});
+
+test('regulação e espera pela viatura: só os chamados que passaram pela regulação', () => {
+  const regulated = [
+    row(MORNING, CallPriority.EMERGENCIA, CallStatus.EM_ATENDIMENTO, { regulated_at: 40, dispatched_at: 100 }),
+    row(MORNING, CallPriority.URGENTE, CallStatus.PENDENTE, { regulated_at: 120 }),
+    row(MORNING, CallPriority.NAO_URGENTE, CallStatus.ORIENTADO, { regulated_at: 200, finished_at: 200 })
+  ];
+  const { stages, byStatus } = computeIndicators([...ROWS, ...regulated], PERIOD);
+  assert.deepEqual(stages.regulation, { n: 3, median: 120, p90: 184 });
+  assert.deepEqual(stages.dispatchWait, { n: 1, median: 60, p90: 60 });
+  // A fila inteira (abertura → despacho) continua comparável com os chamados de antes
+  assert.equal(stages.queue.n, 6);
+  // Orientado não entra no total do atendimento (não teve viatura)
+  assert.equal(stages.total.n, 4);
+  assert.equal(byStatus.ORIENTADO, 1);
+  assert.equal(byStatus.PENDENTE, 1);
 });
 
 test('tempo-resposta comparado com a meta de cada cor', () => {

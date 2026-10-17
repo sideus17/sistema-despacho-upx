@@ -3,14 +3,15 @@
  * - as chaves dos .env.example batem com as do banco local;
  * - viaturas, bases e usuários do seed estão lá, e o RLS barra a anon key;
  * - os usuários do seed entram com senha + código do app autenticador (TOTP);
- * - com o backend apontando para o banco local, o perfil carrega e um cadastro novo é gravado nele.
+ * - com o backend apontando para o banco local, o perfil carrega e um cadastro novo é gravado nele;
+ * - um chamado passa por registro, regulação, despacho e fim, e a auditoria guarda quem fez cada passo.
  * Uso: API_URL, ANON_KEY e SERVICE_ROLE_KEY do `supabase status -o env` e o backend em BACKEND_URL.
  * Por fim imprime as tabelas como a API REST as descreve, para comparar com o projeto hospedado.
  */
 import { createHmac } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { createClient } from '@supabase/supabase-js';
+import { SupabaseClient, createClient } from '@supabase/supabase-js';
 
 const API_URL = required('API_URL');
 const ANON_KEY = required('ANON_KEY');
@@ -31,7 +32,7 @@ function check(condition: unknown, message: string): asserts condition {
 
 function envFile(path: string): Record<string, string> {
   const entries = readFileSync(join(ROOT, path), 'utf8')
-    .split('\n')
+    .split(/\r?\n/) // CRLF no Windows (core.autocrlf)
     .map(line => line.match(/^([A-Z_]+)=(.*)$/))
     .filter((match): match is RegExpMatchArray => match !== null)
     .map(match => [match[1], match[2]]);
@@ -92,7 +93,7 @@ async function main() {
 
   // RLS ligado e sem políticas: a anon key não lê nada
   const anon = createClient(API_URL, ANON_KEY, { auth: { persistSession: false } });
-  for (const table of ['bases', 'ambulances', 'calls', 'incidents', 'incident_votes', 'profiles', 'hospitals']) {
+  for (const table of ['bases', 'ambulances', 'calls', 'call_events', 'incidents', 'incident_votes', 'profiles', 'hospitals']) {
     const { data, error } = await anon.from(table).select('*').limit(1);
     if (error) throw error;
     check(data.length === 0, `${table}: anon key não lê (RLS)`);
@@ -129,6 +130,8 @@ async function main() {
   const { data: created } = await admin.from('profiles').select('full_name').eq('id', signup.body.data.id).single();
   check(created?.full_name === 'Cadastro do CI', 'o cadastro novo foi gravado no banco local');
 
+  await checkCallFlow(admin, operatorToken, driverToken);
+
   // Para comparar com o projeto hospedado (mesmo formato da conferência feita lá)
   const response = await fetch(`${API_URL}/rest/v1/`, {
     headers: { apikey: SERVICE_ROLE_KEY, Authorization: `Bearer ${SERVICE_ROLE_KEY}`, Accept: 'application/openapi+json' }
@@ -142,6 +145,91 @@ async function main() {
       const note = property.description ? ` — ${property.description.replace(/\n/g, ' ')}` : '';
       console.log(`  ${column}: ${property.format}${extra}${note}`);
     }
+  }
+}
+
+// Registro → regulação → despacho → fim, com a auditoria de cada passo (etapa 6)
+async function checkCallFlow(admin: SupabaseClient<any, 'public', any>, operatorToken: string, driverToken: string) {
+  const post = (path: string, token: string, body: unknown) => backend(path, { method: 'POST', token, body: JSON.stringify(body) });
+  const newCall = (description: string) =>
+    post('/calls', operatorToken, {
+      address: 'Rua da Penha, 120 - Centro, Sorocaba/SP',
+      location: { lat: -23.5007, lng: -47.4573 },
+      description,
+      priority: 'URGENTE',
+      triage: { signals: ['DOR_PEITO'], suggested: 'EMERGENCIA' }
+    });
+  const callIds: string[] = [];
+
+  try {
+    const created = await newCall('Chamado do CI: dor no peito');
+    check(created.status === 201 && created.body.data.status === 'AGUARDANDO_REGULACAO', 'chamado novo espera a regulação');
+    const callId: string = created.body.data.id;
+    callIds.push(callId);
+
+    const crewQueue = await backend('/calls/pending', { token: driverToken });
+    check(!crewQueue.body.data.some((call: { id: string }) => call.id === callId), 'a equipe não vê o chamado antes da regulação');
+    const early = await post('/dispatch/analyze', operatorToken, { callId });
+    check(early.status === 409, 'não dá para despachar antes de regular');
+
+    const regulated = await post(`/calls/${callId}/regulate`, operatorToken, { decision: 'DESPACHAR', priority: 'EMERGENCIA' });
+    check(
+      regulated.status === 200 && regulated.body.data.status === 'PENDENTE' && regulated.body.data.priority === 'EMERGENCIA' &&
+        regulated.body.data.initialPriority === 'URGENTE' && regulated.body.data.times?.regulated,
+      `regulação muda a cor e manda para o despacho (${regulated.status} ${regulated.body.error ?? ''})`
+    );
+
+    const shift = await post('/shifts/start', driverToken, { ambulanceId: 'amb-1' });
+    check(shift.status === 200, 'motorista assume a USA-01');
+    const dispatched = await post('/dispatch/execute', operatorToken, { callId, ambulanceId: 'amb-1' });
+    check(dispatched.status === 200, `despacho da USA-01 (${dispatched.status} ${dispatched.body.error ?? ''})`);
+    const finished = await post('/dispatch/finish', driverToken, { callId, outcome: 'ATENDIDO_NO_LOCAL' });
+    check(finished.status === 200, 'motorista finaliza o atendimento');
+
+    const { data: row } = await admin.from('calls').select('created_by, regulated_by, dispatched_by, driver_id').eq('id', callId).single();
+    const operatorId = 'c6727385-d17e-4c22-8019-c2c2fadaf06d';
+    const driverId = 'b3c16b3d-3099-498a-8c3b-d8ff46bf8aea';
+    check(
+      row?.created_by === operatorId && row.regulated_by === operatorId && row.dispatched_by === operatorId && row.driver_id === driverId,
+      'o chamado guarda quem abriu, regulou, despachou e o motorista'
+    );
+
+    const events = await backend(`/calls/${callId}/events`, { token: operatorToken });
+    const actions = (events.body.data ?? []).map((event: { action: string; actor: { name: string } }) => `${event.action}:${event.actor.name}`);
+    check(
+      JSON.stringify(actions) === JSON.stringify([
+        'ABERTURA:Operador de Teste',
+        'REGULACAO:Operador de Teste',
+        'DESPACHO:Operador de Teste',
+        'FINALIZACAO:Motorista de Teste'
+      ]),
+      `auditoria com quem fez cada passo (${actions.join(', ')})`
+    );
+    const dispatch = events.body.data[2];
+    check(dispatch.data.ambulanceCode === 'USA-01' && dispatch.data.driverName === 'Motorista de Teste', 'o despacho registra a viatura e o motorista');
+    check((await backend(`/calls/${callId}/events`, { token: driverToken })).status === 403, 'a equipe não lê a auditoria');
+
+    const prank = await newCall('Chamado do CI: trote');
+    const prankId: string = prank.body.data.id;
+    callIds.push(prankId);
+    const cancelled = await post(`/calls/${prankId}/regulate`, operatorToken, { decision: 'CANCELAR', reason: 'TROTE' });
+    check(cancelled.status === 200 && cancelled.body.data.status === 'CANCELADO' && cancelled.body.data.closeReason === 'TROTE', 'cancelamento por trote');
+    const again = await post(`/calls/${prankId}/regulate`, operatorToken, { decision: 'DESPACHAR', priority: 'URGENTE' });
+    check(again.status === 409, 'chamado encerrado não volta para a fila');
+
+    // Indicadores por pessoa: o operador abriu e regulou os dois e despachou um; o motorista atendeu um
+    const people = await backend('/management/people', { token: operatorToken });
+    const operator = people.body.data?.attendants.find((person: { name: string }) => person.name === 'Operador de Teste');
+    const driver = people.body.data?.drivers.find((person: { name: string }) => person.name === 'Motorista de Teste');
+    check(
+      operator?.opened === 2 && operator.regulated === 2 && operator.dispatched === 1 && operator.closedWithoutDispatch === 1 &&
+        operator.reclassified === 1 && driver?.attended === 1,
+      `indicadores por pessoa (${JSON.stringify({ operator, driver })})`
+    );
+  } finally {
+    await backend('/shifts/end', { method: 'POST', token: driverToken });
+    if (callIds.length) await admin.from('calls').delete().in('id', callIds);
+    await admin.from('ambulances').update({ status: 'DISPONIVEL' }).eq('id', 'amb-1');
   }
 }
 

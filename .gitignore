@@ -8,10 +8,11 @@ build/
 */dist/
 */build/
 
-# Environment variables
+# Environment variables (só os modelos e o .env.production público vão para o git)
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
+!.env.production
 
 # IDE
 .vscode/

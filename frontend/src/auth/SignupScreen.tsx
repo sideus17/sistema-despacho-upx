@@ -9,7 +9,7 @@ import styles from './auth.module.css';
 
 const ROLES = [
   { value: UserRole.MOTORISTA, Icon: AmbulanceIcon, label: 'Motorista', description: 'Recebe despachos e navega até o local' },
-  { value: UserRole.OPERADOR, Icon: HeadsetIcon, label: 'Operador', description: 'Abre chamados e despacha viaturas' }
+  { value: UserRole.OPERADOR, Icon: HeadsetIcon, label: 'Atendente', description: 'Registra, regula e despacha chamados' }
 ];
 
 export default function SignupScreen({ onLogin }: { onLogin: () => void }) {
@@ -25,7 +25,7 @@ export default function SignupScreen({ onLogin }: { onLogin: () => void }) {
   const [error, setError] = useState<string | null>(null);
 
   const validate = (): string | null => {
-    if (!role) return 'Escolha se você é motorista ou operador.';
+    if (!role) return 'Escolha se você é motorista ou atendente.';
     if (fullName.trim().length < 3) return 'Informe o nome completo.';
     if (!isValidCpf(cpf)) return 'CPF inválido. Confira os números.';
     if (!isValidCellphone(phone)) return 'Celular inválido. Use DDD + número, ex.: (15) 99999-9999.';

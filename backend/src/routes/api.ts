@@ -1,6 +1,6 @@
 import { createVerifierClient, supabase } from '../config/supabase';
 import { Router, Request, Response } from 'express';
-import { analyzeDispatch } from '../services/dispatchService';
+import { analyzeDispatch, assertAwaitingDispatch } from '../services/dispatchService';
 import { calculateRoute, speedLimitsAlong } from '../services/routingService';
 import { geocodeAddress, reversePlace, searchPlaces } from '../services/geocodingService';
 import {
@@ -17,7 +17,8 @@ import { resolveOutcome } from '../services/attendance';
 import { listHospitals, trackCallProgress } from '../services/attendanceService';
 import { RESPONSE_TARGETS, computeIndicators } from '../services/indicators';
 import { parseHistoryQuery, parseIncludeDemo, parsePeriod, parsePriorityFilter } from '../services/history';
-import { heatPoints, historyPage, indicatorRows } from '../services/managementService';
+import { heatPoints, historyPage, indicatorRows, peopleNames, peopleRows } from '../services/managementService';
+import { computePeople } from '../services/people';
 import {
   CallError,
   RECENT_WINDOW_MS,
@@ -29,10 +30,14 @@ import {
   recentMatches,
   toCall
 } from '../services/calls';
+import { parseRegulation, regulationChange } from '../services/regulation';
+import { actorOf, buildEvent } from '../services/callEvents';
+import { listCallEvents, recordCallEvent } from '../services/callEventsService';
 import { invalidateProfile, requireAuth, requireRole } from '../middleware/auth';
 import { duplicateMessage, parseCpf, parsePhone, profileUpdate, ProfileError, toMe } from '../services/profile';
 import {
   AmbulanceStatus,
+  CallEventAction,
   CallStatus,
   Coordinates,
   ApiResponse,
@@ -73,7 +78,7 @@ router.get('/health', (req: Request, res: Response) => {
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-// Cadastro pelo backend: valida a função (operador exige o código da central)
+// Cadastro pelo backend: valida a função (atendente da central exige o código da central)
 // e cria o usuário já confirmado, sem depender do envio de e-mail do Supabase
 router.post('/auth/signup', async (req: Request, res: Response) => {
   const { fullName, email, password, role, inviteCode } = req.body ?? {};
@@ -82,7 +87,7 @@ router.post('/auth/signup', async (req: Request, res: Response) => {
   if (name.length < 3) return fail(res, 400, 'Informe o nome completo.');
   if (typeof email !== 'string' || !EMAIL_PATTERN.test(email)) return fail(res, 400, 'E-mail inválido.');
   if (typeof password !== 'string' || password.length < 8) return fail(res, 400, 'A senha precisa ter pelo menos 8 caracteres.');
-  if (!Object.values(UserRole).includes(role)) return fail(res, 400, 'Escolha se você é motorista ou operador.');
+  if (!Object.values(UserRole).includes(role)) return fail(res, 400, 'Escolha se você é motorista ou atendente.');
 
   const expectedCode = process.env.OPERATOR_INVITE_CODE;
   if (role === UserRole.OPERADOR && (!expectedCode || inviteCode !== expectedCode)) {
@@ -368,11 +373,15 @@ router.get('/calls', async (req: Request, res: Response) => {
   });
 });
 
+// Chamados em aberto: a central vê as filas de regulação e despacho; a equipe, só os já regulados
+const OPEN_FOR_CENTRAL = [CallStatus.AGUARDANDO_REGULACAO, CallStatus.PENDENTE, CallStatus.EM_ATENDIMENTO];
+const OPEN_FOR_CREW = [CallStatus.PENDENTE, CallStatus.EM_ATENDIMENTO];
+
 router.get('/calls/pending', async (req: Request, res: Response) => {
   const { data, error } = await supabase
     .from('calls')
     .select('*')
-    .in('status', ['PENDENTE', 'EM_ATENDIMENTO'])
+    .in('status', req.user!.role === UserRole.OPERADOR ? OPEN_FOR_CENTRAL : OPEN_FOR_CREW);
 
   if (error) {
     return res.status(500).json({ success: false, error: error.message, timestamp: new Date().toISOString() });
@@ -438,7 +447,9 @@ router.post('/calls', requireRole(UserRole.OPERADOR), async (req: Request, res: 
         lng: location.lng,
         address: formattedAddress,
         priority,
-        status: CallStatus.PENDENTE,
+        initial_priority: priority,
+        status: CallStatus.AGUARDANDO_REGULACAO,
+        created_by: req.user!.id,
         description: description,
         patient_age: age ? Number(age) : null,
         patient_gender: gender || null,
@@ -451,6 +462,10 @@ router.post('/calls', requireRole(UserRole.OPERADOR), async (req: Request, res: 
 
     if (error) throw new Error(error.message);
 
+    await recordCallEvent(buildEvent(callId, CallEventAction.ABERTURA, actorOf(req.user!), {
+      priority,
+      ...(triage && { signals: triage.signals, suggested: triage.suggested })
+    }));
     res.status(201).json({ success: true, data: toCall(data[0], req.user!.role), timestamp: new Date().toISOString() });
   } catch (error) {
     res.status(error instanceof CallError ? error.status : 400).json({
@@ -470,7 +485,7 @@ router.patch('/calls/:id/hospital', async (req: Request, res: Response) => {
     if (hospitalId !== null && !(await listHospitals()).some(hospital => hospital.id === hospitalId)) {
       return fail(res, 400, 'Hospital inválido.');
     }
-    const { data: call } = await supabase.from('calls').select('status, ambulance_id').eq('id', req.params.id).maybeSingle();
+    const { data: call } = await supabase.from('calls').select('status, ambulance_id, hospital_id').eq('id', req.params.id).maybeSingle();
     if (!call) return fail(res, 404, 'Chamado não encontrado.');
     if (call.status !== CallStatus.EM_ATENDIMENTO) return fail(res, 409, 'Este chamado não está em atendimento.');
     if (req.user!.role === UserRole.MOTORISTA) {
@@ -480,6 +495,12 @@ router.patch('/calls/:id/hospital', async (req: Request, res: Response) => {
 
     const { error } = await supabase.from('calls').update({ hospital_id: hospitalId }).eq('id', req.params.id);
     if (error) throw new Error(error.message);
+    const before = call.hospital_id ?? null;
+    if (before !== hospitalId) {
+      await recordCallEvent(buildEvent(req.params.id, CallEventAction.HOSPITAL, actorOf(req.user!), {
+        changes: { hospitalId: [before, hospitalId] }
+      }));
+    }
     res.json({ success: true, data: { callId: req.params.id, hospitalId }, timestamp: new Date().toISOString() });
   } catch (error) {
     console.error('Falha ao escolher o hospital:', error);
@@ -487,23 +508,50 @@ router.patch('/calls/:id/hospital', async (req: Request, res: Response) => {
   }
 });
 
-router.patch('/calls/:id/status', requireRole(UserRole.OPERADOR), async (req: Request, res: Response) => {
-  const { status } = req.body;
-  
-  if (!Object.values(CallStatus).includes(status)) {
-    return res.status(400).json({ success: false, error: 'Invalid status', timestamp: new Date().toISOString() });
+// Regulação: confirma ou muda a cor, escolhe o hospital e decide (mandar viatura, orientar por telefone
+// ou cancelar). Também reclassifica um chamado que ainda espera viatura.
+router.post('/calls/:id/regulate', requireRole(UserRole.OPERADOR), async (req: Request, res: Response) => {
+  try {
+    const input = parseRegulation(req.body);
+    if (input.hospitalId && !(await listHospitals()).some(hospital => hospital.id === input.hospitalId)) {
+      throw new CallError(400, 'Hospital inválido.');
+    }
+    const { data: before, error: readError } = await supabase
+      .from('calls')
+      .select('status, priority, hospital_id, regulated_at')
+      .eq('id', req.params.id)
+      .maybeSingle();
+    if (readError) throw new Error(readError.message);
+    if (!before) throw new CallError(404, 'Chamado não encontrado.');
+
+    const { update, data: change } = regulationChange(before, input, req.user!.id, new Date().toISOString());
+    // Só grava se ninguém mexeu no chamado desde a leitura (dois atendentes regulando ao mesmo tempo)
+    const { data: rows, error } = await supabase
+      .from('calls')
+      .update(update)
+      .eq('id', req.params.id)
+      .eq('status', before.status)
+      .select();
+    if (error) throw new Error(error.message);
+    if (!rows?.length) throw new CallError(409, 'O chamado mudou enquanto você regulava. Confira e tente de novo.');
+
+    await recordCallEvent(buildEvent(req.params.id, CallEventAction.REGULACAO, actorOf(req.user!), change));
+    res.json({ success: true, data: toCall(rows[0], req.user!.role), timestamp: new Date().toISOString() });
+  } catch (error) {
+    if (error instanceof CallError) return fail(res, error.status, error.message);
+    console.error('Falha na regulação:', error);
+    fail(res, 500, 'Não foi possível salvar a regulação.');
   }
+});
 
-  const { error } = await supabase
-    .from('calls')
-    .update({ status })
-    .eq('id', req.params.id);
-
-  if (error) {
-    return res.status(500).json({ success: false, error: error.message, timestamp: new Date().toISOString() });
+// Auditoria do chamado: quem fez cada ação, quando e o que mudou
+router.get('/calls/:id/events', requireRole(UserRole.OPERADOR), async (req: Request, res: Response) => {
+  try {
+    res.json({ success: true, data: await listCallEvents(req.params.id), timestamp: new Date().toISOString() });
+  } catch (error) {
+    console.error('Falha ao ler a auditoria do chamado:', error);
+    fail(res, 500, 'Não foi possível carregar o registro do chamado.');
   }
-
-  res.json({ success: true, data: { message: 'Status updated successfully' }, timestamp: new Date().toISOString() });
 });
 
 // ============================================
@@ -612,6 +660,7 @@ router.post('/dispatch/analyze', requireRole(UserRole.OPERADOR), async (req: Req
     res.json(response);
 
   } catch (error) {
+    if (error instanceof CallError) return fail(res, error.status, error.message);
     const response: ApiResponse<null> = {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -631,11 +680,16 @@ router.post('/dispatch/execute', requireRole(UserRole.OPERADOR), async (req: Req
 
     // Busca o chamado e a ambulância diretamente no Supabase
     const { data: callData, error: callError } = await supabase.from('calls').select('*').eq('id', callId).single();
-    const { data: ambData, error: ambError } = await supabase.from('ambulances').select('*').eq('id', ambulanceId).single();
+    const { data: ambData, error: ambError } = await supabase
+      .from('ambulances')
+      .select('*, driver:profiles!driver_id(full_name)')
+      .eq('id', ambulanceId)
+      .single();
 
     if (callError || ambError || !callData || !ambData) {
       return res.status(404).json({ success: false, error: 'Call or ambulance not found', timestamp: new Date().toISOString() });
     }
+    assertAwaitingDispatch(callData.status);
 
     // Reserva a ambulância só se ela estiver disponível e com motorista em turno (evita despacho duplo
     // e garante que alguém recebe o chamado no app)
@@ -658,6 +712,8 @@ router.post('/dispatch/execute', requireRole(UserRole.OPERADOR), async (req: Req
       .update({
         status: CallStatus.EM_ATENDIMENTO,
         ambulance_id: ambulanceId,
+        dispatched_by: req.user!.id,
+        driver_id: ambData.driver_id, // quem estava em turno na viatura (o turno não fica guardado)
         // Onde a viatura estava: andar 100 m dali é sinal de que saiu
         dispatched_at: new Date().toISOString(),
         dispatch_lat: ambData.lat,
@@ -672,6 +728,14 @@ router.post('/dispatch/execute', requireRole(UserRole.OPERADOR), async (req: Req
       if (assignError) throw new Error(assignError.message);
       return res.status(409).json({ success: false, error: 'Chamado não está mais pendente', timestamp: new Date().toISOString() });
     }
+
+    const driver = ambData.driver as { full_name: string } | null;
+    await recordCallEvent(buildEvent(callId, CallEventAction.DESPACHO, actorOf(req.user!), {
+      ambulanceId,
+      ambulanceCode: ambData.code,
+      driverId: ambData.driver_id,
+      driverName: driver?.full_name ?? null
+    }));
 
     // Calcula a rota com as coordenadas que vieram do banco
     const route = await calculateRoute(
@@ -693,6 +757,7 @@ router.post('/dispatch/execute', requireRole(UserRole.OPERADOR), async (req: Req
     res.json({ success: true, data: execution, timestamp: new Date().toISOString() });
 
   } catch (error) {
+    if (error instanceof CallError) return fail(res, error.status, error.message);
     res.status(500).json({ success: false, error: error instanceof Error ? error.message : 'Unknown error', timestamp: new Date().toISOString() });
   }
 });
@@ -724,12 +789,16 @@ router.post('/dispatch/finish', async (req: Request, res: Response) => {
 
     // Finaliza o chamado; a viatura continua nele (histórico)
     const outcome = resolveOutcome(callData, req.body.outcome);
-    const { error: finishError } = await supabase
+    const { data: finished, error: finishError } = await supabase
       .from('calls')
       .update({ status: CallStatus.FINALIZADO, finished_at: new Date().toISOString(), outcome })
       .eq('id', callId)
-      .eq('status', CallStatus.EM_ATENDIMENTO);
+      .eq('status', CallStatus.EM_ATENDIMENTO)
+      .select('id');
     if (finishError) throw new Error(finishError.message);
+    // Outra pessoa finalizou entre a leitura e agora: não libera a viatura de novo nem registra duas vezes
+    if (!finished?.length) return fail(res, 409, 'Este chamado não está em atendimento.');
+    await recordCallEvent(buildEvent(callId, CallEventAction.FINALIZACAO, actorOf(req.user!), { outcome }));
 
     // Libera a ambulância
     if (callData.ambulance_id) {
@@ -835,9 +904,10 @@ router.get('/traffic/flow/:z/:x/:y.pbf', async (req: Request, res: Response) => 
 router.get('/stats', requireRole(UserRole.OPERADOR), async (req: Request, res: Response) => {
   try {
     // Os chamados só são contados (com o histórico, trazer a tabela seria pesado)
-    const [ambRes, pendingRes, activeIncidents] = await Promise.all([
+    const [ambRes, pendingRes, regulationRes, activeIncidents] = await Promise.all([
       supabase.from('ambulances').select('id, status, driver_id'),
       supabase.from('calls').select('id', { count: 'exact', head: true }).eq('status', CallStatus.PENDENTE),
+      supabase.from('calls').select('id', { count: 'exact', head: true }).eq('status', CallStatus.AGUARDANDO_REGULACAO),
       countActiveIncidents()
     ]);
 
@@ -846,6 +916,7 @@ router.get('/stats', requireRole(UserRole.OPERADOR), async (req: Request, res: R
       // Disponível de verdade = livre e com motorista em turno para receber o chamado
       availableAmbulances: ambRes.data?.filter(a => a.status === 'DISPONIVEL' && a.driver_id).length || 0,
       pendingCalls: pendingRes.count ?? 0,
+      awaitingRegulation: regulationRes.count ?? 0,
       activeIncidents
     };
 
@@ -866,6 +937,22 @@ const failManagement = (res: Response, error: unknown, fallback: string) => {
 };
 
 // Tempos de cada etapa, tempo-resposta por cor com a meta e distribuições do período
+// Indicadores por pessoa: atendentes (registro, regulação e despacho) e motoristas
+router.get('/management/people', requireRole(UserRole.OPERADOR), async (req: Request, res: Response) => {
+  try {
+    const period = parsePeriod(req.query);
+    const includeDemo = parseIncludeDemo(req.query);
+    const { rows, truncated } = await peopleRows(period, includeDemo);
+    res.json({
+      success: true,
+      data: { period, includeDemo, truncated, ...computePeople(rows, await peopleNames(rows)) },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    failManagement(res, error, 'Não foi possível calcular os indicadores por pessoa.');
+  }
+});
+
 router.get('/management/indicators', requireRole(UserRole.OPERADOR), async (req: Request, res: Response) => {
   try {
     const period = parsePeriod(req.query);

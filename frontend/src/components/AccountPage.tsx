@@ -11,7 +11,7 @@ import { useToast } from './Toast';
 import styles from './AccountPage.module.css';
 
 export const ROLE_LABEL: Record<UserRole, string> = {
-  [UserRole.OPERADOR]: 'Operador da central',
+  [UserRole.OPERADOR]: 'Atendente da central',
   [UserRole.MOTORISTA]: 'Motorista'
 };
 

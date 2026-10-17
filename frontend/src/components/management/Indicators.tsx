@@ -15,8 +15,11 @@ import {
 import { useLoad } from './useLoad';
 import styles from './Indicators.module.css';
 
-// Etapas do atendimento em ordem (o tempo-resposta soma as três primeiras e tem cartão próprio)
-const STAGES: AttendanceStage[] = ['queue', 'departure', 'travel', 'onScene', 'transport'];
+// Etapas do atendimento em ordem (o tempo-resposta soma as da abertura à chegada e tem cartão próprio).
+// Com chamados regulados no período, a fila aparece dividida em regulação e espera pela viatura.
+const AFTER_DISPATCH: AttendanceStage[] = ['departure', 'travel', 'onScene', 'transport'];
+const stagesFor = (data: IndicatorData): AttendanceStage[] =>
+  data.stages.regulation.n > 0 ? ['regulation', 'dispatchWait', ...AFTER_DISPATCH] : ['queue', ...AFTER_DISPATCH];
 const OUTCOMES: CallOutcome[] = [
   CallOutcome.TRANSPORTADO,
   CallOutcome.ATENDIDO_NO_LOCAL,
@@ -66,7 +69,7 @@ export default function Indicators({ scope, ambulances, hospitals }: {
   );
 }
 
-function Failure({ message, onRetry }: { message: string; onRetry: () => void }) {
+export function Failure({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
     <div className={styles.failure} role="alert">
       <span>{message}</span>
@@ -77,6 +80,7 @@ function Failure({ message, onRetry }: { message: string; onRetry: () => void })
 
 function IndicatorView({ data, ambulances, hospitals }: { data: IndicatorData; ambulances: Ambulance[]; hospitals: Hospital[] }) {
   const { stages, response, quality } = data;
+  const stageKeys = stagesFor(data);
   const finished = data.byStatus.FINALIZADO;
   const responseItems = PRIORITIES_BY_SEVERITY.map(priority => {
     const stats = response.byPriority[priority];
@@ -130,7 +134,11 @@ function IndicatorView({ data, ambulances, hospitals }: { data: IndicatorData; a
         <StatTile
           label="Chamados"
           value={formatCount(data.total)}
-          detail={`${plural(finished, 'finalizado', 'finalizados')} · ${plural(data.byStatus.CANCELADO, 'cancelado', 'cancelados')}`}
+          detail={[
+            plural(finished, 'finalizado', 'finalizados'),
+            ...(data.byStatus.ORIENTADO > 0 ? [plural(data.byStatus.ORIENTADO, 'orientado', 'orientados')] : []),
+            plural(data.byStatus.CANCELADO, 'cancelado', 'cancelados')
+          ].join(' · ')}
         />
         <StatTile
           label="Tempo-resposta (mediana)"
@@ -192,7 +200,7 @@ function IndicatorView({ data, ambulances, hospitals }: { data: IndicatorData; a
           subtitle={`Total, da abertura ao fim: ${formatMinutes(stages.total.median)} (mediana)`}
           table={{
             head: ['Etapa', 'Mediana', '9 em 10 até', 'Chamados'],
-            rows: [...STAGES, 'total' as const].map(stage => [
+            rows: [...stageKeys, ...(stageKeys.includes('queue') ? [] : ['queue' as const]), 'total' as const].map(stage => [
               STAGE_LABEL[stage].label,
               formatMinutes(stages[stage].median),
               formatMinutes(stages[stage].p90),
@@ -202,7 +210,7 @@ function IndicatorView({ data, ambulances, hospitals }: { data: IndicatorData; a
         >
           <RangeList
             label="Tempo de cada etapa"
-            items={STAGES.map(stage => ({
+            items={stageKeys.map(stage => ({
               key: stage,
               label: (
                 <span className={styles.stageLabel}>
@@ -227,7 +235,7 @@ function IndicatorView({ data, ambulances, hospitals }: { data: IndicatorData; a
 
         <ChartCard
           title="Chamados por cor"
-          subtitle="Classificação de risco feita na abertura"
+          subtitle="Cor final, definida na regulação"
           table={{
             head: ['Cor', 'Chamados', '%'],
             rows: PRIORITIES_BY_SEVERITY.map(priority => [

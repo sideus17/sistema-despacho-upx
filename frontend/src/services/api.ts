@@ -20,6 +20,9 @@ import {
   CallPriority,
   CallTriage,
   CallOutcome,
+  RegulationRequest,
+  CallEvent,
+  PeopleIndicators,
   Hospital,
   Me,
   Indicators,
@@ -197,6 +200,12 @@ export async function createCall(call: CreateCallRequest): Promise<EmergencyCall
   return response.data.data!;
 }
 
+// Regulação: cor final, hospital e a decisão (mandar viatura, orientar por telefone ou cancelar)
+export async function regulateCall(callId: string, regulation: RegulationRequest): Promise<EmergencyCall> {
+  const response = await api.post<ApiResponse<EmergencyCall>>(`/calls/${callId}/regulate`, regulation);
+  return response.data.data!;
+}
+
 // ============================================
 // BASES
 // ============================================
@@ -349,6 +358,17 @@ export async function getHistory(scope: ManagementScope, filters: HistoryFilters
   const params = { ...scopeParams(scope), ...filters, page };
   const response = await api.get<ApiResponse<HistoryPage>>('/management/calls', { params, signal });
   return response.data.data!;
+}
+
+export async function getPeople(scope: ManagementScope, signal?: AbortSignal): Promise<PeopleIndicators> {
+  const response = await api.get<ApiResponse<PeopleIndicators>>('/management/people', { params: scopeParams(scope), signal });
+  return response.data.data!;
+}
+
+// Auditoria do chamado: quem fez cada ação, na ordem
+export async function getCallEvents(callId: string, signal?: AbortSignal): Promise<CallEvent[]> {
+  const response = await api.get<ApiResponse<CallEvent[]>>(`/calls/${callId}/events`, { signal });
+  return response.data.data ?? [];
 }
 
 export async function getHeatmap(scope: ManagementScope, signal?: AbortSignal): Promise<{ points: HeatPoint[]; truncated: boolean }> {

@@ -1,14 +1,15 @@
 import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { Ambulance, CallPriority, CallStatus, Hospital } from '../../types';
-import { getHistory } from '../../services/api';
+import { Ambulance, CallEventAction, CallPriority, CallStatus, Hospital, UserRole } from '../../types';
+import { getCallEvents, getHistory } from '../../services/api';
 import { historyCall } from '../../test/management';
 import History from './History';
 
 vi.mock('../../services/api', async importOriginal => ({
   ...(await importOriginal<typeof import('../../services/api')>()),
-  getHistory: vi.fn()
+  getHistory: vi.fn(),
+  getCallEvents: vi.fn()
 }));
 
 const SCOPE = { from: '2026-09-17T03:00:00.000Z', to: '2026-10-16T15:00:00.000Z', demo: true };
@@ -16,6 +17,8 @@ const AMBULANCES = [{ id: 'amb-3', code: 'USB-02' } as Ambulance];
 const HOSPITALS = [{ id: 'hosp-santa-casa', name: 'Santa Casa de Misericórdia de Sorocaba', shortName: 'Santa Casa' } as Hospital];
 
 beforeEach(() => {
+  vi.mocked(getCallEvents).mockReset();
+  vi.mocked(getCallEvents).mockResolvedValue([]);
   vi.mocked(getHistory).mockReset();
   vi.mocked(getHistory).mockImplementation(async (_scope, _filters, page) => ({
     items: [historyCall({ id: `demo-${page}` })],
@@ -82,11 +85,33 @@ describe('histórico', () => {
     expect(dialog).toHaveTextContent('Santa Casa de Misericórdia de Sorocaba');
     const steps = within(dialog).getAllByRole('listitem').map(item => item.textContent);
     expect(steps[0]).toContain('Abertura do chamado');
-    expect(steps[3]).toMatch(/Chegada ao local\+15,0 min/);
+    expect(steps[3]).toMatch(/Chegada ao localGPS da viatura\+15,0 min/);
     expect(steps).toHaveLength(7);
 
     await user.keyboard('{Escape}');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('com a auditoria, a linha do tempo mostra quem fez cada passo', async () => {
+    const call = historyCall({ id: 'demo-1' });
+    vi.mocked(getCallEvents).mockResolvedValue([
+      { id: 1, at: call.timestamp, action: CallEventAction.ABERTURA, actor: { id: 'u-1', name: 'Ana Ribeiro', role: UserRole.OPERADOR }, data: { priority: 'URGENTE' } },
+      {
+        id: 2,
+        at: call.times!.dispatched!,
+        action: CallEventAction.DESPACHO,
+        actor: { id: 'u-2', name: 'Bruno Carvalho', role: UserRole.OPERADOR },
+        data: { ambulanceCode: 'USB-02', driverName: 'Igor Matos' }
+      }
+    ]);
+    const user = userEvent.setup();
+    renderHistory();
+    await user.click(await screen.findByRole('button', { name: 'Vila Hortência, Sorocaba/SP' }));
+    expect(getCallEvents).toHaveBeenCalledWith('demo-1', expect.any(AbortSignal));
+    const dialog = screen.getByRole('dialog');
+    expect(await within(dialog).findByText('Ana Ribeiro · atendente')).toBeInTheDocument();
+    expect(within(dialog).getByText('USB-02 · motorista Igor Matos')).toBeInTheDocument();
+    expect(within(dialog).getByText('Bruno Carvalho · atendente')).toBeInTheDocument();
   });
 
   it('sem resultado com filtro avisa', async () => {

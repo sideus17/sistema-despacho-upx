@@ -110,6 +110,10 @@
   vertical-align: 0;
 }
 
+.callIconProvisional {
+  color: var(--marker-color);
+}
+
 /* Chamado pendente pulsa para chamar atenção */
 .pulse {
   position: absolute;

@@ -43,7 +43,7 @@ function cacheProfile(profile: Me | null) {
 
 /**
  * Decide a tela pela sessão: login/cadastro → MFA (cadastrar ou confirmar) → app da função.
- * Motorista vai para a tela da viatura; operador, para a central.
+ * Motorista vai para a tela da viatura; atendente, para a central.
  */
 export default function AuthGate() {
   const [stage, setStage] = useState<Stage>('loading');

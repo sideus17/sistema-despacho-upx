@@ -3,6 +3,8 @@ import { CallPriority, CallStatus } from '../types';
 import { CallRow } from './calls';
 import { HistoryQuery, Period } from './history';
 import { INDICATOR_COLUMNS, IndicatorRow } from './indicators';
+import { PEOPLE_COLUMNS, PeopleNames, PeopleRow } from './people';
+import { DEMO_PEOPLE } from './demoHistory';
 
 // Leituras da gestão. O Supabase devolve no máximo 1000 linhas por vez: as buscas grandes vão em páginas.
 
@@ -29,15 +31,42 @@ function callsInPeriod(columns: string, period: Period, includeDemo: boolean) {
   return includeDemo ? query : query.eq('demo', false);
 }
 
-export async function indicatorRows(period: Period, includeDemo: boolean) {
-  return fetchAll<IndicatorRow>(
+// Todas as linhas do período, só com as colunas pedidas
+function periodRows<T>(columns: string, period: Period, includeDemo: boolean) {
+  return fetchAll<T>(
     (from, to) =>
-      callsInPeriod(INDICATOR_COLUMNS, period, includeDemo)
+      callsInPeriod(columns, period, includeDemo)
         .order('timestamp', { ascending: true })
         .order('id', { ascending: true })
-        .range(from, to) as unknown as Page<IndicatorRow>,
+        .range(from, to) as unknown as Page<T>,
     MAX_INDICATOR_ROWS
   );
+}
+
+export async function indicatorRows(period: Period, includeDemo: boolean) {
+  return periodRows<IndicatorRow>(INDICATOR_COLUMNS, period, includeDemo);
+}
+
+export async function peopleRows(period: Period, includeDemo: boolean) {
+  return periodRows<PeopleRow>(PEOPLE_COLUMNS, period, includeDemo);
+}
+
+// Nomes de quem aparece nos chamados: a equipe da demonstração e as contas reais (só os ids usados)
+export async function peopleNames(rows: PeopleRow[]): Promise<PeopleNames> {
+  const names: PeopleNames = new Map(DEMO_PEOPLE.map(person => [person.id, { name: person.name, demo: true }]));
+  const ids = new Set<string>();
+  for (const row of rows) {
+    for (const id of [row.created_by, row.regulated_by, row.dispatched_by, row.driver_id]) {
+      if (id && !names.has(id)) ids.add(id);
+    }
+  }
+  const list = [...ids];
+  for (let start = 0; start < list.length; start += PAGE) {
+    const { data, error } = await supabase.from('profiles').select('id, full_name').in('id', list.slice(start, start + PAGE));
+    if (error) throw new Error(error.message);
+    for (const profile of data ?? []) names.set(profile.id, { name: profile.full_name, demo: false });
+  }
+  return names;
 }
 
 // Uma página do histórico, dos mais novos para os mais antigos, com o total que bate com os filtros

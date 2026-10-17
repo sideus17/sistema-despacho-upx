@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { CallStatus, EmergencyCall } from '../types';
-import { PRIORITY_META, WAIT_CRITICAL_MS } from '../utils/calls';
+import { EmergencyCall } from '../types';
+import { PRIORITY_META, QUEUE_WAIT, Queue, queueOf, waitingSince } from '../utils/calls';
 import { playAlert, unlockAlertSound } from '../utils/alertSound';
 
 type Toast = (message: string, kind?: 'success' | 'error' | 'info') => void;
@@ -58,16 +58,29 @@ function notify(title: string, body: string, tag: string) {
 
 const describe = (call: EmergencyCall) => `${PRIORITY_META[call.priority]?.name ?? call.priority} · ${call.address}`;
 
+// Chave de um chamado numa fila: o mesmo chamado avisa ao chegar na regulação e de novo no despacho
+export const queueKey = (call: Pick<EmergencyCall, 'id' | 'status'>) => `${call.status}:${call.id}`;
+
+const ARRIVAL: Record<Queue, { one: string; many: (count: number) => string; title: string }> = {
+  regulacao: { one: 'Novo chamado', many: count => `${count} chamados novos para regular`, title: 'Novo chamado' },
+  despacho: { one: 'Chamado regulado, aguardando despacho', many: count => `${count} chamados regulados aguardando despacho`, title: 'Chamado regulado' }
+};
+
+const LATE: Record<Queue, { minutes: number; label: string }> = {
+  regulacao: { minutes: QUEUE_WAIT.regulacao.critical / 60_000, label: 'aguardando regulação' },
+  despacho: { minutes: QUEUE_WAIT.despacho.critical / 60_000, label: 'aguardando despacho' }
+};
+
 /**
- * Avisa a central: chamado novo aberto por outro operador (os desta tela não contam) e chamado
- * pendente esperando 5 min ou mais (uma vez por chamado). O aviso na tela sai sempre; som e
- * notificação, só com os alertas ligados.
+ * Avisa a central: chamado novo para regular, chamado regulado esperando viatura (os que esta tela
+ * abriu ou regulou não contam) e espera longa em cada fila (3 min na regulação, 5 min no despacho;
+ * uma vez por chamado e fila). O aviso na tela sai sempre; som e notificação, só com os alertas ligados.
  */
-export function useCallAlerts(calls: EmergencyCall[], ownIds: { current: Set<string> }, toast: Toast) {
+export function useCallAlerts(calls: EmergencyCall[], ownKeys: { current: Set<string> }, toast: Toast) {
   const on = useCallAlertsEnabled();
   const seen = useRef<Set<string> | null>(null);
   const warned = useRef(new Set<string>());
-  const pending = calls.filter(call => call.status === CallStatus.PENDENTE);
+  const waiting = calls.filter(call => queueOf(call) !== null);
   const [tick, setTick] = useState(0);
 
   // O primeiro toque ou tecla na página libera o som (exigência dos navegadores)
@@ -81,42 +94,56 @@ export function useCallAlerts(calls: EmergencyCall[], ownIds: { current: Set<str
     };
   }, []);
 
-  // Chamado novo
+  // Chamado que acabou de chegar numa fila
   useEffect(() => {
-    const ids = calls.map(call => call.id);
+    const keys = calls.map(queueKey);
     if (seen.current === null) {
-      // Primeira leitura: o que já estava na fila não é novidade
-      seen.current = new Set(ids);
+      // Primeira leitura: o que já estava nas filas não é novidade
+      seen.current = new Set(keys);
       return;
     }
-    const fresh = pending.filter(call => !seen.current!.has(call.id) && !ownIds.current.has(call.id));
-    ids.forEach(id => seen.current!.add(id));
-    if (fresh.length === 0) return;
+    const fresh = waiting.filter(call => !seen.current!.has(queueKey(call)) && !ownKeys.current.has(queueKey(call)));
+    keys.forEach(key => seen.current!.add(key));
 
-    toast(fresh.length === 1 ? `Novo chamado: ${describe(fresh[0])}` : `${fresh.length} chamados novos na fila`, 'info');
-    if (on) {
-      playAlert('novo');
-      fresh.forEach(call => notify('Novo chamado', describe(call), call.id));
+    for (const queue of ['regulacao', 'despacho'] as Queue[]) {
+      const arrived = fresh.filter(call => queueOf(call) === queue);
+      if (arrived.length === 0) continue;
+      const text = ARRIVAL[queue];
+      toast(arrived.length === 1 ? `${text.one}: ${describe(arrived[0])}` : text.many(arrived.length), 'info');
+      if (on) {
+        playAlert('novo');
+        arrived.forEach(call => notify(text.title, describe(call), queueKey(call)));
+      }
     }
   }, [calls]);
 
   // Espera longa: confere a cada 5 s
   useEffect(() => {
-    if (pending.length === 0) return;
+    if (waiting.length === 0) return;
     const timer = window.setInterval(() => setTick(value => value + 1), CHECK_WAIT_MS);
     return () => window.clearInterval(timer);
-  }, [pending.length]);
+  }, [waiting.length]);
 
   useEffect(() => {
     const now = Date.now();
-    const late = pending.filter(call => now - Date.parse(call.timestamp) >= WAIT_CRITICAL_MS && !warned.current.has(call.id));
-    if (late.length === 0) return;
-    late.forEach(call => warned.current.add(call.id));
+    for (const queue of ['regulacao', 'despacho'] as Queue[]) {
+      const late = waiting.filter(
+        call => queueOf(call) === queue && now - Date.parse(waitingSince(call)) >= QUEUE_WAIT[queue].critical && !warned.current.has(queueKey(call))
+      );
+      if (late.length === 0) continue;
+      late.forEach(call => warned.current.add(queueKey(call)));
 
-    toast(late.length === 1 ? `Chamado aguardando há 5 min ou mais: ${describe(late[0])}` : `${late.length} chamados aguardando há 5 min ou mais`, 'error');
-    if (on) {
-      playAlert('espera');
-      late.forEach(call => notify('Chamado aguardando', describe(call), `${call.id}-espera`));
+      const { minutes, label } = LATE[queue];
+      toast(
+        late.length === 1
+          ? `Chamado ${label} há ${minutes} min ou mais: ${describe(late[0])}`
+          : `${late.length} chamados ${label} há ${minutes} min ou mais`,
+        'error'
+      );
+      if (on) {
+        playAlert('espera');
+        late.forEach(call => notify('Chamado aguardando', describe(call), `${queueKey(call)}-espera`));
+      }
     }
   }, [tick, calls]);
 }

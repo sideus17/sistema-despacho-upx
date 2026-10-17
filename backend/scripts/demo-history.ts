@@ -1,5 +1,6 @@
 /**
- * Histórico de demonstração para a tela de gestão (chamados com demo = true, migração 007).
+ * Histórico de demonstração para a tela de gestão (chamados com demo = true, migração 007), com a equipe
+ * fictícia e a auditoria de cada chamado (migração 008; os eventos são apagados junto com os chamados).
  * Grava no banco do backend/.env (o mesmo que o servidor usa: confira a linha "Banco:" antes).
  *   npm run demo:gerar -- --quantidade 300 --dias 60 [--semente 17] [--substituir]
  *   npm run demo:apagar
@@ -7,7 +8,7 @@
  */
 import { databaseLabel, supabase } from '../src/config/supabase';
 import { listHospitals } from '../src/services/attendanceService';
-import { DemoAmbulance, generateDemoHistory } from '../src/services/demoHistory';
+import { DemoAmbulance, demoEvents, generateDemoHistory } from '../src/services/demoHistory';
 
 const BATCH = 500;
 
@@ -48,7 +49,7 @@ async function generate() {
 
   // As viaturas saem da própria base
   const [{ data: ambulances, error: ambError }, { data: bases, error: baseError }, hospitals] = await Promise.all([
-    supabase.from('ambulances').select('id, type, base_id, lat, lng'),
+    supabase.from('ambulances').select('id, code, type, base_id, lat, lng'),
     supabase.from('bases').select('id, lat, lng'),
     listHospitals()
   ]);
@@ -64,7 +65,16 @@ async function generate() {
     const { error } = await supabase.from('calls').insert(rows.slice(start, start + BATCH));
     if (error) throw new Error(error.message);
   }
-  console.log(`${rows.length} chamados de demonstração gravados (${days} dias, ${fleet.length} viaturas, ${hospitals.length} hospitais).`);
+  const codes = Object.fromEntries((ambulances ?? []).map(ambulance => [ambulance.id, ambulance.code]));
+  const events = demoEvents(rows, codes);
+  for (let start = 0; start < events.length; start += BATCH) {
+    const { error } = await supabase.from('call_events').insert(events.slice(start, start + BATCH));
+    if (error) throw new Error(`${error.message} (a migração 008 já rodou?)`);
+  }
+  console.log(
+    `${rows.length} chamados de demonstração gravados, com ${events.length} ações na auditoria ` +
+      `(${days} dias, ${fleet.length} viaturas, ${hospitals.length} hospitais).`
+  );
 }
 
 async function main() {
