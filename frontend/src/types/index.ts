@@ -141,6 +141,7 @@ export interface EmergencyCall {
   times?: CallTimes; // horários do atendimento (só os que já aconteceram)
   hospitalId?: string; // hospital de destino (escolhido ou onde a viatura chegou)
   outcome?: CallOutcome;
+  demo?: true; // histórico de demonstração (só aparece na gestão)
 }
 
 // Etapas do atendimento: despacho e fim pelas ações; as do meio, pelo GPS da viatura
@@ -303,6 +304,72 @@ export interface Stats {
   availableAmbulances: number;
   pendingCalls: number;
   activeIncidents: number;
+}
+
+// ============================================
+// GESTÃO (backend/src/services/indicators.ts)
+// ============================================
+
+// Tempos em segundos; sem nenhum chamado com os dois horários, a mediana é nula
+export interface DurationStats {
+  n: number;
+  median: number | null;
+  p90: number | null;
+}
+
+export interface ResponseStats extends DurationStats {
+  withinTarget: number | null; // fração (0 a 1) que chegou dentro da meta da própria cor
+}
+
+export interface TargetStats extends ResponseStats {
+  target: number; // segundos
+}
+
+// Espera na fila, saída, deslocamento, tempo-resposta, no local, transporte e total
+export type AttendanceStage = 'queue' | 'departure' | 'travel' | 'response' | 'onScene' | 'transport' | 'total';
+
+export interface Indicators {
+  period: { from: string; to: string };
+  includeDemo: boolean;
+  targets: Record<CallPriority, number>; // minutos
+  truncated: boolean;
+  total: number;
+  byStatus: Record<CallStatus, number>;
+  byPriority: Record<CallPriority, number>;
+  stages: Record<AttendanceStage, DurationStats>;
+  response: { overall: ResponseStats; byPriority: Record<CallPriority, TargetStats> };
+  byOutcome: Record<CallOutcome, number>;
+  byHospital: Array<{ hospitalId: string; count: number; transportMedian: number | null }>;
+  byAmbulance: Array<{ ambulanceId: string; count: number; responseMedian: number | null }>;
+  byHour: number[];
+  byDay: Array<{ date: string; count: number }>;
+  quality: { finished: number; missingOnScene: number; missingOutcome: number };
+}
+
+export interface HistoryFilters {
+  q?: string;
+  priority?: CallPriority;
+  status?: CallStatus;
+  outcome?: CallOutcome;
+  ambulance?: string;
+  hospital?: string;
+}
+
+export interface HistoryPage {
+  items: EmergencyCall[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+// [lat, lng, cor] de cada chamado do período
+export type HeatPoint = [number, number, CallPriority];
+
+// Período da gestão: início e fim (ISO) e se os chamados de demonstração entram
+export interface ManagementScope {
+  from: string;
+  to: string;
+  demo: boolean;
 }
 
 

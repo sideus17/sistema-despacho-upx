@@ -48,6 +48,15 @@
   --tint-violet-border: #c4b5fd;
   --tint-violet-text: #4c1d95;
 
+  /* Gráficos da gestão: o acento (violeta) não se confunde com as 4 cores da classificação; o amarelo
+     é um tom mais escuro que o do selo, para o traço aparecer sobre o branco */
+  --chart-accent: #7c3aed;
+  --chart-accent-soft: rgba(124, 58, 237, 0.12);
+  --chart-red: #dc2626;
+  --chart-yellow: #ca8a04;
+  --chart-green: #16a34a;
+  --chart-blue: #2563eb;
+
   --radius: 10px;
   --touch-target: 44px;
 }
@@ -95,6 +104,13 @@
   --tint-violet-bg: #2e1065;
   --tint-violet-border: #5b21b6;
   --tint-violet-text: #ddd6fe;
+
+  --chart-accent: #a78bfa;
+  --chart-accent-soft: rgba(167, 139, 250, 0.16);
+  --chart-red: #ef4444;
+  --chart-yellow: #eab308;
+  --chart-green: #22c55e;
+  --chart-blue: #3b82f6;
 }
 
 /* Reset and Base Styles */
@@ -166,6 +182,80 @@ body {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
 }
 
+/* Botão Gestão ↔ Operação e a conta */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.header-view {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: white;
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.header-view .icon {
+  font-size: 20px;
+}
+
+.header-view:focus-visible {
+  outline: 2px solid white;
+  outline-offset: 2px;
+}
+
+@media (hover: hover) {
+  .header-view:hover {
+    background: rgba(255, 255, 255, 0.24);
+  }
+}
+
+/* Chamados esperando despacho enquanto a central está na gestão */
+.header-view-badge {
+  display: inline-grid;
+  min-width: 20px;
+  height: 20px;
+  place-items: center;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--color-danger);
+  color: white;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.header-view-short {
+  display: none;
+}
+
+@media (max-width: 380px) {
+  .header-brand-name {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .header-view-long {
+    display: none;
+  }
+
+  .header-view-short {
+    display: inline;
+  }
+}
+
 /* Connection banner */
 .connection-banner {
   display: flex;
@@ -205,6 +295,11 @@ body {
   display: flex;
   flex: 1;
   overflow: hidden;
+}
+
+/* Na gestão a operação continua montada (mapa, formulário e alertas), só escondida */
+.main-content[hidden] {
+  display: none;
 }
 
 /* Map Container */

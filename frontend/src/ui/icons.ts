@@ -20,6 +20,15 @@ export { default as WarningIcon } from '~icons/material-symbols/warning-rounded'
 export { default as BackIcon } from '~icons/material-symbols/arrow-back-rounded';
 export { default as CloseIcon } from '~icons/material-symbols/close-rounded';
 
+// Gestão
+export { default as ManagementIcon } from '~icons/material-symbols/monitoring-rounded';
+export { default as BarChartIcon } from '~icons/material-symbols/bar-chart-rounded';
+export { default as HeatMapIcon } from '~icons/material-symbols/local-fire-department-rounded';
+export { default as HistoryIcon } from '~icons/material-symbols/history-rounded';
+export { default as RefreshIcon } from '~icons/material-symbols/refresh-rounded';
+export { default as ChevronLeftIcon } from '~icons/material-symbols/chevron-left-rounded';
+export { default as ChevronRightIcon } from '~icons/material-symbols/chevron-right-rounded';
+
 // Detalhes de chamados e rotas
 export { default as LocationIcon } from '~icons/material-symbols/location-on-rounded';
 export { default as DistanceIcon } from '~icons/material-symbols/straighten-rounded';

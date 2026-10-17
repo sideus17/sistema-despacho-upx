@@ -1,0 +1,170 @@
+.indicators {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  transition: opacity 0.15s;
+}
+
+/* Recarregando: o quadro anterior fica, mais apagado (sem piscar) */
+.refreshing {
+  opacity: 0.55;
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.muted {
+  color: var(--color-text-muted);
+}
+
+.priorityKey {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.priorityKey small {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.dot {
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.stageLabel {
+  display: flex;
+  flex-direction: column;
+}
+
+.stageLabel small {
+  font-size: 11px;
+}
+
+/* Parte de cada cor no total */
+.share {
+  display: flex;
+  gap: 2px;
+  height: 16px;
+}
+
+.share span {
+  flex-basis: 0;
+  min-width: 2px;
+}
+
+.share span:first-child {
+  border-radius: 4px 0 0 4px;
+}
+
+.share span:last-child {
+  border-radius: 0 4px 4px 0;
+}
+
+.share span:only-child {
+  border-radius: 4px;
+}
+
+.shareLegend {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  list-style: none;
+  font-size: 13px;
+}
+
+.shareLegend li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.shareValue {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+.notice {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 14px;
+  border: 1px solid var(--tint-yellow-border);
+  border-radius: 10px;
+  background: var(--tint-yellow-bg);
+  color: var(--tint-yellow-text);
+  font-size: 13px;
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 48px 16px;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.empty strong {
+  color: var(--color-text);
+  font-size: 16px;
+}
+
+.failure {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--tint-red-border);
+  border-radius: 10px;
+  background: var(--tint-red-bg-strong);
+  color: var(--tint-red-text);
+  font-size: 14px;
+}
+
+.failure button {
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid currentColor;
+  border-radius: 8px;
+  background: var(--color-surface);
+  color: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+@media (max-width: 1100px) {
+  .tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .tiles {
+    gap: 8px;
+  }
+}

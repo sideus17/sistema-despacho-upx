@@ -1,0 +1,418 @@
+/* Cartão de gráfico */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: var(--color-surface);
+}
+
+.wide {
+  grid-column: 1 / -1;
+}
+
+.cardHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cardHeader h3 {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.cardHeader p {
+  margin-top: 2px;
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.tableToggle {
+  flex-shrink: 0;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-text-soft);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tableToggle[aria-pressed='true'] {
+  border-color: var(--color-primary);
+  color: var(--color-primary-text);
+}
+
+@media (hover: hover) {
+  .tableToggle:hover {
+    background: var(--color-surface-hover);
+  }
+}
+
+.tableWrap {
+  max-height: 320px;
+  overflow: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.table th,
+.table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--color-border);
+  text-align: left;
+}
+
+.table th {
+  position: sticky;
+  top: 0;
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+
+/* Número em destaque */
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: var(--color-surface);
+}
+
+.tileLabel {
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.tileValue {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.tileDetail {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+/* Colunas (SVG) */
+.columns {
+  position: relative;
+  width: 100%;
+}
+
+.columns svg {
+  display: block;
+  overflow: visible;
+}
+
+.grid {
+  stroke: var(--color-border);
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+}
+
+.axis {
+  fill: var(--color-text-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.peak {
+  fill: var(--color-text);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.column {
+  fill: var(--chart-accent);
+  transition: opacity 0.12s;
+}
+
+.hit {
+  fill: transparent;
+  cursor: default;
+  outline: none;
+}
+
+.hit:focus-visible {
+  stroke: var(--color-primary);
+  stroke-width: 2;
+}
+
+.tooltip {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--color-surface-inverse);
+  color: #ffffff;
+  font-size: 12px;
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translate(-50%, -100%);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.tooltip strong {
+  font-size: 13px;
+}
+
+.tooltip span {
+  opacity: 0.8;
+}
+
+/* Barras horizontais */
+.bars {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  list-style: none;
+}
+
+.barRow {
+  display: grid;
+  grid-template-columns: minmax(110px, 38%) 1fr auto;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.barLabel {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.barTrack {
+  position: relative;
+  height: 12px;
+}
+
+.bar {
+  position: absolute;
+  inset: 0 auto 0 0;
+  min-width: 2px;
+  border-radius: 0 4px 4px 0;
+  background: var(--chart-accent);
+}
+
+.barMuted {
+  background: var(--color-border-strong);
+}
+
+.barValue {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  min-width: 56px;
+  font-variant-numeric: tabular-nums;
+}
+
+.barValue small {
+  color: var(--color-text-muted);
+  font-size: 11px;
+}
+
+/* Mediana e percentil 90 */
+.ranges {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rangeLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  list-style: none;
+}
+
+.rangeLegend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.keyBar {
+  width: 16px;
+  height: 10px;
+  border-radius: 0 3px 3px 0;
+  background: var(--color-text-muted);
+}
+
+.keyWhisker {
+  position: relative;
+  width: 18px;
+  margin-right: 4px;
+  height: 2px;
+  background: var(--color-text-muted);
+}
+
+.keyWhisker::after {
+  content: '';
+  position: absolute;
+  top: -3px;
+  right: -4px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-text-muted);
+}
+
+.keyTarget {
+  width: 2px;
+  height: 14px;
+  background: var(--color-text);
+}
+
+.rangeRows {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  list-style: none;
+}
+
+.rangeRow,
+.rangeAxis {
+  display: grid;
+  grid-template-columns: minmax(130px, 28%) 1fr minmax(150px, 30%);
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.rangeLabel {
+  min-width: 0;
+}
+
+.rangeTrack {
+  position: relative;
+  height: 24px;
+  border-left: 1px solid var(--color-border-strong);
+}
+
+.rangeBar {
+  position: absolute;
+  top: 6px;
+  left: 0;
+  height: 12px;
+  min-width: 2px;
+  border-radius: 0 4px 4px 0;
+  background: currentColor;
+}
+
+.rangeWhisker {
+  position: absolute;
+  top: 11px;
+  height: 2px;
+  background: currentColor;
+  opacity: 0.55;
+}
+
+.rangeDot {
+  position: absolute;
+  top: 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 0 2px var(--color-surface);
+  transform: translateX(-50%);
+}
+
+.rangeTarget {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--color-text);
+  transform: translateX(-1px);
+}
+
+.rangeSummary {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  font-variant-numeric: tabular-nums;
+}
+
+.rangeTicks {
+  position: relative;
+  height: 14px;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.rangeTicks span {
+  position: absolute;
+  top: 0;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+.rangeTicks span:first-child {
+  transform: none;
+}
+
+.rangeTicks span:last-child {
+  transform: translateX(-100%);
+}
+
+@media (max-width: 640px) {
+  .rangeRow {
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      'label summary'
+      'track track';
+    gap: 4px 12px;
+  }
+
+  .rangeLabel {
+    grid-area: label;
+  }
+
+  .rangeSummary {
+    grid-area: summary;
+    align-items: flex-end;
+  }
+
+  .rangeTrack {
+    grid-area: track;
+  }
+
+  .rangeAxis {
+    grid-template-columns: 1fr;
+  }
+
+  .rangeAxis > span:first-child,
+  .rangeAxis > span:last-child {
+    display: none;
+  }
+
+  .barRow {
+    grid-template-columns: minmax(90px, 40%) 1fr auto;
+  }
+}
