@@ -17,7 +17,8 @@ import { resolveOutcome } from '../services/attendance';
 import { listHospitals, trackCallProgress } from '../services/attendanceService';
 import { RESPONSE_TARGETS, computeIndicators } from '../services/indicators';
 import { parseHistoryQuery, parseIncludeDemo, parsePeriod, parsePriorityFilter } from '../services/history';
-import { heatPoints, historyPage, indicatorRows } from '../services/managementService';
+import { heatPoints, historyPage, indicatorRows, peopleNames, peopleRows } from '../services/managementService';
+import { computePeople } from '../services/people';
 import {
   CallError,
   RECENT_WINDOW_MS,
@@ -936,6 +937,22 @@ const failManagement = (res: Response, error: unknown, fallback: string) => {
 };
 
 // Tempos de cada etapa, tempo-resposta por cor com a meta e distribuições do período
+// Indicadores por pessoa: atendentes (registro, regulação e despacho) e motoristas
+router.get('/management/people', requireRole(UserRole.OPERADOR), async (req: Request, res: Response) => {
+  try {
+    const period = parsePeriod(req.query);
+    const includeDemo = parseIncludeDemo(req.query);
+    const { rows, truncated } = await peopleRows(period, includeDemo);
+    res.json({
+      success: true,
+      data: { period, includeDemo, truncated, ...computePeople(rows, await peopleNames(rows)) },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    failManagement(res, error, 'Não foi possível calcular os indicadores por pessoa.');
+  }
+});
+
 router.get('/management/indicators', requireRole(UserRole.OPERADOR), async (req: Request, res: Response) => {
   try {
     const period = parsePeriod(req.query);

@@ -216,6 +216,16 @@ async function checkCallFlow(admin: SupabaseClient<any, 'public', any>, operator
     check(cancelled.status === 200 && cancelled.body.data.status === 'CANCELADO' && cancelled.body.data.closeReason === 'TROTE', 'cancelamento por trote');
     const again = await post(`/calls/${prankId}/regulate`, operatorToken, { decision: 'DESPACHAR', priority: 'URGENTE' });
     check(again.status === 409, 'chamado encerrado não volta para a fila');
+
+    // Indicadores por pessoa: o operador abriu e regulou os dois e despachou um; o motorista atendeu um
+    const people = await backend('/management/people', { token: operatorToken });
+    const operator = people.body.data?.attendants.find((person: { name: string }) => person.name === 'Operador de Teste');
+    const driver = people.body.data?.drivers.find((person: { name: string }) => person.name === 'Motorista de Teste');
+    check(
+      operator?.opened === 2 && operator.regulated === 2 && operator.dispatched === 1 && operator.closedWithoutDispatch === 1 &&
+        operator.reclassified === 1 && driver?.attended === 1,
+      `indicadores por pessoa (${JSON.stringify({ operator, driver })})`
+    );
   } finally {
     await backend('/shifts/end', { method: 'POST', token: driverToken });
     if (callIds.length) await admin.from('calls').delete().in('id', callIds);

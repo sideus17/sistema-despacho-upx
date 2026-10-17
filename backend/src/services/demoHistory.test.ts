@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { AmbulanceType, CallOutcome, CallPriority, CallStatus, Hospital } from '../types';
+import { AmbulanceType, CallEventAction, CallOutcome, CallPriority, CallStatus, Hospital, UserRole } from '../types';
 import { TRIAGE_SIGNALS } from './calls';
-import { DemoAmbulance, DemoOptions, generateDemoHistory } from './demoHistory';
+import { DEMO_PEOPLE, DemoAmbulance, DemoOptions, demoEvents, generateDemoHistory } from './demoHistory';
 import { insideServiceArea } from './geocodingService';
 import { hourOf } from './indicators';
 import { isValidPhone } from './profile';
@@ -30,7 +30,7 @@ const HOSPITALS = [
 const NOW = Date.parse('2026-10-16T15:00:00.000Z');
 const OPTIONS: DemoOptions = { count: 2000, days: 60, now: NOW, seed: 17, ambulances: AMBULANCES, hospitals: HOSPITALS };
 const ROWS = generateDemoHistory(OPTIONS);
-const STAGES = ['timestamp', 'dispatched_at', 'en_route_at', 'on_scene_at', 'left_scene_at', 'hospital_arrival_at', 'finished_at'] as const;
+const STAGES = ['timestamp', 'regulated_at', 'dispatched_at', 'en_route_at', 'on_scene_at', 'left_scene_at', 'hospital_arrival_at', 'finished_at'] as const;
 const share = (predicate: (row: (typeof ROWS)[number]) => boolean) => ROWS.filter(predicate).length / ROWS.length;
 
 test('mesma semente, mesmo histórico; outra semente, outro', () => {
@@ -46,7 +46,7 @@ test('todos marcados como demonstração, em Sorocaba, no período e já termina
     assert.match(row.id, /^demo-/);
     assert.ok(insideServiceArea(row), row.id);
     assert.ok(Date.parse(row.timestamp) >= NOW - 60 * 24 * 3600_000 && Date.parse(row.timestamp) < NOW);
-    assert.ok(row.status === CallStatus.FINALIZADO || row.status === CallStatus.CANCELADO);
+    assert.ok([CallStatus.FINALIZADO, CallStatus.ORIENTADO, CallStatus.CANCELADO].includes(row.status), row.status);
   }
 });
 
@@ -60,9 +60,13 @@ test('horários em ordem e o fim antes de agora', () => {
 
 test('desfecho coerente com o transporte, a cor e a viatura', () => {
   for (const row of ROWS) {
-    if (row.status === CallStatus.CANCELADO) {
+    if (row.status !== CallStatus.FINALIZADO) {
+      // Encerrado na regulação: sem viatura, sem desfecho, com o motivo ou a orientação
       assert.equal(row.ambulance_id ?? null, null);
       assert.equal(row.outcome ?? null, null);
+      assert.equal(row.finished_at, row.regulated_at);
+      if (row.status === CallStatus.CANCELADO) assert.ok(row.close_reason, row.id);
+      else assert.ok(row.close_note && row.priority === CallPriority.NAO_URGENTE, row.id);
       continue;
     }
     assert.ok(AMBULANCES.some(ambulance => ambulance.id === row.ambulance_id));
@@ -79,6 +83,9 @@ test('proporções próximas das combinadas', () => {
   near(share(row => row.priority === CallPriority.URGENTE), 0.35, 0.04);
   near(share(row => row.priority === CallPriority.NAO_URGENTE), 0.15, 0.03);
   near(share(row => row.status === CallStatus.CANCELADO), 0.03, 0.015);
+  // ~35% dos azuis encerrados com orientação; ~10% reclassificados na regulação
+  near(share(row => row.status === CallStatus.ORIENTADO), 0.15 * 0.35, 0.02);
+  near(share(row => row.initial_priority !== row.priority), 0.1, 0.02);
   // Alguns atendimentos sem a chegada registrada (indicador de qualidade da tela)
   const finished = ROWS.filter(row => row.status === CallStatus.FINALIZADO);
   near(finished.filter(row => !row.on_scene_at).length / finished.length, 0.04, 0.02);
@@ -87,14 +94,69 @@ test('proporções próximas das combinadas', () => {
   assert.ok(share(row => hourOf(row.timestamp) < 6) < 0.12);
 });
 
-test('telefone válido, sinais da triagem da própria cor', () => {
+test('telefone válido, sinais da triagem da cor do registro', () => {
   const known = new Set<string>(TRIAGE_SIGNALS);
   for (const row of ROWS) {
     if (row.caller_phone) assert.ok(isValidPhone(row.caller_phone), row.caller_phone);
-    if (row.priority === CallPriority.NAO_URGENTE) assert.equal(row.triage, null);
+    if (row.initial_priority === CallPriority.NAO_URGENTE) assert.equal(row.triage, null);
     else {
-      assert.equal(row.triage?.suggested, row.priority);
+      assert.equal(row.triage?.suggested, row.initial_priority);
       assert.ok(row.triage!.signals.length >= 1 && row.triage!.signals.every(signal => known.has(signal)));
     }
+  }
+});
+
+test('quem fez cada passo: atendentes do turno e o motorista da viatura', () => {
+  const people = new Map(DEMO_PEOPLE.map(person => [person.id, person]));
+  const shift = (iso: string) => (hourOf(iso) >= 7 && hourOf(iso) < 19 ? 'dia' : 'noite');
+  for (const row of ROWS) {
+    for (const [column, time] of [['created_by', row.timestamp], ['regulated_by', row.timestamp], ['dispatched_by', row.dispatched_at]] as const) {
+      const id = row[column];
+      if (!id) continue;
+      const person = people.get(id);
+      assert.equal(person?.role, UserRole.OPERADOR, `${row.id} ${column}`);
+      assert.equal(person!.shift, shift(time!), `${row.id} ${column}`);
+    }
+    assert.ok(row.created_by && row.regulated_by, row.id);
+    assert.equal(!!row.dispatched_by, !!row.ambulance_id, row.id);
+    if (row.driver_id) assert.equal(people.get(row.driver_id)?.role, UserRole.MOTORISTA);
+  }
+  // A mesma viatura, no mesmo turno, sempre com o mesmo motorista
+  const drivers = new Map<string, Set<string>>();
+  for (const row of ROWS.filter(item => item.driver_id)) {
+    const key = `${row.ambulance_id}-${shift(row.dispatched_at!)}`;
+    drivers.set(key, (drivers.get(key) ?? new Set()).add(row.driver_id!));
+  }
+  for (const [key, ids] of drivers) assert.equal(ids.size, 1, key);
+});
+
+test('auditoria da demonstração: registro, regulação, despacho e fim, na ordem dos horários', () => {
+  const rows = ROWS.slice(0, 300);
+  const codes = { 'amb-1': 'USA-01', 'amb-2': 'USB-01', 'amb-3': 'USB-02', 'amb-4': 'MOTO-01' };
+  const events = demoEvents(rows, codes);
+  for (const row of rows) {
+    const own = events.filter(event => event.call_id === row.id);
+    const expected = [CallEventAction.ABERTURA, CallEventAction.REGULACAO];
+    if (row.ambulance_id) expected.push(CallEventAction.DESPACHO);
+    if (row.status === CallStatus.FINALIZADO) expected.push(CallEventAction.FINALIZACAO);
+    assert.deepEqual(own.map(event => event.action), expected, row.id);
+    const times = own.map(event => Date.parse(event.at!));
+    assert.deepEqual(times, [...times].sort((a, b) => a - b), row.id);
+
+    const regulation = own[1].data as { changes: { priority?: string[]; status: string[] } };
+    assert.deepEqual(regulation.changes.status, [CallStatus.AGUARDANDO_REGULACAO, row.status === CallStatus.FINALIZADO ? CallStatus.PENDENTE : row.status]);
+    assert.equal(!!regulation.changes.priority, row.initial_priority !== row.priority, row.id);
+    if (row.ambulance_id) {
+      const dispatch = own[2].data as { ambulanceCode: string; driverName: string };
+      assert.equal(dispatch.ambulanceCode, codes[row.ambulance_id as keyof typeof codes]);
+      assert.ok(dispatch.driverName, row.id);
+    }
+  }
+  // Com GPS, quem finaliza é o motorista; sem ele, a central
+  const finishes = events.filter(event => event.action === CallEventAction.FINALIZACAO);
+  assert.ok(finishes.some(event => event.actor_role === UserRole.MOTORISTA));
+  for (const event of finishes) {
+    const row = rows.find(item => item.id === event.call_id)!;
+    assert.equal(event.actor_role, row.en_route_at ? UserRole.MOTORISTA : UserRole.OPERADOR, row.id);
   }
 });
