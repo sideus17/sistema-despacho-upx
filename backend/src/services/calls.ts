@@ -94,6 +94,7 @@ export interface CallRow {
   finished_at?: string | null;
   hospital_id?: string | null;
   outcome?: CallOutcome | null;
+  demo?: boolean; // histórico de demonstração (migração 007)
 }
 
 // Só os horários que já aconteceram
@@ -132,6 +133,7 @@ export function toCall(row: CallRow, role: UserRole): EmergencyCall {
     ...(times ? { times } : {}),
     ...(row.hospital_id ? { hospitalId: row.hospital_id } : {}),
     ...(row.outcome ? { outcome: row.outcome } : {}),
+    ...(row.demo ? { demo: true } : {}),
     ...(role === UserRole.OPERADOR && row.caller_phone ? { callerPhone: row.caller_phone } : {})
   };
 }
@@ -154,7 +156,8 @@ export interface RecentMatch {
   distance: number | null; // metros até o local informado
 }
 
-// Chamados das últimas 2 h (cancelados não contam) com o mesmo telefone ou a até 150 m; os mais novos primeiro
+// Chamados das últimas 2 h (cancelados e os de demonstração não contam) com o mesmo telefone ou a até 150 m;
+// os mais novos primeiro
 export function recentMatches(
   rows: CallRow[],
   query: { phone?: string | null; location?: Coordinates | null },
@@ -162,7 +165,7 @@ export function recentMatches(
 ): RecentMatch[] {
   const matches: RecentMatch[] = [];
   for (const row of rows) {
-    if (row.status === CallStatus.CANCELADO) continue;
+    if (row.status === CallStatus.CANCELADO || row.demo) continue;
     const age = now - Date.parse(row.timestamp);
     if (!(age >= -CLOCK_SKEW_MS && age <= RECENT_WINDOW_MS)) continue;
 
