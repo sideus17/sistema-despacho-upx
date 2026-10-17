@@ -8,6 +8,8 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "test": "tsx --test \"src/**/*.test.ts\"",
+    "demo:gerar": "tsx scripts/demo-history.ts gerar",
+    "demo:apagar": "tsx scripts/demo-history.ts apagar",
     "db:start": "npx -y supabase@2.119.0 start",
     "db:stop": "npx -y supabase@2.119.0 stop",
     "db:reset": "npx -y supabase@2.119.0 db reset",

@@ -96,6 +96,7 @@ npm run db:start      # primeira vez baixa as imagens (alguns minutos)
   No Google Authenticator: **+ → Inserir chave de configuração**, tipo "Baseado no horário". A chave vale para sempre, mesmo depois de recriar o banco.
 - Studio (ver e editar os dados): `http://localhost:54323`
 - `npm run db:reset` apaga tudo e recria (migrações + seed). `npm run db:stop` desliga.
+- Histórico de demonstração para a tela de gestão: `npm run demo:gerar` grava 300 chamados dos últimos 60 dias, marcados como demonstração (`-- --quantidade 500 --dias 90` muda isso). `npm run demo:apagar` tira só eles. Grava no banco do `backend/.env`.
 - Migração nova: criar em `backend/supabase/migrations/` e rodar `npm run db:reset`. Na produção ela continua sendo aplicada pelo SQL Editor do Supabase.
 
 ### Backend
