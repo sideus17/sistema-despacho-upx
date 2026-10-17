@@ -1,19 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Ambulance, Base, Hospital, ManagementScope } from '../../types';
-import { BarChartIcon, HeatMapIcon, HistoryIcon, RefreshIcon } from '../../ui/icons';
+import { BarChartIcon, HeatMapIcon, HistoryIcon, PersonIcon, RefreshIcon } from '../../ui/icons';
 import HeatMap from './HeatMap';
 import History from './History';
 import Indicators from './Indicators';
+import People from './People';
 import { PERIODS, PeriodKey, periodRange } from './format';
 import styles from './ManagementPage.module.css';
 
-// Gestão da central: indicadores, mapa de calor e histórico do período escolhido, em tela cheia
+// Gestão da central: indicadores, por pessoa, mapa de calor e histórico do período escolhido, em tela cheia
 // (a operação continua por trás)
 
-type ManagementTab = 'indicadores' | 'calor' | 'historico';
+type ManagementTab = 'indicadores' | 'pessoas' | 'calor' | 'historico';
 
 const TABS: Array<{ key: ManagementTab; label: string; Icon: typeof BarChartIcon }> = [
   { key: 'indicadores', label: 'Indicadores', Icon: BarChartIcon },
+  { key: 'pessoas', label: 'Por pessoa', Icon: PersonIcon },
   { key: 'calor', label: 'Mapa de calor', Icon: HeatMapIcon },
   { key: 'historico', label: 'Histórico', Icon: HistoryIcon }
 ];
@@ -134,6 +136,7 @@ export default function ManagementPage({ ambulances, hospitals, bases }: {
         ) : (
           <div className={styles.contentInner}>
             {preferences.tab === 'indicadores' && <Indicators scope={scope} ambulances={ambulances} hospitals={hospitals} />}
+            {preferences.tab === 'pessoas' && <People scope={scope} />}
             {preferences.tab === 'historico' && <History scope={scope} ambulances={ambulances} hospitals={hospitals} />}
           </div>
         )}

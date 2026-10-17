@@ -38,6 +38,15 @@ export enum RegulationDecision {
   CANCELAR = 'CANCELAR'
 }
 
+// Ações de pessoas registradas na auditoria do chamado
+export enum CallEventAction {
+  ABERTURA = 'ABERTURA',
+  REGULACAO = 'REGULACAO',
+  DESPACHO = 'DESPACHO',
+  HOSPITAL = 'HOSPITAL',
+  FINALIZACAO = 'FINALIZACAO'
+}
+
 // Por que o chamado foi cancelado
 export enum CloseReason {
   TROTE = 'TROTE',
@@ -358,8 +367,18 @@ export interface TargetStats extends ResponseStats {
   target: number; // segundos
 }
 
-// Espera na fila, saída, deslocamento, tempo-resposta, no local, transporte e total
-export type AttendanceStage = 'queue' | 'departure' | 'travel' | 'response' | 'onScene' | 'transport' | 'total';
+// Regulação, espera pela viatura, fila inteira (abertura → despacho), saída, deslocamento, tempo-resposta,
+// no local, transporte e total
+export type AttendanceStage =
+  | 'regulation'
+  | 'dispatchWait'
+  | 'queue'
+  | 'departure'
+  | 'travel'
+  | 'response'
+  | 'onScene'
+  | 'transport'
+  | 'total';
 
 export interface Indicators {
   period: { from: string; to: string };
@@ -405,4 +424,43 @@ export interface ManagementScope {
   demo: boolean;
 }
 
+// Uma ação de uma pessoa no chamado: quem, quando e o que mudou (só a central lê)
+export interface CallEvent {
+  id: number;
+  at: string;
+  action: CallEventAction;
+  actor: { id: string | null; name: string; role: UserRole };
+  data: Record<string, unknown>;
+}
 
+// Indicadores por pessoa (backend/src/services/people.ts)
+export interface AttendantStats {
+  id: string;
+  name: string;
+  demo: boolean;
+  opened: number;
+  regulated: number;
+  dispatched: number;
+  closedWithoutDispatch: number;
+  reclassified: number;
+  regulation: DurationStats; // abertura → regulação
+  dispatch: DurationStats; // regulação → despacho
+}
+
+export interface DriverStats {
+  id: string;
+  name: string;
+  demo: boolean;
+  attended: number;
+  departure: DurationStats; // despacho → saída
+  arrival: DurationStats; // despacho → chegada ao local
+}
+
+export interface PeopleIndicators {
+  period: { from: string; to: string };
+  includeDemo: boolean;
+  truncated: boolean;
+  attendants: AttendantStats[];
+  drivers: DriverStats[];
+  unattributed: number; // chamados sem autor (de antes da regulação)
+}

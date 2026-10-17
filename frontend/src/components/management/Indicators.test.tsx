@@ -21,6 +21,20 @@ beforeEach(() => {
 });
 
 describe('indicadores', () => {
+  it('com chamados regulados, a fila aparece em regulação e espera pela viatura; orientados no total', async () => {
+    const base = indicators();
+    vi.mocked(getIndicators).mockResolvedValue(indicators({
+      byStatus: { ...base.byStatus, ORIENTADO: 5 },
+      stages: { ...base.stages, regulation: { n: 120, median: 75, p90: 200 }, dispatchWait: { n: 110, median: 180, p90: 420 } }
+    }));
+    render(<Indicators scope={SCOPE} ambulances={AMBULANCES} hospitals={HOSPITALS} />);
+    expect(await screen.findByRole('group', { name: 'Chamados' })).toHaveTextContent('5 orientados');
+    const card = screen.getByRole('region', { name: 'Tempo de cada etapa' });
+    expect(card).toHaveTextContent('Regulação');
+    expect(card).toHaveTextContent('Espera pela viatura');
+    expect(card).not.toHaveTextContent('Espera na fila');
+  });
+
   it('números do período: chamados, tempo-resposta, meta e espera na fila', async () => {
     render(<Indicators scope={SCOPE} ambulances={AMBULANCES} hospitals={HOSPITALS} />);
     const tile = async (name: string) => screen.findByRole('group', { name });

@@ -1,0 +1,28 @@
+/* Tabelas por pessoa: a lista cresce com a equipe, sem o limite de altura dos gráficos */
+.table th[scope='row'] {
+  position: static;
+  color: var(--color-text);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.table td {
+  white-space: nowrap;
+}
+
+.name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.demo {
+  display: inline-block;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--tint-violet-bg);
+  color: var(--tint-violet-text);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.6;
+}

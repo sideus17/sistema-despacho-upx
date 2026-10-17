@@ -39,6 +39,8 @@ export function formatWeekday(date: string): string {
 }
 
 export const STAGE_LABEL: Record<AttendanceStage, { label: string; hint: string }> = {
+  regulation: { label: 'Regulação', hint: 'da abertura à regulação' },
+  dispatchWait: { label: 'Espera pela viatura', hint: 'da regulação ao despacho' },
   queue: { label: 'Espera na fila', hint: 'da abertura ao despacho' },
   departure: { label: 'Saída da viatura', hint: 'do despacho à saída' },
   travel: { label: 'Deslocamento', hint: 'da saída à chegada ao local' },

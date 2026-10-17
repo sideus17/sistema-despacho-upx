@@ -13,6 +13,8 @@ export function indicators(overrides: Partial<Indicators> = {}): Indicators {
     byStatus: { AGUARDANDO_REGULACAO: 0, PENDENTE: 0, EM_ATENDIMENTO: 0, FINALIZADO: 137, ORIENTADO: 0, CANCELADO: 3 },
     byPriority: { EMERGENCIA: 14, URGENTE: 51, PRIORITARIO: 51, NAO_URGENTE: 24 },
     stages: {
+      regulation: stats(0, null, null),
+      dispatchWait: stats(0, null, null),
       queue: stats(136, 391, 860),
       departure: stats(129, 60, 111),
       travel: stats(129, 569, 1216),

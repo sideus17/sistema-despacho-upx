@@ -193,6 +193,7 @@ export default function History({ scope, ambulances, hospitals }: { scope: Manag
           call={selected}
           ambulanceCode={ambulanceCode(selected.ambulance_id)}
           hospital={hospitals.find(hospital => hospital.id === selected.hospitalId)}
+          hospitals={hospitals}
           onClose={() => setSelected(null)}
         />
       )}
