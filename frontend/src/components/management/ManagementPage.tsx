@@ -1,16 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Ambulance, Base, Hospital, ManagementScope } from '../../types';
-import { BarChartIcon, RefreshIcon } from '../../ui/icons';
+import { BarChartIcon, HeatMapIcon, HistoryIcon, RefreshIcon } from '../../ui/icons';
+import HeatMap from './HeatMap';
+import History from './History';
 import Indicators from './Indicators';
 import { PERIODS, PeriodKey, periodRange } from './format';
 import styles from './ManagementPage.module.css';
 
-// Gestão da central: indicadores do período escolhido, em tela cheia (a operação continua por trás)
+// Gestão da central: indicadores, mapa de calor e histórico do período escolhido, em tela cheia
+// (a operação continua por trás)
 
-type ManagementTab = 'indicadores';
+type ManagementTab = 'indicadores' | 'calor' | 'historico';
 
 const TABS: Array<{ key: ManagementTab; label: string; Icon: typeof BarChartIcon }> = [
-  { key: 'indicadores', label: 'Indicadores', Icon: BarChartIcon }
+  { key: 'indicadores', label: 'Indicadores', Icon: BarChartIcon },
+  { key: 'calor', label: 'Mapa de calor', Icon: HeatMapIcon },
+  { key: 'historico', label: 'Histórico', Icon: HistoryIcon }
 ];
 
 interface Preferences {
@@ -39,7 +44,7 @@ function loadPreferences(): Preferences {
 const dayMonth = (iso: string) => new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
 const clock = (iso: string) => new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
-export default function ManagementPage({ ambulances, hospitals }: {
+export default function ManagementPage({ ambulances, hospitals, bases }: {
   ambulances: Ambulance[];
   hospitals: Hospital[];
   bases: Base[];
@@ -118,10 +123,20 @@ export default function ManagementPage({ ambulances, hospitals }: {
         </div>
       </div>
 
-      <div id="gestao-painel" role="tabpanel" aria-labelledby={`gestao-tab-${preferences.tab}`} className={styles.content}>
-        <div className={styles.contentInner}>
-          <Indicators scope={scope} ambulances={ambulances} hospitals={hospitals} />
-        </div>
+      <div
+        id="gestao-painel"
+        role="tabpanel"
+        aria-labelledby={`gestao-tab-${preferences.tab}`}
+        className={`${styles.content} ${preferences.tab === 'calor' ? styles.contentMap : ''}`}
+      >
+        {preferences.tab === 'calor' ? (
+          <HeatMap scope={scope} hospitals={hospitals} bases={bases} />
+        ) : (
+          <div className={styles.contentInner}>
+            {preferences.tab === 'indicadores' && <Indicators scope={scope} ambulances={ambulances} hospitals={hospitals} />}
+            {preferences.tab === 'historico' && <History scope={scope} ambulances={ambulances} hospitals={hospitals} />}
+          </div>
+        )}
       </div>
     </main>
   );
