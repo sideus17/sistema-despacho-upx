@@ -16,7 +16,7 @@ export const TIME_ZONE = 'America/Sao_Paulo';
 
 // Só as colunas que os indicadores usam (a busca traz milhares de linhas)
 export const INDICATOR_COLUMNS =
-  'id, priority, status, timestamp, ambulance_id, dispatched_at, en_route_at, on_scene_at, left_scene_at, hospital_arrival_at, finished_at, hospital_id, outcome';
+  'id, priority, status, timestamp, ambulance_id, regulated_at, dispatched_at, en_route_at, on_scene_at, left_scene_at, hospital_arrival_at, finished_at, hospital_id, outcome';
 
 export type IndicatorRow = Pick<
   CallRow,
@@ -24,6 +24,7 @@ export type IndicatorRow = Pick<
   | 'status'
   | 'timestamp'
   | 'ambulance_id'
+  | 'regulated_at'
   | 'dispatched_at'
   | 'en_route_at'
   | 'on_scene_at'
@@ -49,8 +50,19 @@ export interface TargetStats extends ResponseStats {
   target: number; // segundos
 }
 
-// Etapas: espera na fila, saída, deslocamento, tempo-resposta, no local, transporte e total
-export type Stage = 'queue' | 'departure' | 'travel' | 'response' | 'onScene' | 'transport' | 'total';
+// Etapas: regulação (abertura → regulação), espera pela viatura (regulação → despacho), fila inteira
+// (abertura → despacho, comparável com os chamados de antes da regulação), saída, deslocamento,
+// tempo-resposta, no local, transporte e total
+export type Stage =
+  | 'regulation'
+  | 'dispatchWait'
+  | 'queue'
+  | 'departure'
+  | 'travel'
+  | 'response'
+  | 'onScene'
+  | 'transport'
+  | 'total';
 
 export interface Indicators {
   total: number;
@@ -73,7 +85,7 @@ export interface Indicators {
 const PRIORITIES = Object.values(CallPriority);
 const STATUSES = Object.values(CallStatus);
 const OUTCOMES = Object.values(CallOutcome);
-const STAGES: Stage[] = ['queue', 'departure', 'travel', 'response', 'onScene', 'transport', 'total'];
+const STAGES: Stage[] = ['regulation', 'dispatchWait', 'queue', 'departure', 'travel', 'response', 'onScene', 'transport', 'total'];
 
 const zeros = <K extends string>(keys: K[]) => Object.fromEntries(keys.map(key => [key, 0])) as Record<K, number>;
 
@@ -86,7 +98,7 @@ export function percentile(sorted: number[], p: number): number | null {
   return Math.round(sorted[low] + (sorted[high] - sorted[low]) * (index - low));
 }
 
-function durationStats(values: number[]): DurationStats {
+export function durationStats(values: number[]): DurationStats {
   const sorted = [...values].sort((a, b) => a - b);
   return { n: sorted.length, median: percentile(sorted, 0.5), p90: percentile(sorted, 0.9) };
 }
@@ -152,6 +164,8 @@ export function computeIndicators(rows: IndicatorRow[], period: { from: string; 
     const gpsOnlyAtArrival = !!row.en_route_at && row.en_route_at === row.on_scene_at;
     const response = secondsBetween(row.timestamp, row.on_scene_at);
 
+    add('regulation', secondsBetween(row.timestamp, row.regulated_at));
+    add('dispatchWait', secondsBetween(row.regulated_at, row.dispatched_at));
     add('queue', secondsBetween(row.timestamp, row.dispatched_at));
     if (!gpsOnlyAtArrival) {
       add('departure', secondsBetween(row.dispatched_at, row.en_route_at));

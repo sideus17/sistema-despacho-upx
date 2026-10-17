@@ -1,4 +1,4 @@
-import { CallOutcome, CallPriority, CallStatus, CallTimes, CallTriage, Coordinates, EmergencyCall, UserRole } from '../types';
+import { CallOutcome, CallPriority, CallStatus, CallTimes, CallTriage, CloseReason, Coordinates, EmergencyCall, UserRole } from '../types';
 import { distanceMeters } from './geo';
 import { insideServiceArea } from './geocodingService';
 import { isValidPhone, onlyDigits } from './profile';
@@ -67,7 +67,7 @@ export function parseCallLocation(input: unknown): Coordinates | null {
   return { lat, lng };
 }
 
-// Linha da tabela calls (as colunas das migrações 005 e 006 podem faltar se elas ainda não rodaram)
+// Linha da tabela calls (as colunas das migrações 005 a 008 podem faltar se elas ainda não rodaram)
 export interface CallRow {
   id: string;
   lat: number;
@@ -95,11 +95,21 @@ export interface CallRow {
   hospital_id?: string | null;
   outcome?: CallOutcome | null;
   demo?: boolean; // histórico de demonstração (migração 007)
+  // Regulação e autores (migração 008)
+  initial_priority?: CallPriority | null;
+  created_by?: string | null;
+  regulated_at?: string | null;
+  regulated_by?: string | null;
+  dispatched_by?: string | null;
+  driver_id?: string | null;
+  close_reason?: CloseReason | null;
+  close_note?: string | null;
 }
 
 // Só os horários que já aconteceram
 function timesOf(row: CallRow): CallTimes | undefined {
   const times: CallTimes = {
+    regulated: row.regulated_at ?? undefined,
     dispatched: row.dispatched_at ?? undefined,
     enRoute: row.en_route_at ?? undefined,
     onScene: row.on_scene_at ?? undefined,
@@ -133,6 +143,9 @@ export function toCall(row: CallRow, role: UserRole): EmergencyCall {
     ...(times ? { times } : {}),
     ...(row.hospital_id ? { hospitalId: row.hospital_id } : {}),
     ...(row.outcome ? { outcome: row.outcome } : {}),
+    ...(row.initial_priority ? { initialPriority: row.initial_priority } : {}),
+    ...(row.close_reason ? { closeReason: row.close_reason } : {}),
+    ...(row.close_note ? { closeNote: row.close_note } : {}),
     ...(row.demo ? { demo: true } : {}),
     ...(role === UserRole.OPERADOR && row.caller_phone ? { callerPhone: row.caller_phone } : {})
   };

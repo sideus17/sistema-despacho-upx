@@ -19,11 +19,39 @@ export enum CallPriority {
   NAO_URGENTE = 'NAO_URGENTE' // azul: prioridade mínima (orientação)
 }
 
+// Registro → regulação → despacho → atendimento. PENDENTE é "aguardando despacho" (já regulado).
 export enum CallStatus {
+  AGUARDANDO_REGULACAO = 'AGUARDANDO_REGULACAO',
   PENDENTE = 'PENDENTE',
   EM_ATENDIMENTO = 'EM_ATENDIMENTO',
-  FINALIZADO = 'FINALIZADO',
+  FINALIZADO = 'FINALIZADO', // atendido por uma viatura
+  ORIENTADO = 'ORIENTADO', // encerrado na regulação, com orientação por telefone
   CANCELADO = 'CANCELADO'
+}
+
+// O que a regulação decidiu
+export enum RegulationDecision {
+  DESPACHAR = 'DESPACHAR',
+  ORIENTACAO = 'ORIENTACAO',
+  CANCELAR = 'CANCELAR'
+}
+
+// Por que o chamado foi cancelado
+export enum CloseReason {
+  TROTE = 'TROTE',
+  REPETIDO = 'REPETIDO', // outro chamado já cuida da mesma vítima
+  ENGANO = 'ENGANO',
+  DESISTENCIA = 'DESISTENCIA',
+  OUTRO = 'OUTRO'
+}
+
+// Ações de pessoas registradas na auditoria do chamado
+export enum CallEventAction {
+  ABERTURA = 'ABERTURA',
+  REGULACAO = 'REGULACAO',
+  DESPACHO = 'DESPACHO',
+  HOSPITAL = 'HOSPITAL',
+  FINALIZACAO = 'FINALIZACAO'
 }
 
 // Como o atendimento terminou (com chegada ao hospital, é sempre TRANSPORTADO)
@@ -119,11 +147,15 @@ export interface EmergencyCall {
   times?: CallTimes; // horários do atendimento (só os que já aconteceram)
   hospitalId?: string; // hospital de destino (escolhido ou onde a viatura chegou)
   outcome?: CallOutcome;
+  initialPriority?: CallPriority; // cor sugerida no registro (priority é a da regulação)
+  closeReason?: CloseReason; // só nos cancelados
+  closeNote?: string; // orientação dada ou detalhe do cancelamento
   demo?: true; // histórico de demonstração (npm run demo:gerar)
 }
 
 // Etapas do atendimento: despacho e fim pelas rotas; as do meio, pelo GPS da viatura
 export interface CallTimes {
+  regulated?: string; // primeira regulação
   dispatched?: string;
   enRoute?: string; // viatura saiu
   onScene?: string; // chegou ao local
@@ -250,9 +282,17 @@ export interface ApiResponse<T> {
 export interface Stats {
   totalAmbulances: number;
   availableAmbulances: number;
-  pendingCalls: number;
+  pendingCalls: number; // aguardando despacho
+  awaitingRegulation: number;
   activeIncidents: number;
   averageResponseTime?: number;
 }
 
-
+// Uma ação de uma pessoa no chamado: quem, quando e o que mudou
+export interface CallEvent {
+  id: number;
+  at: string;
+  action: CallEventAction;
+  actor: { id: string | null; name: string; role: UserRole };
+  data: Record<string, unknown>;
+}

@@ -1,6 +1,6 @@
 import { describe, it, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { CallPriority, CallStatus, UserRole } from '../types';
+import { CallPriority, CallStatus, CloseReason, UserRole } from '../types';
 import {
   CallError,
   CallRow,
@@ -50,6 +50,30 @@ test('chamado antigo, sem as colunas da migração 005, continua igual', () => {
   assert.equal('reference' in call, false);
   assert.equal('triage' in call, false);
   assert.equal(call.patientInfo.age, 30);
+});
+
+test('regulação: cor sugerida, horário, motivo e observação do encerramento', () => {
+  const call = toCall({
+    ...ROW,
+    status: CallStatus.CANCELADO,
+    initial_priority: CallPriority.EMERGENCIA,
+    regulated_at: '2026-10-16T12:02:00Z',
+    regulated_by: 'u-1',
+    finished_at: '2026-10-16T12:02:00Z',
+    close_reason: CloseReason.TROTE,
+    close_note: 'Criança brincando com o telefone'
+  }, UserRole.OPERADOR);
+  assert.equal(call.initialPriority, CallPriority.EMERGENCIA);
+  assert.equal(call.priority, CallPriority.URGENTE);
+  assert.deepEqual(call.times, { regulated: '2026-10-16T12:02:00Z', finished: '2026-10-16T12:02:00Z' });
+  assert.equal(call.closeReason, CloseReason.TROTE);
+  assert.equal(call.closeNote, 'Criança brincando com o telefone');
+  // Quem fez cada passo não vai no chamado: fica na auditoria
+  assert.equal('regulatedBy' in call, false);
+
+  const old = toCall(ROW, UserRole.OPERADOR);
+  assert.equal('initialPriority' in old, false);
+  assert.equal('closeReason' in old, false);
 });
 
 test('classificação: só as 4 cores', () => {

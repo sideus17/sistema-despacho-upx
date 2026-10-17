@@ -1,5 +1,6 @@
 import { supabase } from '../config/supabase';
-import { DispatchRecommendation, AmbulanceStatus, Coordinates, RouteInfo } from '../types';
+import { DispatchRecommendation, AmbulanceStatus, CallStatus, Coordinates, RouteInfo } from '../types';
+import { CallError } from './calls';
 import { calculateRoute } from './routingService';
 import { listActiveIncidents } from './incidentService';
 import { Candidate, scoreCandidate } from './dispatchScore';
@@ -11,9 +12,8 @@ export async function analyzeDispatch(callId: string): Promise<DispatchRecommend
     .eq('id', callId)
     .single();
 
-  if (callError || !callData) {
-    throw new Error(`Chamado ${callId} não encontrado no banco de dados.`);
-  }
+  if (callError || !callData) throw new CallError(404, 'Chamado não encontrado.');
+  assertAwaitingDispatch(callData.status);
 
   const callLocation: Coordinates = { lat: callData.lat, lng: callData.lng };
 
@@ -61,4 +61,12 @@ export async function analyzeDispatch(callId: string): Promise<DispatchRecommend
     recommendations: scores,
     timestamp: new Date().toISOString()
   };
+}
+
+// Só chamado já regulado e ainda sem viatura pode ser despachado
+export function assertAwaitingDispatch(status: CallStatus): void {
+  if (status === CallStatus.PENDENTE) return;
+  if (status === CallStatus.AGUARDANDO_REGULACAO) throw new CallError(409, 'Regule o chamado antes de despachar.');
+  if (status === CallStatus.EM_ATENDIMENTO) throw new CallError(409, 'O chamado já foi despachado.');
+  throw new CallError(409, 'O chamado já foi encerrado.');
 }
