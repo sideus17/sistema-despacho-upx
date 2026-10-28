@@ -24,7 +24,7 @@ import { boundsOf, toLngLat } from '../map/geojson';
 import { AmbulanceMarker, BaseMarker, CallMarker, HospitalMarker, IncidentMarker } from '../map/Markers';
 import { IncidentLayer } from '../map/IncidentLayer';
 import { TrafficLayer } from '../map/TrafficLayer';
-import { TRAFFIC_COLORS, useTrafficEnabled } from '../map/traffic';
+import { TRAFFIC_COLORS } from '../map/traffic';
 import { EFFECT_META, expiryLabel, incidentTypeLabel, sourceLabel } from '../map/incidents';
 import { CALL_STATUS_LABEL, PRIORITIES_BY_SEVERITY, PRIORITY_META, STAGE_META, callStage, elapsedLabel, timeline } from '../utils/calls';
 import { AMBULANCE_STATUS_LABEL } from '../utils/ambulances';
@@ -77,7 +77,7 @@ export default function Map({
   const fitted = useRef(false);
   const [loaded, setLoaded] = useState(false);
   const [popup, setPopup] = useState<Selection>(null);
-  const [legendOpen, setLegendOpen] = useState(() => window.matchMedia('(min-width: 768px)').matches);
+  const [legendOpen, setLegendOpen] = useState(false);
   const { theme } = useTheme();
   const mapStyle = useMapStyle(theme);
 
@@ -247,7 +247,7 @@ export default function Map({
     const incident = incidents.find(i => i.id === popup.id);
     if (!incident) return null;
     const effect = EFFECT_META[incident.effect];
-    // O TomTom informa um trecho de rua e se atualiza sozinho: raio interno e "confirmada" não dizem nada
+    // O TomTom informa um trecho de rua e se atualiza sozinho: "confirmada" não diz nada
     const tomtom = incident.source === IncidentSource.TOMTOM;
     const confirmed = !tomtom && incident.lastConfirmedAt && incident.lastConfirmedAt !== incident.createdAt;
     return {
@@ -268,14 +268,12 @@ export default function Map({
             </p>
           )}
           {incident.description && <p>{incident.description}</p>}
-          {incident.radius > 0 && !tomtom && <p><strong>Raio:</strong> {incident.radius} m</p>}
         </>
       )
     };
   };
 
   const activePopup = renderPopup();
-  const traffic = useTrafficEnabled();
   const hasRoute = !!routeGeometry && routeGeometry.length > 1;
 
   return (
@@ -296,10 +294,8 @@ export default function Map({
           onClick={event => callPick?.onPick({ lat: event.lngLat.lat, lng: event.lngLat.lng })}
           onLoad={event => {
             event.target.touchZoomRotate.disableRotation();
-            // No celular os créditos abertos cobrem o zoom: começam recolhidos no "i" (um toque abre)
-            if (window.matchMedia('(max-width: 768px)').matches) {
-              event.target.getContainer().querySelector('.maplibregl-ctrl-attrib')?.classList.remove('maplibregl-compact-show');
-            }
+            // Créditos recolhidos no "i" (um toque abre), como no app da equipe
+            event.target.getContainer().querySelector('.maplibregl-ctrl-attrib')?.classList.remove('maplibregl-compact-show');
             setLoaded(true);
           }}
         >
@@ -420,13 +416,14 @@ export default function Map({
             {hospitals.length > 0 && <li><span className={styles.legendIcon}><HospitalMarker /></span> Hospital</li>}
             <li><span className={styles.legendIcon}><IncidentMarker type={IncidentType.VIA_BLOQUEADA} effect={IncidentEffect.BLOQUEIO} /></span> Bloqueio (rota desvia)</li>
             <li><span className={styles.legendIcon}><IncidentMarker type={IncidentType.ALAGAMENTO} effect={IncidentEffect.RISCO} /></span> Risco na via</li>
-            {traffic && (
-              <>
-                <li><span className={styles.legendIcon}><span className={styles.legendRoute} style={{ background: TRAFFIC_COLORS[theme].slow }} /></span> Trânsito lento</li>
-                <li><span className={styles.legendIcon}><span className={styles.legendRoute} style={{ background: TRAFFIC_COLORS[theme].heavy }} /></span> Muito lento</li>
-                <li><span className={styles.legendIcon}><span className={styles.legendRoute} style={{ background: TRAFFIC_COLORS[theme].stopped }} /></span> Parado</li>
-              </>
-            )}
+            <li>
+              <span className={styles.legendIcon}>
+                <span className={styles.legendTraffic}>
+                  {(['slow', 'heavy', 'stopped'] as const).map(level => <i key={level} style={{ background: TRAFFIC_COLORS[theme][level] }} />)}
+                </span>
+              </span>
+              Trânsito: lento a parado
+            </li>
             {hasRoute && <li><span className={styles.legendIcon}><span className={styles.legendRoute} style={{ background: ROUTE_COLORS[theme].line, boxShadow: `0 0 0 2px ${ROUTE_COLORS[theme].casing}` }} /></span> Rota selecionada</li>}
           </ul>
         )}

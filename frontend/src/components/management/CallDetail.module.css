@@ -32,11 +32,6 @@
   font-weight: 700;
 }
 
-.id {
-  color: var(--color-text-muted);
-  font-size: 12px;
-}
-
 .close {
   display: grid;
   flex-shrink: 0;

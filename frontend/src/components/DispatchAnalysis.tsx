@@ -23,20 +23,6 @@ interface DispatchAnalysisProps {
   onSelectRoute: (index: number) => void;
 }
 
-const getScoreColor = (score: number): string => {
-  if (score >= 80) return '#16a34a';
-  if (score >= 60) return '#3b82f6';
-  if (score >= 40) return '#f59e0b';
-  return '#ef4444';
-};
-
-const getScoreLabel = (score: number): string => {
-  if (score >= 80) return 'Excelente';
-  if (score >= 60) return 'Bom';
-  if (score >= 40) return 'Regular';
-  return 'Baixo';
-};
-
 export default function DispatchAnalysis({
   call,
   recommendation,
@@ -105,12 +91,12 @@ export default function DispatchAnalysis({
         <button className={styles.retry} onClick={onRetry}>Analisar despacho</button>
       )}
 
+      {!loading && recommendation && recommendation.recommendations.length === 0 && (
+        <p className={styles.notice} role="status">Nenhuma viatura com motorista em turno agora.</p>
+      )}
+
       {!loading && recommendation && (
         <>
-          <p className={styles.algorithm}>
-            Score: tempo de chegada 40% · disponibilidade 30% · tipo 20% · ocorrências 10%
-          </p>
-
           <div className={styles.options}>
             {recommendation.recommendations.map((rec, index) => {
               const ambulance = ambulances.find(amb => amb.id === rec.ambulanceId);
@@ -130,7 +116,7 @@ export default function DispatchAnalysis({
                   ].join(' ')}
                   onClick={() => onSelectRoute(index)}
                 >
-                  {index === 0 && <span className={styles.bestBadge}><StarIcon /> Melhor opção</span>}
+                  {index === 0 && <span className={styles.bestBadge}><StarIcon /> Recomendada</span>}
 
                   <header className={styles.optionHeader}>
                     <div className={styles.ambulance}>
@@ -152,21 +138,7 @@ export default function DispatchAnalysis({
                         )}
                       </div>
                     </div>
-                    <div className={styles.score} style={{ color: getScoreColor(rec.totalScore) }}>
-                      <strong>{rec.totalScore}</strong>
-                      <span>{getScoreLabel(rec.totalScore)}</span>
-                    </div>
                   </header>
-
-                  <dl className={styles.breakdown}>
-                    <div><dt>Tempo</dt><dd>{rec.timeScore}/100</dd></div>
-                    <div><dt>Disponibilidade</dt><dd>{rec.availabilityScore}/100</dd></div>
-                    <div><dt>Tipo</dt><dd>{rec.typeScore}/100</dd></div>
-                    <div>
-                      <dt>Ocorrências</dt>
-                      <dd className={rec.incidentPenalty < 0 ? styles.negative : ''}>{rec.incidentPenalty}</dd>
-                    </div>
-                  </dl>
 
                   {rec.route ? (
                     <>

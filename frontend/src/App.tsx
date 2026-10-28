@@ -318,7 +318,7 @@ function App() {
       {connection !== 'online' && (
         <div className={`connection-banner ${connection}`} role="status">
           {connection === 'connecting' ? (
-            <span>Conectando ao servidor… o primeiro acesso pode levar até 1 minuto.</span>
+            <span>Conectando ao servidor… pode levar até 1 minuto.</span>
           ) : (
             <>
               <span>

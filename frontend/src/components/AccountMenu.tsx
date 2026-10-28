@@ -148,8 +148,8 @@ export function AccountMenu({ onSignOut, blockedReason, shift }: AccountMenuProp
             <summary>Sobre o SAMU Despacho</summary>
             <p>Projeto acadêmico da Usina de Projetos Experimentais.</p>
             <p>
-              A sugestão de viatura soma distância (40%), disponibilidade (30%), tipo de viatura (20%)
-              e ocorrências na rota (10%).
+              A sugestão de viatura considera o tempo de chegada, se ela está livre, o tipo de viatura
+              e as ocorrências no caminho.
             </p>
             <p>Rotas: Valhalla. Alertas: CEMADEN/MCTI, Defesa Civil e SGB/CPRM. Trânsito: © TomTom. Mapa: OpenFreeMap, OpenMapTiles e OpenStreetMap.</p>
           </details>

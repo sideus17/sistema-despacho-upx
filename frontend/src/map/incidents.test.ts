@@ -15,10 +15,10 @@ describe('ocorrências no mapa', () => {
     expect(areas.features[0].geometry).toEqual(TRECHO);
   });
 
-  it('o TomTom sem fim previsto vale enquanto ele informar, e não "até a central encerrar"', () => {
+  it('o TomTom sem fim previsto vale enquanto ele informar; a central não encerra ocorrências', () => {
     const tomtom = incident({ source: IncidentSource.TOMTOM });
-    expect(expiryLabel(tomtom)).toBe('enquanto o TomTom informar');
-    expect(sourceLabel(tomtom)).toBe('TomTom');
-    expect(expiryLabel(incident())).toBe('até a central encerrar');
+    expect(expiryLabel(tomtom)).toBe('enquanto aparecer no trânsito ao vivo');
+    expect(sourceLabel(tomtom)).toBe('Trânsito ao vivo');
+    expect(expiryLabel(incident())).toBe('até ser encerrada');
   });
 });

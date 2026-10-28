@@ -11,9 +11,7 @@ import { RouteLayer } from '../map/RouteLayer';
 import { ROUTE_OPTIONS_LAYER, RouteOptionsLayer } from '../map/RouteOptionsLayer';
 import { IncidentLayer } from '../map/IncidentLayer';
 import { TrafficLayer } from '../map/TrafficLayer';
-import { TrafficToggle } from '../map/TrafficToggle';
 import { withAuthRequest } from '../services/api';
-import styles from './CrewMap.module.css';
 import { boundsOf, toLngLat } from '../map/geojson';
 import { AmbulanceMarker, CallMarker, HospitalMarker } from '../map/Markers';
 
@@ -76,7 +74,6 @@ export default function CrewMap({ ambulance, destination, routes = [], selectedR
       }}
     >
       <NavigationControl position="top-left" showCompass={false} />
-      <TrafficToggle className={styles.traffic} activeClassName={styles.trafficActive} />
       <TrafficLayer theme={theme} />
 
       <IncidentLayer incidents={incidents} />

@@ -1,14 +1,12 @@
 import { Layer, Source, useMap } from '@vis.gl/react-maplibre';
 import { trafficTileUrl } from '../services/api';
 import type { MapTheme } from './mapStyle';
-import { TRAFFIC_BEFORE, TRAFFIC_SOURCE, trafficLayer, useTrafficEnabled, useTrafficVersion } from './traffic';
+import { TRAFFIC_BEFORE, TRAFFIC_SOURCE, trafficLayer, useTrafficVersion } from './traffic';
 
-// Linhas de lentidão (TomTom) na central e na prévia da equipe; some quando o trânsito está desligado
+// Linhas de lentidão (TomTom) na central e na prévia da equipe
 export function TrafficLayer({ theme }: { theme: MapTheme }) {
-  const enabled = useTrafficEnabled();
-  const version = useTrafficVersion(enabled);
+  const version = useTrafficVersion();
   const { current: map } = useMap();
-  if (!enabled) return null;
 
   // Sem a camada de referência (estilo diferente), vai por cima das ruas mesmo assim
   const beforeId = map?.getLayer(TRAFFIC_BEFORE) ? TRAFFIC_BEFORE : undefined;

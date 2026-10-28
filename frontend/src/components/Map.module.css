@@ -97,6 +97,20 @@
   transform: translate(-50%, -50%);
 }
 
+/* Trânsito: lento, muito lento e parado, lado a lado */
+.legendIcon > .legendTraffic {
+  display: flex;
+  width: 21px;
+  height: 5px;
+  overflow: hidden;
+  border-radius: 3px;
+  transform: translate(-50%, -50%);
+}
+
+.legendTraffic i {
+  flex: 1;
+}
+
 /* Ocorrências */
 .effectPill {
   display: inline-block;

@@ -70,7 +70,7 @@ async function incidentsNear(from: Coordinates, to: Coordinates): Promise<{ inci
     return { incidents };
   } catch (error) {
     console.warn('Falha ao buscar ocorrências para a rota:', error);
-    return { incidents: [], warning: 'Não foi possível consultar as ocorrências: rota calculada sem desvios.' };
+    return { incidents: [], warning: 'Rota sem desvio das ocorrências (não foi possível consultá-las).' };
   }
 }
 
@@ -102,7 +102,7 @@ async function computeRoute(
     const route = await osrmRoute(from, to, alternates > 0);
     return withAlternatives(route, 'osrm', incidents, [], [
       ...warnings,
-      'Servidor de rotas principal fora do ar: rota calculada sem desviar das ocorrências.'
+      'Rota calculada sem desviar das ocorrências.'
     ]);
   } catch (error) {
     console.warn('OSRM indisponível, usando linha reta:', error instanceof Error ? error.message : error);
@@ -110,7 +110,7 @@ async function computeRoute(
 
   return buildRouteInfo(straightLine(from, to), 'linha-reta', incidents, [], [
     ...warnings,
-    'Servidores de rotas fora do ar: trajeto aproximado em linha reta.'
+    'Rota aproximada em linha reta: o serviço de rotas não respondeu.'
   ]);
 }
 

@@ -6,8 +6,7 @@ import '../../map/maplibre';
 import { Ambulance, CallPriority, Coordinates, Incident, RouteInfo, SpeedLimitSegment } from '../../types';
 import type { Destination } from '../destination';
 import { calculateRoute, getErrorMessage, getSpeedLimits, trafficTileUrl, updateAmbulanceLocation, voteIncident, withAuthRequest } from '../../services/api';
-import { TRAFFIC_LAYER, TRAFFIC_SOURCE, useTrafficEnabled, useTrafficVersion, withTrafficLayer } from '../../map/traffic';
-import { TrafficToggle } from '../../map/TrafficToggle';
+import { TRAFFIC_SOURCE, useTrafficVersion, withTrafficLayer } from '../../map/traffic';
 import { useToast } from '../../components/Toast';
 import { useAuth } from '../../auth/AuthContext';
 import { useGeolocation, useSimulatedGeolocation } from './useGeolocation';
@@ -146,11 +145,10 @@ export default function NavigationView({
   const routeLineRef = useRef<Coordinates[]>(initialRoute.geometry);
   const incidentsRef = useRef(incidents);
   incidentsRef.current = incidents;
-  // Trânsito (TomTom): entra no estilo montado à mão e acompanha o botão sem recarregar o mapa
-  const trafficOn = useTrafficEnabled();
-  const trafficVersion = useTrafficVersion(trafficOn);
-  const trafficRef = useRef({ on: trafficOn, version: trafficVersion });
-  trafficRef.current = { on: trafficOn, version: trafficVersion };
+  // Trânsito (TomTom): entra no estilo montado à mão, sempre ligado
+  const trafficVersion = useTrafficVersion();
+  const trafficVersionRef = useRef(trafficVersion);
+  trafficVersionRef.current = trafficVersion;
   const lastReroute = useRef(0);
   const announced = useRef(new Set<string>());
   const voiceRef = useRef(voiceOn);
@@ -229,15 +227,9 @@ export default function NavigationView({
           route: { type: 'geojson', data: lineFeature(routeLineRef.current) }
         },
         layers: [...next.layers, ...INCIDENT_LAYERS, ...routeLayers(theme)]
-      }, theme, trafficRef.current.version, trafficRef.current.on)
+      }, theme, trafficVersionRef.current)
     });
   }, [mapStyle, theme]);
-
-  // Botão do trânsito: só mostra ou esconde a camada
-  useEffect(() => {
-    const map = mapRef.current;
-    if (map?.getLayer(TRAFFIC_LAYER)) map.setLayoutProperty(TRAFFIC_LAYER, 'visibility', trafficOn ? 'visible' : 'none');
-  }, [trafficOn]);
 
   // A cada 2 min os blocos do trânsito são pedidos de novo
   useEffect(() => {
@@ -542,7 +534,6 @@ export default function NavigationView({
           >
             <ThemeIcon />
           </button>
-          <TrafficToggle className={styles.iconButton} activeClassName={styles.iconButtonActive} />
           <a className={styles.mapsButton} href={mapsUrl} target="_blank" rel="noopener noreferrer">
             Google Maps
           </a>

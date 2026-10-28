@@ -29,7 +29,7 @@ describe('lista de ocorrências da central', () => {
     expect(within(main).getAllByRole('listitem')).toHaveLength(1);
     expect(within(main).getByText('Alagamento')).toBeInTheDocument();
 
-    const group = screen.getByText('Trânsito (TomTom) · 2');
+    const group = screen.getByText('Trânsito ao vivo · 2');
     expect(group.closest('details')).not.toHaveAttribute('open');
 
     await user.click(group);
@@ -40,6 +40,6 @@ describe('lista de ocorrências da central', () => {
 
   it('sem trânsito informado, o grupo não aparece', () => {
     render(<Incidents incidents={[equipe]} onFocus={vi.fn()} />);
-    expect(screen.queryByText(/Trânsito \(TomTom\)/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Trânsito ao vivo/)).not.toBeInTheDocument();
   });
 });
