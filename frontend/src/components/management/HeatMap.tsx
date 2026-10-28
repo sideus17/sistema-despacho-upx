@@ -6,7 +6,7 @@ import { getHeatmap, withAuthRequest } from '../../services/api';
 import { useMapStyle } from '../../map/useMapStyle';
 import { DATA_ATTRIBUTION } from '../../map/attribution';
 import { CallHeatLayer } from '../../map/CallHeatLayer';
-import { HEAT_RAMP, POINTS_FROM_ZOOM } from '../../map/heat';
+import { HEAT_RAMP } from '../../map/heat';
 import { boundsOf } from '../../map/geojson';
 import { BaseMarker, HospitalMarker } from '../../map/Markers';
 import { useTheme } from '../../theme/theme';
@@ -95,7 +95,7 @@ export default function HeatMap({ scope, hospitals, bases }: { scope: Management
           <span className={styles.ramp} style={{ background: `linear-gradient(to right, ${HEAT_RAMP[theme].slice(1).join(', ')})` }} />
           <span>Mais chamados</span>
         </div>
-        <p className={styles.hint}>Aproxime (zoom {POINTS_FROM_ZOOM}) para ver cada chamado com a sua cor.</p>
+        <p className={styles.hint}>Aproxime o mapa para ver cada chamado com a sua cor.</p>
         {data?.truncated && <p className={styles.hint}>Mostrando os {formatCount(points.length)} mais recentes.</p>}
         {error && (
           <p className={styles.error} role="alert">

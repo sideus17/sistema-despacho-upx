@@ -37,18 +37,18 @@ import { LANDSCAPE_PHONE, useMediaQuery } from '../ui/useMediaQuery';
 import { formatNavDistance } from './navigation/instructions';
 import { PickerEntry, pickerOrder } from './shift';
 import { useShiftLocation } from './useShiftLocation';
-import { googleMapsUrl, wazeUrl } from './navigation/mapsLink';
+import { wazeUrl } from './navigation/mapsLink';
 import { callDestination } from './destination';
 import HospitalSheet from './HospitalSheet';
 import styles from './CrewApp.module.css';
-import '../styles/index.css';
 
 // Os mapas (MapLibre) são baixados à parte: a navegação só quando começa
 const NavigationView = lazy(() => import('./navigation/NavigationView'));
 const CrewMap = lazy(() => import('./CrewMap'));
 
-// ?simular=1 faz o carro andar sozinho pela rota (testes e apresentação)
-const SIMULATE = new URLSearchParams(window.location.search).has('simular');
+// ?simular=1 faz o carro andar sozinho pela rota, só no desenvolvimento (npm run dev): na versão
+// publicada a posição falsa iria para a central como se fosse da viatura de verdade
+const SIMULATE = import.meta.env.DEV && new URLSearchParams(window.location.search).has('simular');
 
 const SNAPSHOT_KEY = 'samu:ultimos-dados';
 
@@ -611,16 +611,6 @@ export default function CrewApp() {
           >
             {chosenRoute ? <><NavigateIcon /> Iniciar navegação</> : 'Calculando rota…'}
           </button>
-          {chosenRoute && (
-            <a
-              className={styles.mapsLink}
-              href={googleMapsUrl(ambulance.location, destination.location, chosenRoute.geometry, chosenRoute.waypoints)}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Google Maps
-            </a>
-          )}
           <a className={styles.mapsLink} href={wazeUrl(destination.location)} target="_blank" rel="noopener noreferrer">
             Waze
           </a>

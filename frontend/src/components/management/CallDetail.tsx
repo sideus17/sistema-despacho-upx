@@ -54,7 +54,6 @@ export function CallDetail({ call, ambulanceCode, hospital, hospitals = [], onCl
         <header className={styles.header}>
           <div>
             <h3 id="detalhe-chamado">Chamado de {openedAt(call.timestamp)}</h3>
-            <span className={styles.id}>{call.id}</span>
           </div>
           <button type="button" className={styles.close} aria-label="Fechar" onClick={onClose}>
             <CloseIcon />

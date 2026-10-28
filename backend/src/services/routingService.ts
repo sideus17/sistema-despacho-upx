@@ -1,6 +1,6 @@
 import { Coordinates, Incident, RouteEngine, RouteIncident, RouteInfo } from '../types';
 import { listActiveIncidents } from './incidentService';
-import { circleEntryAlong, cumulativeDistances, distanceMeters, exclusionRing, nearCorridor, projectOnLine } from './geo';
+import { circleEntryAlong, cumulativeDistances, distanceMeters, exclusionRing, nearCorridor } from './geo';
 import { EngineRoute, osrmRoute } from './osrm';
 import { SpeedLimitSegment, maxExcludePerimeter, valhallaRoute, valhallaSpeedLimits } from './valhalla';
 import { routeAvoiding } from './avoidance';
@@ -12,8 +12,7 @@ const CACHE_TTL = 10 * 60_000;
 // Rota sem desvio (servidor principal fora) vale pouco: logo tenta de novo
 const DEGRADED_CACHE_TTL = 30_000;
 const CACHE_MAX = 200;
-const MAX_MAPS_WAYPOINTS = 3;
-// Caminhos diferentes pedidos além do principal (painel de rotas e prévia da equipe)
+// Caminhos diferentes pedidos além do principal (prévia da rota no app da equipe)
 const ALTERNATES = 2;
 
 export interface RouteOptions {
@@ -70,7 +69,7 @@ async function incidentsNear(from: Coordinates, to: Coordinates): Promise<{ inci
     return { incidents };
   } catch (error) {
     console.warn('Falha ao buscar ocorrências para a rota:', error);
-    return { incidents: [], warning: 'Não foi possível consultar as ocorrências: rota calculada sem desvios.' };
+    return { incidents: [], warning: 'Rota sem desvio das ocorrências (não foi possível consultá-las).' };
   }
 }
 
@@ -102,7 +101,7 @@ async function computeRoute(
     const route = await osrmRoute(from, to, alternates > 0);
     return withAlternatives(route, 'osrm', incidents, [], [
       ...warnings,
-      'Servidor de rotas principal fora do ar: rota calculada sem desviar das ocorrências.'
+      'Rota calculada sem desviar das ocorrências.'
     ]);
   } catch (error) {
     console.warn('OSRM indisponível, usando linha reta:', error instanceof Error ? error.message : error);
@@ -110,7 +109,7 @@ async function computeRoute(
 
   return buildRouteInfo(straightLine(from, to), 'linha-reta', incidents, [], [
     ...warnings,
-    'Servidores de rotas fora do ar: trajeto aproximado em linha reta.'
+    'Rota aproximada em linha reta: o serviço de rotas não respondeu.'
   ]);
 }
 
@@ -159,17 +158,11 @@ function buildRouteInfo(
     .sort((a, b) => a.along - b.along)
     .map(hit => toRouteIncident(hit.incident, hit.along));
 
-  // O link do Google Maps passa pelos pontos da nossa rota mais próximos de cada desvio
-  const waypoints = avoided
-    .slice(0, MAX_MAPS_WAYPOINTS)
-    .map(incident => projectOnLine(route.geometry, cumulative, incident.location).point);
-
   return {
     distance: Math.round(route.distance),
     duration: Math.round(route.duration),
     geometry: route.geometry,
     steps: route.steps,
-    waypoints,
     engine,
     incidentsOnRoute,
     avoided: avoided.map(incident => toRouteIncident(incident)),

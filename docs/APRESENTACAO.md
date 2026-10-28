@@ -37,17 +37,17 @@
 ### 3. Algoritmo de Despacho (4 minutos)
 **Slide 4: Fórmula do Score**
 ```
-Score Total = (Distância × 40%) + 
+Score Total = (Tempo de chegada × 40%) + 
               (Disponibilidade × 30%) + 
               (Tipo × 20%) + 
-              (Clima × 10%)
+              (Ocorrências na rota × 10%)
 ```
 
 **Slide 5: Detalhamento dos Fatores**
 
-**Distância (40%):**
-- Fórmula de Haversine (considera curvatura da Terra)
-- 0km = 100 pontos, 20km+ = 0 pontos
+**Tempo de chegada (40%):**
+- Tempo da rota com o trânsito de agora (sem rota, estimativa pela distância em linha reta, com Haversine)
+- Até 3 min = 100 pontos, 25 min ou mais = 0 pontos
 - Peso maior porque tempo é crítico
 
 **Disponibilidade (30%):**
@@ -220,7 +220,7 @@ Exemplo: 89% = ALTO risco
 > "A fórmula de Haversine calcula a distância entre dois pontos em uma esfera (Terra) usando suas coordenadas geográficas. É mais precisa que distância euclidiana porque considera a curvatura da Terra. Essencial para cálculos geográficos."
 
 **P: Por que esses pesos específicos no algoritmo (40%, 30%, 20%, 10%)?**
-> "Baseamos nos princípios do SAMU: tempo de resposta é crítico (40% para distância), disponibilidade garante atendimento (30%), tipo adequado melhora qualidade (20%), e clima é fator externo (10%). Pesos podem ser ajustados conforme necessidade."
+> "Baseamos nos princípios do SAMU: tempo de resposta é crítico (40% para o tempo de chegada), disponibilidade garante atendimento (30%), tipo adequado melhora qualidade (20%), e ocorrências na rota são fator externo (10%). Pesos podem ser ajustados conforme necessidade."
 
 **P: E se o OSRM ficar fora do ar?**
 > "Implementamos fallback: se OSRM falhar, usamos cálculo de distância direta (Haversine) e estimamos tempo baseado em velocidade média urbana (40 km/h). O sistema continua funcionando, apenas com precisão reduzida."

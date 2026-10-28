@@ -107,7 +107,7 @@ export function scoreCandidate(
     ...scores,
     arrivalSeconds,
     ...(route && { route }),
-    explanation: explain(ambulance, callLocation, arrivalSeconds, route, scores.typeScore, scores.incidentPenalty, totalScore)
+    explanation: explain(ambulance, callLocation, arrivalSeconds, route, scores.typeScore, scores.incidentPenalty)
   };
 }
 
@@ -117,8 +117,7 @@ function explain(
   arrivalSeconds: number,
   route: RouteInfo | undefined,
   type: number,
-  penalty: number,
-  totalScore: number
+  penalty: number
 ): string {
   // Minutos inteiros, como o tempo da rota no card (16 min e 50 s = "16 min")
   const minutes = Math.max(1, Math.floor(arrivalSeconds / 60));
@@ -133,8 +132,7 @@ function explain(
   else if (type >= 70) parts.push('É adequada para esta emergência');
   else parts.push('Pode atender, mas não é o tipo ideal');
 
-  if (penalty < 0) parts.push(`Atenção: há ocorrências perto da viatura ou do chamado (penalidade: ${penalty})`);
+  if (penalty < 0) parts.push('Atenção: há ocorrências perto da viatura ou do chamado');
 
-  parts.push(`Score total: ${totalScore}/100`);
   return parts.join('. ') + '.';
 }

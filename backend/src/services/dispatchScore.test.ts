@@ -8,7 +8,7 @@ const candidate = (id: string, overrides: Partial<Candidate> = {}): Candidate =>
   id, code: id.toUpperCase(), type: 'USB', status: AmbulanceStatus.DISPONIVEL, location: { lat: -23.51, lng: -47.45 }, ...overrides
 });
 const route = (duration: number, overrides: Partial<RouteInfo> = {}): RouteInfo => ({
-  distance: 2000, duration, geometry: [], steps: [], waypoints: [], engine: 'valhalla',
+  distance: 2000, duration, geometry: [], steps: [], engine: 'valhalla',
   incidentsOnRoute: [], avoided: [], warnings: [], durationSource: 'TRANSITO', ...overrides
 });
 

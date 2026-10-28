@@ -5,7 +5,6 @@ import { calculateRoute, speedLimitsAlong } from '../services/routingService';
 import { geocodeAddress, reversePlace, searchPlaces } from '../services/geocodingService';
 import {
   IncidentError,
-  countActiveIncidents,
   createIncident,
   listActiveIncidents,
   registerPassage,
@@ -830,7 +829,7 @@ function parseCoordinates(value: unknown): Coordinates | null {
   return { lat, lng };
 }
 
-// `alternatives: true` traz também até 2 caminhos diferentes (painel de rotas e prévia da equipe)
+// `alternatives: true` traz também até 2 caminhos diferentes (prévia da rota no app da equipe)
 router.post('/routes/calculate', async (req: Request, res: Response) => {
   const from = parseCoordinates(req.body?.from);
   const to = parseCoordinates(req.body?.to);
@@ -903,21 +902,15 @@ router.get('/traffic/flow/:z/:x/:y.pbf', async (req: Request, res: Response) => 
 
 router.get('/stats', requireRole(UserRole.OPERADOR), async (req: Request, res: Response) => {
   try {
-    // Os chamados só são contados (com o histórico, trazer a tabela seria pesado)
-    const [ambRes, pendingRes, regulationRes, activeIncidents] = await Promise.all([
-      supabase.from('ambulances').select('id, status, driver_id'),
+    // Filas do selo no topo da central. Os chamados só são contados (com o histórico, trazer a tabela seria pesado)
+    const [pendingRes, regulationRes] = await Promise.all([
       supabase.from('calls').select('id', { count: 'exact', head: true }).eq('status', CallStatus.PENDENTE),
-      supabase.from('calls').select('id', { count: 'exact', head: true }).eq('status', CallStatus.AGUARDANDO_REGULACAO),
-      countActiveIncidents()
+      supabase.from('calls').select('id', { count: 'exact', head: true }).eq('status', CallStatus.AGUARDANDO_REGULACAO)
     ]);
 
     const stats: Stats = {
-      totalAmbulances: ambRes.data?.length || 0,
-      // Disponível de verdade = livre e com motorista em turno para receber o chamado
-      availableAmbulances: ambRes.data?.filter(a => a.status === 'DISPONIVEL' && a.driver_id).length || 0,
       pendingCalls: pendingRes.count ?? 0,
-      awaitingRegulation: regulationRes.count ?? 0,
-      activeIncidents
+      awaitingRegulation: regulationRes.count ?? 0
     };
 
     res.json({ success: true, data: stats, timestamp: new Date().toISOString() });

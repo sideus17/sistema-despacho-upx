@@ -79,11 +79,4 @@ describe('tema do sistema', () => {
     setThemePreference('auto');
     expect(saveToAccount).toHaveBeenCalledTimes(1);
   });
-
-  it('o botão da navegação percorre Automático → Claro → Escuro', async () => {
-    const { nextThemePreference } = await loadTheme();
-    expect(nextThemePreference('auto')).toBe('day');
-    expect(nextThemePreference('day')).toBe('night');
-    expect(nextThemePreference('night')).toBe('auto');
-  });
 });

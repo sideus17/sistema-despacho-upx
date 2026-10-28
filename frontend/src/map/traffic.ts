@@ -1,9 +1,9 @@
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useEffect, useState } from 'react';
 import type { ExpressionSpecification, LineLayerSpecification, StyleSpecification, VectorSourceSpecification } from 'maplibre-gl';
 import { trafficTileUrl } from '../services/api';
 import type { MapTheme } from './mapStyle';
 
-// Trânsito ao vivo do TomTom: linhas de lentidão nas ruas, como no Waze
+// Trânsito ao vivo do TomTom: linhas de lentidão nas ruas, sempre ligadas, como no Waze
 
 export const TRAFFIC_SOURCE = 'traffic';
 export const TRAFFIC_LAYER = 'traffic-flow';
@@ -22,7 +22,7 @@ export function trafficSource(version: number): VectorSourceSpecification {
   return { type: 'vector', tiles: [trafficTileUrl(version)], minzoom: 10, maxzoom: 16 };
 }
 
-export function trafficLayer(theme: MapTheme, visible = true): LineLayerSpecification {
+export function trafficLayer(theme: MapTheme): LineLayerSpecification {
   const colors = TRAFFIC_COLORS[theme];
   // Mão única do trecho: a linha vai para o lado da pista, para os dois sentidos não se sobreporem
   const oneSide: ExpressionSpecification = ['==', ['get', 'traffic_road_coverage'], 'one_side'];
@@ -32,7 +32,7 @@ export function trafficLayer(theme: MapTheme, visible = true): LineLayerSpecific
     source: TRAFFIC_SOURCE,
     'source-layer': 'Traffic flow',
     filter: ['<', ['get', 'traffic_level'], FREE_FLOW],
-    layout: { 'line-cap': 'round', 'line-join': 'round', visibility: visible ? 'visible' : 'none' },
+    layout: { 'line-cap': 'round', 'line-join': 'round' },
     paint: {
       'line-color': ['step', ['get', 'traffic_level'], colors.stopped, 0.25, colors.heavy, 0.5, colors.slow],
       'line-width': ['interpolate', ['linear'], ['zoom'], 10, 1.5, 13, 3, 16, 6, 18, 9],
@@ -43,53 +43,19 @@ export function trafficLayer(theme: MapTheme, visible = true): LineLayerSpecific
 }
 
 // Para o estilo montado à mão (navegação): fonte e camada no lugar certo da pilha
-export function withTrafficLayer(style: StyleSpecification, theme: MapTheme, version: number, visible: boolean): StyleSpecification {
+export function withTrafficLayer(style: StyleSpecification, theme: MapTheme, version: number): StyleSpecification {
   const layers = [...style.layers];
   const index = layers.findIndex(layer => layer.id === TRAFFIC_BEFORE);
-  layers.splice(index === -1 ? layers.length : index, 0, trafficLayer(theme, visible));
+  layers.splice(index === -1 ? layers.length : index, 0, trafficLayer(theme));
   return { ...style, sources: { ...style.sources, [TRAFFIC_SOURCE]: trafficSource(version) }, layers };
 }
 
-// Versão dos blocos: muda a cada 2 min enquanto o trânsito está ligado, e o mapa pede tudo de novo
-export function useTrafficVersion(enabled: boolean): number {
+// Versão dos blocos: muda a cada 2 min, e o mapa pede tudo de novo
+export function useTrafficVersion(): number {
   const [version, setVersion] = useState(() => Math.floor(Date.now() / TRAFFIC_REFRESH_MS));
   useEffect(() => {
-    if (!enabled) return;
     const timer = window.setInterval(() => setVersion(Math.floor(Date.now() / TRAFFIC_REFRESH_MS)), 15_000);
     return () => window.clearInterval(timer);
-  }, [enabled]);
+  }, []);
   return version;
-}
-
-// Trânsito ligado ou desligado: vale nos três mapas e fica salvo no aparelho
-const KEY = 'samu:transito';
-const listeners = new Set<() => void>();
-
-function readEnabled(): boolean {
-  try {
-    return localStorage.getItem(KEY) !== '0';
-  } catch {
-    return true;
-  }
-}
-
-let enabled = readEnabled();
-
-export function setTrafficEnabled(value: boolean) {
-  enabled = value;
-  try {
-    localStorage.setItem(KEY, value ? '1' : '0');
-  } catch {
-    // Sem armazenamento: vale só até fechar o app
-  }
-  listeners.forEach(listener => listener());
-}
-
-function subscribe(listener: () => void) {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
-}
-
-export function useTrafficEnabled(): boolean {
-  return useSyncExternalStore(subscribe, () => enabled);
 }

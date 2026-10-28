@@ -56,7 +56,7 @@ export default function History({ scope, ambulances, hospitals }: { scope: Manag
             type="search"
             value={search}
             onChange={event => setSearch(event.target.value)}
-            placeholder="Endereço, descrição, telefone ou nº do chamado"
+            placeholder="Endereço, descrição ou telefone"
             aria-label="Buscar no histórico"
           />
         </label>

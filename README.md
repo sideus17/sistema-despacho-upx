@@ -42,10 +42,10 @@ Ver `docs/JUSTIFICATIVA_TECNICA.md` para detalhes.
 
 ### 2. Sistema de Despacho Inteligente
 Algoritmo de score ponderado:
-- **Distância** (40%): Quanto mais próximo, melhor
+- **Tempo de chegada** (40%): tempo da rota com o trânsito de agora; quanto mais rápido, melhor
 - **Disponibilidade** (30%): Ambulância livre tem prioridade
 - **Tipo** (20%): USA para emergências graves
-- **Análise de Risco** (10%): Penaliza rotas com probabilidade de eventos adversos
+- **Ocorrências na rota** (10%): penaliza bloqueios, riscos e avisos perto da viatura ou do chamado
 
 ### 3. Cálculo de Rota e Análise de Risco
 - Rota visual no mapa (OSRM)
@@ -337,7 +337,7 @@ curl -X POST http://localhost:3000/api/dispatch/execute \
 > "Substituiríamos os arquivos JSON por consultas a banco de dados PostgreSQL e integração com APIs governamentais via REST. O código está estruturado para facilitar essa migração."
 
 **P: Como funciona o algoritmo?**
-> "Usamos score ponderado com 4 fatores: distância (40%), disponibilidade (30%), tipo (20%) e clima (10%). Cada fator gera pontuação de 0-100, multiplicada pelo peso, resultando no score final."
+> "Usamos score ponderado com 4 fatores: tempo de chegada (40%), disponibilidade (30%), tipo (20%) e ocorrências na rota (10%). Cada fator gera pontuação de 0-100, multiplicada pelo peso, resultando no score final."
 
 **P: Como calculam a distância?**
 > "Usamos a fórmula de Haversine, que calcula distância entre coordenadas geográficas considerando a curvatura da Terra. É a forma mais precisa para distâncias curtas."

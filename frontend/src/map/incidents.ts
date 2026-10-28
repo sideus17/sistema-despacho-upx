@@ -28,7 +28,7 @@ export const SOURCE_LABEL: Record<IncidentSource, string> = {
   [IncidentSource.EQUIPE]: 'Equipe',
   [IncidentSource.CEMADEN]: 'CEMADEN',
   [IncidentSource.DEFESA_CIVIL]: 'Defesa Civil',
-  [IncidentSource.TOMTOM]: 'TomTom'
+  [IncidentSource.TOMTOM]: 'Trânsito ao vivo'
 };
 
 export const EFFECT_META: Record<IncidentEffect, { label: string; color: string; hint: string; order: number }> = {
@@ -66,7 +66,7 @@ function clock(iso: string): string {
 
 export function expiryLabel(incident: Incident): string {
   if (incident.expiresAt) return `vale até ${clock(incident.expiresAt)}`;
-  return incident.source === IncidentSource.TOMTOM ? 'enquanto o TomTom informar' : 'até a central encerrar';
+  return incident.source === IncidentSource.TOMTOM ? 'enquanto aparecer no trânsito ao vivo' : 'até ser encerrada';
 }
 
 // Área desenhada no mapa: o contorno da fonte oficial, o trecho de rua do TomTom ou o círculo

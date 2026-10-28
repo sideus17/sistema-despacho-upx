@@ -6,8 +6,7 @@ import '../../map/maplibre';
 import { Ambulance, CallPriority, Coordinates, Incident, RouteInfo, SpeedLimitSegment } from '../../types';
 import type { Destination } from '../destination';
 import { calculateRoute, getErrorMessage, getSpeedLimits, trafficTileUrl, updateAmbulanceLocation, voteIncident, withAuthRequest } from '../../services/api';
-import { TRAFFIC_LAYER, TRAFFIC_SOURCE, useTrafficEnabled, useTrafficVersion, withTrafficLayer } from '../../map/traffic';
-import { TrafficToggle } from '../../map/TrafficToggle';
+import { TRAFFIC_SOURCE, useTrafficVersion, withTrafficLayer } from '../../map/traffic';
 import { useToast } from '../../components/Toast';
 import { useAuth } from '../../auth/AuthContext';
 import { useGeolocation, useSimulatedGeolocation } from './useGeolocation';
@@ -16,10 +15,10 @@ import { overLimit, speedLimitAt, toKmh } from './speed';
 import { PanelHandle, usePanelCollapsed } from '../PanelHandle';
 import { LANDSCAPE_PHONE, useMediaQuery } from '../../ui/useMediaQuery';
 import { formatNavDistance, maneuverIcon, maneuverText, spokenInstruction } from './instructions';
-import { googleMapsUrl } from './mapsLink';
+import { wazeUrl } from './mapsLink';
 import { useMapStyle } from '../../map/useMapStyle';
 import { DATA_ATTRIBUTION } from '../../map/attribution';
-import { nextThemePreference, setThemePreference, THEME_OPTIONS, useTheme } from '../../theme/theme';
+import { useTheme } from '../../theme/theme';
 import { MapTheme, ROUTE_COLORS } from '../../map/mapStyle';
 import { lineFeature, toLngLat } from '../../map/geojson';
 import { CallMarker, HospitalMarker } from '../../map/Markers';
@@ -107,7 +106,7 @@ export default function NavigationView({
   const [following, setFollowing] = useState(true);
   const [voiceOn, setVoiceOn] = useState(readVoicePreference);
   const toast = useToast();
-  const { theme, preference } = useTheme();
+  const { theme } = useTheme();
   const mapStyle = useMapStyle(theme);
   // Elemento do marcador de destino: o MapLibre posiciona, o React desenha o pino
   const [destinationEl] = useState(() => document.createElement('div'));
@@ -146,11 +145,10 @@ export default function NavigationView({
   const routeLineRef = useRef<Coordinates[]>(initialRoute.geometry);
   const incidentsRef = useRef(incidents);
   incidentsRef.current = incidents;
-  // Trânsito (TomTom): entra no estilo montado à mão e acompanha o botão sem recarregar o mapa
-  const trafficOn = useTrafficEnabled();
-  const trafficVersion = useTrafficVersion(trafficOn);
-  const trafficRef = useRef({ on: trafficOn, version: trafficVersion });
-  trafficRef.current = { on: trafficOn, version: trafficVersion };
+  // Trânsito (TomTom): entra no estilo montado à mão, sempre ligado
+  const trafficVersion = useTrafficVersion();
+  const trafficVersionRef = useRef(trafficVersion);
+  trafficVersionRef.current = trafficVersion;
   const lastReroute = useRef(0);
   const announced = useRef(new Set<string>());
   const voiceRef = useRef(voiceOn);
@@ -229,15 +227,9 @@ export default function NavigationView({
           route: { type: 'geojson', data: lineFeature(routeLineRef.current) }
         },
         layers: [...next.layers, ...INCIDENT_LAYERS, ...routeLayers(theme)]
-      }, theme, trafficRef.current.version, trafficRef.current.on)
+      }, theme, trafficVersionRef.current)
     });
   }, [mapStyle, theme]);
-
-  // Botão do trânsito: só mostra ou esconde a camada
-  useEffect(() => {
-    const map = mapRef.current;
-    if (map?.getLayer(TRAFFIC_LAYER)) map.setLayoutProperty(TRAFFIC_LAYER, 'visibility', trafficOn ? 'visible' : 'none');
-  }, [trafficOn]);
 
   // A cada 2 min os blocos do trânsito são pedidos de novo
   useEffect(() => {
@@ -415,10 +407,9 @@ export default function NavigationView({
   };
 
   const eta = new Date(Date.now() + nav.durationRemaining * 1000).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-  const mapsUrl = googleMapsUrl(fix?.position ?? ambulance.location, destination.location, nav.remaining, route.waypoints);
+  // Reserva se a nossa navegação falhar: o Waze leva ao destino pelo caminho dele
+  const wazeLink = wazeUrl(destination.location);
   const StepIcon = step ? maneuverIcon(step) : null;
-  const themeOption = THEME_OPTIONS.find(option => option.value === preference) ?? THEME_OPTIONS[0];
-  const ThemeIcon = themeOption.Icon;
 
   return (
     <div ref={screenRef} className={styles.screen} data-theme={theme}>
@@ -534,17 +525,8 @@ export default function NavigationView({
           >
             {voiceOn ? <VolumeOnIcon /> : <VolumeOffIcon />}
           </button>
-          <button
-            className={styles.iconButton}
-            onClick={() => setThemePreference(nextThemePreference(preference))}
-            aria-label={`Tema: ${themeOption.label}. Toque para mudar`}
-            title={`Tema: ${themeOption.label}`}
-          >
-            <ThemeIcon />
-          </button>
-          <TrafficToggle className={styles.iconButton} activeClassName={styles.iconButtonActive} />
-          <a className={styles.mapsButton} href={mapsUrl} target="_blank" rel="noopener noreferrer">
-            Google Maps
+          <a className={styles.mapsButton} href={wazeLink} target="_blank" rel="noopener noreferrer">
+            Waze
           </a>
           {simulate && (
             <button className={styles.iconButton} onClick={sim.deviate} title="Simular saída da rota" aria-label="Simular saída da rota"><DetourIcon /></button>

@@ -148,13 +148,6 @@
   font-size: 20px;
 }
 
-/* Botão ligado (trânsito) */
-.iconButton.iconButtonActive {
-  border-color: var(--color-primary);
-  background: var(--color-primary);
-  color: white;
-}
-
 .mapsButton {
   flex: 1;
   padding: 0 12px;
@@ -230,12 +223,6 @@
   border-color: #374151;
   background: #111827;
   color: #e5e7eb;
-}
-
-.screen[data-theme='night'] .iconButton.iconButtonActive {
-  border-color: #2563eb;
-  background: #2563eb;
-  color: white;
 }
 
 .screen[data-theme='night'] .mapsButton {

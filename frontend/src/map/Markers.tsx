@@ -6,7 +6,7 @@ import { IncidentIcon } from '../ui/IncidentIcon';
 import { EFFECT_META } from './incidents';
 import styles from './Markers.module.css';
 
-const AMBULANCE_COLOR: Record<AmbulanceStatus, string> = {
+export const AMBULANCE_COLOR: Record<AmbulanceStatus, string> = {
   [AmbulanceStatus.DISPONIVEL]: '#22c55e',
   [AmbulanceStatus.EM_ATENDIMENTO]: '#f59e0b',
   [AmbulanceStatus.INDISPONIVEL]: '#ef4444'

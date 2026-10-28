@@ -96,18 +96,6 @@ export async function listActiveIncidents(viewerId?: string): Promise<Incident[]
   return [...(data ?? []).map(row => toIncident(row, viewerId)), ...tomtomActiveIncidents()];
 }
 
-// Só as do banco: o contador "Ocorrências" fala das equipes e dos alertas, não do trânsito
-export async function countActiveIncidents(): Promise<number> {
-  const { count, error } = await supabase
-    .from('incidents')
-    .select('id', { count: 'exact', head: true })
-    .eq('status', 'ATIVA')
-    .or(notExpired());
-
-  if (error) throw new Error(error.message);
-  return count ?? 0;
-}
-
 async function getActiveRow(id: string): Promise<any | null> {
   const { data, error } = await supabase
     .from('incidents')

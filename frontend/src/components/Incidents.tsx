@@ -121,8 +121,8 @@ export default function Incidents({ incidents, onFocus }: IncidentsProps) {
 
       {traffic.length > 0 && (
         <details className={styles.traffic}>
-          <summary>Trânsito (TomTom) · {traffic.length}</summary>
-          <p className={styles.hint}>Interdições, acidentes e congestionamentos fortes. Saem sozinhos quando o TomTom deixa de informar.</p>
+          <summary>Trânsito ao vivo · {traffic.length}</summary>
+          <p className={styles.hint}>Interdições, acidentes e congestionamentos fortes. Saem sozinhos quando somem do trânsito ao vivo.</p>
           <ul className={styles.list}>
             {traffic.map(incident => <IncidentItem key={incident.id} incident={incident} onFocus={onFocus} />)}
           </ul>

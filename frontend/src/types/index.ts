@@ -247,7 +247,6 @@ export interface RouteInfo {
   duration: number;
   geometry: Coordinates[];
   steps: RouteStep[];
-  waypoints: Coordinates[]; // pontos da rota perto dos desvios (o link do Google Maps passa por eles)
   engine: RouteEngine;
   incidentsOnRoute: RouteIncident[];
   avoided: RouteIncident[];
@@ -332,11 +331,8 @@ export interface OfficialSourceStatus {
 }
 
 export interface Stats {
-  totalAmbulances: number;
-  availableAmbulances: number;
   pendingCalls: number; // aguardando despacho
   awaitingRegulation: number;
-  activeIncidents: number;
 }
 
 // O que a regulação manda para o servidor
