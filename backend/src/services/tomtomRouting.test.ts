@@ -10,7 +10,6 @@ function route(duration: number, name: string): RouteInfo {
     duration,
     geometry: [{ lat: 0, lng: 0 }, { lat: 0, lng: 0.01 }],
     steps: [{ name } as RouteInfo['steps'][number]],
-    waypoints: [],
     engine: 'valhalla',
     incidentsOnRoute: [],
     avoided: [],

@@ -225,7 +225,6 @@ export interface RouteInfo {
   duration: number; // seconds
   geometry: Coordinates[];
   steps: RouteStep[];
-  waypoints: Coordinates[]; // pontos da própria rota perto dos desvios (o link do Google Maps passa por eles)
   engine: RouteEngine;
   incidentsOnRoute: RouteIncident[]; // a rota atravessa (aviso, risco aceito ou bloqueio sem alternativa)
   avoided: RouteIncident[]; // a rota desviou

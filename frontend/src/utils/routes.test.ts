@@ -7,7 +7,6 @@ const route = (duration: number, steps: [string, number][] = []): RouteInfo => (
   duration,
   geometry: [],
   steps: steps.map(([name, distance]) => ({ type: 'continue', name, distance, duration: 0, location: { lat: 0, lng: 0 } })),
-  waypoints: [],
   engine: 'valhalla',
   incidentsOnRoute: [],
   avoided: [],

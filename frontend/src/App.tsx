@@ -38,7 +38,6 @@ import {
 } from './services/api';
 import { AddIcon, AmbulanceIcon, BackIcon, CallIcon, ManagementIcon, WarningIcon } from './ui/icons';
 import { AccountMenu } from './components/AccountMenu';
-import './styles/index.css';
 
 // O mapa (MapLibre) é o maior pacote do app: carrega à parte, sem atrasar a primeira tela
 const Map = lazy(() => import('./components/Map'));

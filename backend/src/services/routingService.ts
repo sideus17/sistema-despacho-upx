@@ -1,6 +1,6 @@
 import { Coordinates, Incident, RouteEngine, RouteIncident, RouteInfo } from '../types';
 import { listActiveIncidents } from './incidentService';
-import { circleEntryAlong, cumulativeDistances, distanceMeters, exclusionRing, nearCorridor, projectOnLine } from './geo';
+import { circleEntryAlong, cumulativeDistances, distanceMeters, exclusionRing, nearCorridor } from './geo';
 import { EngineRoute, osrmRoute } from './osrm';
 import { SpeedLimitSegment, maxExcludePerimeter, valhallaRoute, valhallaSpeedLimits } from './valhalla';
 import { routeAvoiding } from './avoidance';
@@ -12,7 +12,6 @@ const CACHE_TTL = 10 * 60_000;
 // Rota sem desvio (servidor principal fora) vale pouco: logo tenta de novo
 const DEGRADED_CACHE_TTL = 30_000;
 const CACHE_MAX = 200;
-const MAX_MAPS_WAYPOINTS = 3;
 // Caminhos diferentes pedidos além do principal (prévia da rota no app da equipe)
 const ALTERNATES = 2;
 
@@ -159,17 +158,11 @@ function buildRouteInfo(
     .sort((a, b) => a.along - b.along)
     .map(hit => toRouteIncident(hit.incident, hit.along));
 
-  // O link do Google Maps passa pelos pontos da nossa rota mais próximos de cada desvio
-  const waypoints = avoided
-    .slice(0, MAX_MAPS_WAYPOINTS)
-    .map(incident => projectOnLine(route.geometry, cumulative, incident.location).point);
-
   return {
     distance: Math.round(route.distance),
     duration: Math.round(route.duration),
     geometry: route.geometry,
     steps: route.steps,
-    waypoints,
     engine,
     incidentsOnRoute,
     avoided: avoided.map(incident => toRouteIncident(incident)),

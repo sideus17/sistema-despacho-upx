@@ -15,10 +15,10 @@ import { overLimit, speedLimitAt, toKmh } from './speed';
 import { PanelHandle, usePanelCollapsed } from '../PanelHandle';
 import { LANDSCAPE_PHONE, useMediaQuery } from '../../ui/useMediaQuery';
 import { formatNavDistance, maneuverIcon, maneuverText, spokenInstruction } from './instructions';
-import { googleMapsUrl } from './mapsLink';
+import { wazeUrl } from './mapsLink';
 import { useMapStyle } from '../../map/useMapStyle';
 import { DATA_ATTRIBUTION } from '../../map/attribution';
-import { nextThemePreference, setThemePreference, THEME_OPTIONS, useTheme } from '../../theme/theme';
+import { useTheme } from '../../theme/theme';
 import { MapTheme, ROUTE_COLORS } from '../../map/mapStyle';
 import { lineFeature, toLngLat } from '../../map/geojson';
 import { CallMarker, HospitalMarker } from '../../map/Markers';
@@ -106,7 +106,7 @@ export default function NavigationView({
   const [following, setFollowing] = useState(true);
   const [voiceOn, setVoiceOn] = useState(readVoicePreference);
   const toast = useToast();
-  const { theme, preference } = useTheme();
+  const { theme } = useTheme();
   const mapStyle = useMapStyle(theme);
   // Elemento do marcador de destino: o MapLibre posiciona, o React desenha o pino
   const [destinationEl] = useState(() => document.createElement('div'));
@@ -407,10 +407,9 @@ export default function NavigationView({
   };
 
   const eta = new Date(Date.now() + nav.durationRemaining * 1000).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-  const mapsUrl = googleMapsUrl(fix?.position ?? ambulance.location, destination.location, nav.remaining, route.waypoints);
+  // Reserva se a nossa navegação falhar: o Waze leva ao destino pelo caminho dele
+  const wazeLink = wazeUrl(destination.location);
   const StepIcon = step ? maneuverIcon(step) : null;
-  const themeOption = THEME_OPTIONS.find(option => option.value === preference) ?? THEME_OPTIONS[0];
-  const ThemeIcon = themeOption.Icon;
 
   return (
     <div ref={screenRef} className={styles.screen} data-theme={theme}>
@@ -526,16 +525,8 @@ export default function NavigationView({
           >
             {voiceOn ? <VolumeOnIcon /> : <VolumeOffIcon />}
           </button>
-          <button
-            className={styles.iconButton}
-            onClick={() => setThemePreference(nextThemePreference(preference))}
-            aria-label={`Tema: ${themeOption.label}. Toque para mudar`}
-            title={`Tema: ${themeOption.label}`}
-          >
-            <ThemeIcon />
-          </button>
-          <a className={styles.mapsButton} href={mapsUrl} target="_blank" rel="noopener noreferrer">
-            Google Maps
+          <a className={styles.mapsButton} href={wazeLink} target="_blank" rel="noopener noreferrer">
+            Waze
           </a>
           {simulate && (
             <button className={styles.iconButton} onClick={sim.deviate} title="Simular saída da rota" aria-label="Simular saída da rota"><DetourIcon /></button>

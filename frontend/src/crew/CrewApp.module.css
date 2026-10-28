@@ -444,7 +444,7 @@
   cursor: wait;
 }
 
-/* Google Maps e Waze dividem a linha com a navegação: compactos, podem quebrar em duas linhas */
+/* O Waze divide a linha com a navegação: compacto, pode quebrar em duas linhas */
 .mapsLink {
   padding: 0 10px;
   background: var(--tint-sky-bg-strong);

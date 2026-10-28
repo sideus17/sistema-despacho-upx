@@ -139,41 +139,13 @@ export async function getAmbulances(): Promise<Ambulance[]> {
   return response.data.data || [];
 }
 
-export async function getAvailableAmbulances(): Promise<Ambulance[]> {
-  const response = await api.get<ApiResponse<Ambulance[]>>('/ambulances/available');
-  return response.data.data || [];
-}
-
-export async function getAmbulanceById(id: string): Promise<Ambulance | null> {
-  try {
-    const response = await api.get<ApiResponse<Ambulance>>(`/ambulances/${id}`);
-    return response.data.data || null;
-  } catch (error) {
-    return null;
-  }
-}
-
 // ============================================
 // CALLS
 // ============================================
 
-export async function getCalls(): Promise<EmergencyCall[]> {
-  const response = await api.get<ApiResponse<EmergencyCall[]>>('/calls');
-  return response.data.data || [];
-}
-
 export async function getPendingCalls(): Promise<EmergencyCall[]> {
   const response = await api.get<ApiResponse<EmergencyCall[]>>('/calls/pending');
   return response.data.data || [];
-}
-
-export async function getCallById(id: string): Promise<EmergencyCall | null> {
-  try {
-    const response = await api.get<ApiResponse<EmergencyCall>>(`/calls/${id}`);
-    return response.data.data || null;
-  } catch (error) {
-    return null;
-  }
 }
 
 export interface CreateCallRequest {
@@ -213,15 +185,6 @@ export async function regulateCall(callId: string, regulation: RegulationRequest
 export async function getBases(): Promise<Base[]> {
   const response = await api.get<ApiResponse<Base[]>>('/bases');
   return response.data.data || [];
-}
-
-export async function getBaseById(id: string): Promise<Base | null> {
-  try {
-    const response = await api.get<ApiResponse<Base>>(`/bases/${id}`);
-    return response.data.data || null;
-  } catch (error) {
-    return null;
-  }
 }
 
 // ============================================
@@ -380,19 +343,6 @@ export async function getHeatmap(scope: ManagementScope, signal?: AbortSignal): 
 }
 
 // ============================================
-// HEALTH CHECK
-// ============================================
-
-export async function healthCheck(): Promise<boolean> {
-  try {
-    const response = await api.get('/health');
-    return response.data.success === true;
-  } catch (error) {
-    return false;
-  }
-}
-
-// ============================================
 // UTILITY FUNCTIONS
 // ============================================
 
@@ -412,17 +362,6 @@ export function formatDuration(seconds: number): string {
     return `${hours}h ${remainingMinutes}min`;
   }
   return `${minutes}min`;
-}
-
-export function formatTimestamp(timestamp: string): string {
-  const date = new Date(timestamp);
-  return date.toLocaleString('pt-BR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
 }
 
 export function getTimeAgo(timestamp: string): string {

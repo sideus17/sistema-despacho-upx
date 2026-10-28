@@ -21,7 +21,7 @@ import { MAP_BACKGROUND, ROUTE_COLORS } from '../map/mapStyle';
 import { useTheme } from '../theme/theme';
 import { RouteLayer } from '../map/RouteLayer';
 import { boundsOf, toLngLat } from '../map/geojson';
-import { AmbulanceMarker, BaseMarker, CallMarker, HospitalMarker, IncidentMarker } from '../map/Markers';
+import { AMBULANCE_COLOR, AmbulanceMarker, BaseMarker, CallMarker, HospitalMarker, IncidentMarker } from '../map/Markers';
 import { IncidentLayer } from '../map/IncidentLayer';
 import { TrafficLayer } from '../map/TrafficLayer';
 import { TRAFFIC_COLORS } from '../map/traffic';
@@ -154,10 +154,7 @@ export default function Map({
             <p><strong>Tipo:</strong> {ambulance.type}</p>
             <p>
               <strong>Status:</strong>{' '}
-              <span style={{
-                color: ambulance.status === AmbulanceStatus.DISPONIVEL ? '#22c55e' :
-                       ambulance.status === AmbulanceStatus.EM_ATENDIMENTO ? '#f59e0b' : '#ef4444'
-              }}>
+              <span style={{ color: AMBULANCE_COLOR[ambulance.status] }}>
                 {AMBULANCE_STATUS_LABEL[ambulance.status] ?? ambulance.status}
               </span>
             </p>

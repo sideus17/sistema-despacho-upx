@@ -67,11 +67,6 @@ export function onThemeChoice(listener: (preference: ThemePreference) => void) {
   };
 }
 
-export function nextThemePreference(current: ThemePreference): ThemePreference {
-  const index = THEME_OPTIONS.findIndex(option => option.value === current);
-  return THEME_OPTIONS[(index + 1) % THEME_OPTIONS.length].value;
-}
-
 function subscribe(listener: () => void) {
   listeners.add(listener);
   return () => listeners.delete(listener);
