@@ -11,8 +11,6 @@ vi.mock('../services/api', async original => ({
   searchPlaces: vi.fn()
 }));
 
-const USA: PlaceValue = { label: 'USA-01', detail: 'Viatura USA', location: { lat: -23.50, lng: -47.45 }, kind: 'viatura' };
-const BASE: PlaceValue = { label: 'Base SAMU Central', detail: 'Av. Comendador', location: { lat: -23.51, lng: -47.46 }, kind: 'base' };
 const HOSPITAL = { label: 'Hospital Regional de Sorocaba', detail: 'Vila Boa Vista, Sorocaba', location: { lat: -23.509, lng: -47.458 } };
 
 function Field({ onChange, onPick }: { onChange?: (value: PlaceValue | null) => void; onPick?: () => void }) {
@@ -21,32 +19,29 @@ function Field({ onChange, onPick }: { onChange?: (value: PlaceValue | null) => 
     <AddressSearch
       label="Destino"
       placeholder="Escolha o destino"
-      marker={null}
       value={value}
       onChange={next => { setValue(next); onChange?.(next); }}
-      localPlaces={[USA, BASE]}
       actions={[{ id: 'mapa', label: 'Escolher no mapa', kind: 'mapa', run: () => onPick?.() }]}
     />
   );
 }
 
 describe('campo de endereço com autocompletar', () => {
-  it('ao focar mostra os atalhos, as viaturas e as bases', async () => {
+  it('ao focar mostra o atalho de escolher no mapa', async () => {
     renderWithAuth(<Field />);
     await userEvent.setup().click(screen.getByRole('combobox', { name: 'Destino' }));
     const options = screen.getAllByRole('option').map(option => option.textContent);
-    expect(options).toEqual(['Escolher no mapa', 'USA-01Viatura USA', 'Base SAMU CentralAv. Comendador']);
+    expect(options).toEqual(['Escolher no mapa']);
   });
 
-  it('filtra viaturas na hora e busca endereços depois de parar de digitar', async () => {
+  it('busca endereços depois de parar de digitar', async () => {
     vi.mocked(searchPlaces).mockResolvedValue([HOSPITAL]);
     renderWithAuth(<Field />);
     const user = userEvent.setup();
-    await user.type(screen.getByRole('combobox', { name: 'Destino' }), 'usa');
+    await user.type(screen.getByRole('combobox', { name: 'Destino' }), 'rua');
 
-    expect(screen.getByRole('option', { name: /USA-01/ })).toBeInTheDocument();
-    expect(screen.queryByRole('option', { name: /Base SAMU/ })).not.toBeInTheDocument();
-    await waitFor(() => expect(searchPlaces).toHaveBeenCalledWith('usa', expect.any(AbortSignal)));
+    await waitFor(() => expect(searchPlaces).toHaveBeenCalledWith('rua', expect.any(AbortSignal)));
+    expect(await screen.findByRole('option', { name: /Hospital Regional/ })).toBeInTheDocument();
   });
 
   it('setas e Enter escolhem um endereço; o texto vira o nome do lugar', async () => {

@@ -332,11 +332,8 @@ export interface OfficialSourceStatus {
 }
 
 export interface Stats {
-  totalAmbulances: number;
-  availableAmbulances: number;
   pendingCalls: number; // aguardando despacho
   awaitingRegulation: number;
-  activeIncidents: number;
 }
 
 // O que a regulação manda para o servidor

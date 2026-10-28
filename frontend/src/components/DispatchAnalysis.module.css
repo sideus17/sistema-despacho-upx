@@ -2,11 +2,13 @@
   padding: 16px;
 }
 
-.empty {
-  padding: 24px 20px;
-  text-align: center;
-  color: var(--color-text-muted);
-  font-size: 15px;
+.notice {
+  padding: 12px 14px;
+  border: 1px solid var(--tint-yellow-border);
+  border-radius: 10px;
+  background: var(--tint-yellow-bg);
+  color: var(--tint-yellow-text);
+  font-size: 14px;
   line-height: 1.5;
 }
 

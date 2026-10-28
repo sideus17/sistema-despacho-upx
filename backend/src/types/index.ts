@@ -280,12 +280,8 @@ export interface ApiResponse<T> {
 }
 
 export interface Stats {
-  totalAmbulances: number;
-  availableAmbulances: number;
   pendingCalls: number; // aguardando despacho
   awaitingRegulation: number;
-  activeIncidents: number;
-  averageResponseTime?: number;
 }
 
 // Uma ação de uma pessoa no chamado: quem, quando e o que mudou

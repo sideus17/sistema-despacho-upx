@@ -13,7 +13,7 @@ const CACHE_TTL = 10 * 60_000;
 const DEGRADED_CACHE_TTL = 30_000;
 const CACHE_MAX = 200;
 const MAX_MAPS_WAYPOINTS = 3;
-// Caminhos diferentes pedidos além do principal (painel de rotas e prévia da equipe)
+// Caminhos diferentes pedidos além do principal (prévia da rota no app da equipe)
 const ALTERNATES = 2;
 
 export interface RouteOptions {

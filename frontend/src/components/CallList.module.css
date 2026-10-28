@@ -13,18 +13,14 @@
   margin-bottom: 16px;
 }
 
+/* Os filtros são o resumo das filas: quebram linha em vez de esconder algum fora da tela */
 .filters {
   flex: 1 1 auto;
   min-width: 0;
   max-width: 100%;
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.filters::-webkit-scrollbar {
-  display: none;
 }
 
 .chip {

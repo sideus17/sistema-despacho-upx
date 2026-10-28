@@ -36,7 +36,7 @@ import {
   getHospitals,
   setCallHospital
 } from './services/api';
-import { AddIcon, AmbulanceIcon, AnalyticsIcon, BackIcon, CallIcon, ManagementIcon, WarningIcon } from './ui/icons';
+import { AddIcon, AmbulanceIcon, BackIcon, CallIcon, ManagementIcon, WarningIcon } from './ui/icons';
 import { AccountMenu } from './components/AccountMenu';
 import './styles/index.css';
 
@@ -359,44 +359,10 @@ function App() {
 
         {/* Sidebar */}
         <div className="sidebar">
-          {/* Resumo: cada número abre a aba correspondente */}
-          {stats && (
-            <div className="sidebar-stats" role="group" aria-label="Resumo">
-              <button
-                className="sidebar-stat"
-                title={`${stats.availableAmbulances} de ${stats.totalAmbulances} viaturas disponíveis`}
-                onClick={() => setActiveTab('fleet')}
-              >
-                <strong>{stats.availableAmbulances}/{stats.totalAmbulances}</strong>
-                <span>Viaturas</span>
-              </button>
-              <button
-                className={`sidebar-stat ${stats.awaitingRegulation > 0 ? 'sidebar-stat-alert' : ''}`}
-                title="Chamados aguardando regulação"
-                onClick={() => setActiveTab('calls')}
-              >
-                <strong>{stats.awaitingRegulation}</strong>
-                <span>Regulação</span>
-              </button>
-              <button
-                className={`sidebar-stat ${stats.pendingCalls > 0 ? 'sidebar-stat-alert' : ''}`}
-                title="Chamados regulados aguardando despacho"
-                onClick={() => setActiveTab('calls')}
-              >
-                <strong>{stats.pendingCalls}</strong>
-                <span>Despacho</span>
-              </button>
-              <button className="sidebar-stat" onClick={() => setActiveTab('incidents')}>
-                <strong>{stats.activeIncidents}</strong>
-                <span>Ocorrências</span>
-              </button>
-            </div>
-          )}
-
-          {/* Tabs */}
+          {/* Abas: regulação e análise de despacho são passos de um chamado, sem aba própria */}
           <div className="tabs">
             <button
-              className={`tab ${activeTab === 'calls' ? 'active' : ''}`}
+              className={`tab ${['calls', 'regulation', 'analysis'].includes(activeTab) ? 'active' : ''}`}
               onClick={() => setActiveTab('calls')}
             >
               <CallIcon /> Chamados
@@ -406,12 +372,6 @@ function App() {
               onClick={() => setActiveTab('new-call')}
             >
               <AddIcon /> Novo
-            </button>
-            <button
-              className={`tab ${activeTab === 'analysis' ? 'active' : ''}`}
-              onClick={() => setActiveTab('analysis')}
-            >
-              <AnalyticsIcon /> Análise
             </button>
             <button
               className={`tab ${activeTab === 'fleet' ? 'active' : ''}`}

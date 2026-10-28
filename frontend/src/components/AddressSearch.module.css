@@ -5,15 +5,6 @@
   gap: 10px;
 }
 
-.marker {
-  display: grid;
-  width: 24px;
-  flex-shrink: 0;
-  place-items: center;
-  font-size: 22px;
-  line-height: 0;
-}
-
 /* 16px evita o zoom automático do iOS ao tocar no campo */
 .input {
   flex: 1;
@@ -53,7 +44,7 @@
   position: absolute;
   top: calc(100% + 4px);
   right: 0;
-  left: 34px;
+  left: 0;
   z-index: 5;
   max-height: 300px;
   margin: 0;
@@ -117,9 +108,4 @@
   padding: 10px 14px;
   color: var(--color-text-muted);
   font-size: 13px;
-}
-
-/* Sem marcador (formulário do chamado): a lista começa na borda do campo */
-.bare .list {
-  left: 0;
 }

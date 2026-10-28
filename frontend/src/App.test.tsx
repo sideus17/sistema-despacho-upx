@@ -19,7 +19,7 @@ vi.mock('./components/Map', () => ({ default: () => <div>Mapa da operação</div
 vi.mock('./components/management/ManagementPage', () => ({ default: () => <div>Página de gestão</div> }));
 
 beforeEach(() => {
-  vi.mocked(getStats).mockResolvedValue({ totalAmbulances: 4, availableAmbulances: 2, pendingCalls: 2, awaitingRegulation: 1, activeIncidents: 0 });
+  vi.mocked(getStats).mockResolvedValue({ pendingCalls: 2, awaitingRegulation: 1 });
 });
 
 describe('operação e gestão', () => {

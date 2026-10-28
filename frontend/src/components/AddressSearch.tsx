@@ -2,10 +2,10 @@ import { KeyboardEvent, ReactNode, useEffect, useId, useMemo, useRef, useState }
 import { Coordinates, FillSuggestion } from '../types';
 import { searchPlaces } from '../services/api';
 import { normalizeText } from '../utils/routes';
-import { AmbulanceIcon, BasePinIcon, CloseIcon, LocationIcon, MyLocationIcon, PinDropIcon } from '../ui/icons';
+import { CloseIcon, LocationIcon, PinDropIcon } from '../ui/icons';
 import styles from './AddressSearch.module.css';
 
-export type PlaceKind = 'endereco' | 'viatura' | 'base' | 'eu' | 'mapa';
+export type PlaceKind = 'endereco' | 'mapa';
 
 export interface PlaceValue {
   label: string;
@@ -15,23 +15,21 @@ export interface PlaceValue {
   approximate?: boolean; // ponto da rua, não do número digitado
 }
 
-// Atalhos no topo da lista: "Minha localização", "Escolher no mapa"
+// Atalho no topo da lista: "Escolher no mapa"
 export interface SearchAction {
   id: string;
   label: string;
-  kind: 'eu' | 'mapa';
+  kind: 'mapa';
   run: () => void;
 }
 
 interface AddressSearchProps {
   id?: string; // para um <label htmlFor> visível
-  label: string; // nome do campo para leitores de tela ("Ponto de partida")
+  label: string; // nome do campo para leitores de tela ("Endereço")
   placeholder: string;
-  marker?: ReactNode; // bolinha da partida ou pino do destino
   value: PlaceValue | null;
   onChange: (value: PlaceValue | null) => void;
   onTextChange?: (text: string) => void; // texto digitado, para quem aceita endereço sem sugestão
-  localPlaces?: PlaceValue[]; // viaturas e bases, filtradas aqui mesmo
   actions?: SearchAction[];
 }
 
@@ -39,30 +37,23 @@ type Option = { id: string; place: PlaceValue } | { id: string; action: SearchAc
 
 const DEBOUNCE_MS = 300;
 const MIN_REMOTE_LENGTH = 3;
-const MAX_LOCAL = 4;
 
 const KIND_ICON: Record<PlaceKind, ReactNode> = {
   endereco: <LocationIcon />,
-  viatura: <AmbulanceIcon />,
-  base: <BasePinIcon />,
-  eu: <MyLocationIcon />,
   mapa: <PinDropIcon />
 };
 
 /**
- * Campo de endereço com autocompletar (combobox): viaturas e bases na hora, endereços depois de
- * 300 ms parado (um CEP sugere a rua para completar com o número). Setas escolhem, Enter confirma,
- * Esc fecha a lista.
+ * Campo de endereço com autocompletar (combobox): endereços depois de 300 ms parado (um CEP sugere
+ * a rua para completar com o número). Setas escolhem, Enter confirma, Esc fecha a lista.
  */
 export default function AddressSearch({
   id,
   label,
   placeholder,
-  marker,
   value,
   onChange,
   onTextChange,
-  localPlaces = [],
   actions = []
 }: AddressSearchProps) {
   const listId = useId();
@@ -78,7 +69,7 @@ export default function AddressSearch({
     onTextChange?.(text);
   };
 
-  // Valor trocado por fora (inverter, ponto escolhido no mapa): o texto acompanha. Valor apagado
+  // Valor trocado por fora (ponto escolhido no mapa): o texto acompanha. Valor apagado
   // porque a pessoa voltou a digitar: o que ela digitou fica
   const lastLabel = useRef(value?.label);
   useEffect(() => {
@@ -117,12 +108,9 @@ export default function AddressSearch({
 
   const options = useMemo<Option[]>(() => {
     const actionOptions = actions.map(action => ({ id: `${listId}-${action.id}`, action }));
-    const local = (searching ? localPlaces.filter(place => normalizeText(`${place.label} ${place.detail ?? ''}`).includes(typed)) : localPlaces)
-      .slice(0, searching ? MAX_LOCAL : localPlaces.length)
-      .map((place, index) => ({ id: `${listId}-local-${index}`, place }));
     const found = remote.map((item, index) => ('fill' in item ? { id: `${listId}-remote-${index}`, fill: item } : { id: `${listId}-remote-${index}`, place: item }));
-    return searching ? [...local, ...found, ...actionOptions] : [...actionOptions, ...local];
-  }, [actions, localPlaces, remote, searching, typed, listId]);
+    return searching ? [...found, ...actionOptions] : actionOptions;
+  }, [actions, remote, searching, listId]);
 
   useEffect(() => setActive(-1), [options]);
 
@@ -171,8 +159,7 @@ export default function AddressSearch({
   const showList = open && (options.length > 0 || status !== 'idle' || (searching && typed.length >= MIN_REMOTE_LENGTH));
 
   return (
-    <div className={`${styles.field} ${marker ? '' : styles.bare}`}>
-      {marker && <span className={styles.marker} aria-hidden>{marker}</span>}
+    <div className={styles.field}>
       <input
         ref={inputRef}
         id={id}

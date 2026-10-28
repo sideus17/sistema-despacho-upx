@@ -6,7 +6,7 @@ import { PRIORITY_META, waitingSince } from '../utils/calls';
 import { PriorityLabel } from '../ui/PriorityLabel';
 import { AmbulanceTypeIcon } from '../ui/AmbulanceTypeIcon';
 import RouteNotes from './RouteNotes';
-import { AnalyticsIcon, BackIcon, CheckCircleIcon, DistanceIcon, LocationIcon, StarIcon, TimerIcon } from '../ui/icons';
+import { BackIcon, CheckCircleIcon, DistanceIcon, LocationIcon, StarIcon, TimerIcon } from '../ui/icons';
 import { Avatar } from '../ui/Avatar';
 import styles from './DispatchAnalysis.module.css';
 
@@ -55,9 +55,13 @@ export default function DispatchAnalysis({
   // Trocar de opção cancela uma confirmação em andamento
   useEffect(() => setConfirmingId(null), [selectedIndex, recommendation?.callId]);
 
+  // A análise só abre por "Despachar"; sem chamado, ele saiu da fila enquanto a tela estava aberta
   if (!call) {
     return (
-      <p className={styles.empty}><AnalyticsIcon /> Escolha um chamado e toque em <strong>Despachar</strong> para ver a análise</p>
+      <div className={styles.container}>
+        <button className={styles.back} onClick={onBack}><BackIcon /> Voltar aos chamados</button>
+        <p className={styles.notice} role="status">Este chamado não está mais na fila de despacho.</p>
+      </div>
     );
   }
 

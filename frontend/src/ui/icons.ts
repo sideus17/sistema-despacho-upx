@@ -15,7 +15,6 @@ export { default as PersonIcon } from '~icons/material-symbols/person-rounded';
 // Navegação da central
 export { default as CallIcon } from '~icons/material-symbols/call-rounded';
 export { default as AddIcon } from '~icons/material-symbols/add-rounded';
-export { default as AnalyticsIcon } from '~icons/material-symbols/analytics-rounded';
 export { default as WarningIcon } from '~icons/material-symbols/warning-rounded';
 export { default as BackIcon } from '~icons/material-symbols/arrow-back-rounded';
 export { default as CloseIcon } from '~icons/material-symbols/close-rounded';
@@ -71,14 +70,10 @@ export { default as NightIcon } from '~icons/material-symbols/dark-mode-rounded'
 // Navegação do motorista
 export { default as NavigateIcon } from '~icons/material-symbols/navigation-rounded';
 export { default as MyLocationIcon } from '~icons/material-symbols/my-location-rounded';
-export { default as DirectionsIcon } from '~icons/material-symbols/directions-rounded';
-export { default as SwapVertIcon } from '~icons/material-symbols/swap-vert-rounded';
 export { default as RemoveIcon } from '~icons/material-symbols/remove-rounded';
 export { default as SearchIcon } from '~icons/material-symbols/search-rounded';
 export { default as PinDropIcon } from '~icons/material-symbols/pin-drop-rounded';
 export { default as FlagIcon } from '~icons/material-symbols/flag-rounded';
-export { default as BoltIcon } from '~icons/material-symbols/bolt-rounded';
-export { default as BasePinIcon } from '~icons/material-symbols/home-pin-rounded';
 export { default as VolumeOnIcon } from '~icons/material-symbols/volume-up-rounded';
 export { default as VolumeOffIcon } from '~icons/material-symbols/volume-off-rounded';
 export { default as ArrivalIcon } from '~icons/material-symbols/sports-score-rounded';
