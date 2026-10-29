@@ -52,25 +52,25 @@
   gap: 10px;
 }
 
-/* Alvos grandes (72 px): a resposta não pode exigir mira */
-.yes,
-.no {
+/* Alvos grandes (72 px): a resposta não pode exigir mira. Mesma cor nas duas: quem decide é o rótulo */
+.answer {
+  display: flex;
   flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   min-height: 72px;
   border: none;
   border-radius: 14px;
+  background: var(--color-surface-inverse);
   color: white;
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 800;
   cursor: pointer;
 }
 
-.yes {
-  background: #dc2626;
-}
-
-.no {
-  background: #16a34a;
+.answer :global(.icon) {
+  font-size: 26px;
 }
 
 /* Barra do tempo restante */

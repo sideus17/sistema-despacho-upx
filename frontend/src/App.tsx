@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useRef, lazy, Suspense } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import CallList from './components/CallList';
 import DispatchAnalysis from './components/DispatchAnalysis';
 import Incidents from './components/Incidents';
@@ -111,6 +111,8 @@ function App() {
   // "Escolher no mapa" do formulário de chamado: o próximo clique no mapa vira o local
   const callPickHandler = useRef<((location: Coordinates) => void) | null>(null);
   const [pickingCall, setPickingCall] = useState(false);
+  // Chamado em preenchimento no "Novo" (o ponto na aba avisa quando ele está escondido)
+  const [draftDirty, setDraftDirty] = useState(false);
   const [callDraft, setCallDraft] = useState<Coordinates | null>(null);
 
   const startCallPick = useCallback((onPick: (location: Coordinates) => void) => {
@@ -209,6 +211,24 @@ function App() {
 
   const waitingTotal = (stats?.pendingCalls ?? 0) + (stats?.awaitingRegulation ?? 0);
   const regulatingCall = regulatingId ? calls.find(call => call.id === regulatingId) ?? null : null;
+
+  // Saiu do "Novo" no meio da escolha no mapa: a escolha para, o rascunho fica
+  useEffect(() => {
+    if (activeTab !== 'new-call' && pickingCall) cancelCallPick();
+  }, [activeTab]);
+
+  // Esc volta da regulação e da análise para a lista (dentro de um campo, o Esc é do campo)
+  useEffect(() => {
+    if (activeTab !== 'regulation' && activeTab !== 'analysis') return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || event.defaultPrevented) return;
+      if ((event.target as HTMLElement | null)?.closest('input, textarea, select, [role="dialog"]')) return;
+      if (activeTab === 'regulation') setRegulatingId(null);
+      setActiveTab('calls');
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [activeTab]);
 
   // Calcula sob demanda a rota da opção selecionada (o backend só traz a da melhor)
   const handleSelectRoute = async (index: number) => {
@@ -359,31 +379,29 @@ function App() {
         {/* Sidebar */}
         <div className="sidebar">
           {/* Abas: regulação e análise de despacho são passos de um chamado, sem aba própria */}
-          <div className="tabs">
-            <button
-              className={`tab ${['calls', 'regulation', 'analysis'].includes(activeTab) ? 'active' : ''}`}
-              onClick={() => setActiveTab('calls')}
-            >
-              <CallIcon /> Chamados
-            </button>
-            <button
-              className={`tab ${activeTab === 'new-call' ? 'active' : ''}`}
-              onClick={() => setActiveTab('new-call')}
-            >
-              <AddIcon /> Novo
-            </button>
-            <button
-              className={`tab ${activeTab === 'fleet' ? 'active' : ''}`}
-              onClick={() => setActiveTab('fleet')}
-            >
-              <AmbulanceIcon /> Frota
-            </button>
-            <button
-              className={`tab ${activeTab === 'incidents' ? 'active' : ''}`}
-              onClick={() => setActiveTab('incidents')}
-            >
-              <WarningIcon /> Ocorrências
-            </button>
+          <div className="tabs" role="tablist" aria-label="Painéis da central">
+            {([
+              ['calls', <CallIcon />, 'Chamados'],
+              ['new-call', <AddIcon />, 'Novo'],
+              ['fleet', <AmbulanceIcon />, 'Frota'],
+              ['incidents', <WarningIcon />, 'Ocorrências']
+            ] as const).map(([tab, icon, label]) => {
+              // Regulação e análise são passos de um chamado: a aba que fica marcada é "Chamados"
+              const selected = tab === 'calls' ? ['calls', 'regulation', 'analysis'].includes(activeTab) : activeTab === tab;
+              return (
+                <button
+                  key={tab}
+                  type="button"
+                  role="tab"
+                  aria-selected={selected}
+                  className={`tab ${selected ? 'active' : ''}`}
+                  onClick={() => setActiveTab(tab)}
+                >
+                  {icon} {label}
+                  {tab === 'new-call' && draftDirty && !selected && <span className="tab-dot" title="Chamado em preenchimento" aria-label="(em preenchimento)" />}
+                </button>
+              );
+            })}
           </div>
 
           {/* Tab Content */}
@@ -402,17 +420,19 @@ function App() {
               />
             )}
 
-            {activeTab === 'new-call' && (
+            {/* Sempre montado: trocar de aba ou abrir um chamado no meio da ligação não apaga o que foi digitado */}
+            <div hidden={activeTab !== 'new-call'}>
               <NewCallForm
                 onCallCreated={handleCallCreated}
                 picking={pickingCall}
                 onPickOnMap={startCallPick}
                 onCancelPick={cancelCallPick}
                 onDraftChange={setCallDraft}
+                onDirtyChange={setDraftDirty}
                 ambulances={ambulances}
                 onShowCall={handleFocusCall}
               />
-            )}
+            </div>
 
             {activeTab === 'regulation' && (
               <RegulationPanel

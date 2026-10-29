@@ -1,4 +1,4 @@
-import { CSSProperties, useState } from 'react';
+import { CSSProperties, useEffect, useRef, useState } from 'react';
 import { CallPriority, CallStatus, CloseReason, EmergencyCall, Hospital, RegulationDecision, RegulationRequest } from '../types';
 import { getErrorMessage, regulateCall } from '../services/api';
 import { CALL_STATUS_LABEL, CLOSE_REASON_LABEL, PRIORITY_META, formatGender, formatWait, queueOf, waitLevel, waitingSince } from '../utils/calls';
@@ -38,6 +38,9 @@ export default function RegulationPanel(props: RegulationPanelProps) {
 function RegulationForm({ call, hospitals, onDone, onBack }: RegulationPanelProps & { call: EmergencyCall }) {
   // Status de quando o painel abriu: se mudar, outra pessoa regulou ou despachou enquanto isso
   const [openedStatus] = useState(call.status);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  // Ao abrir o passo, o foco vai para o título (teclado e leitor de tela começam daqui)
+  useEffect(() => titleRef.current?.focus(), []);
   const [priority, setPriority] = useState<CallPriority>(call.priority);
   const [hospitalId, setHospitalId] = useState(call.hospitalId ?? '');
   const [mode, setMode] = useState<Mode>('main');
@@ -85,7 +88,7 @@ function RegulationForm({ call, hospitals, onDone, onBack }: RegulationPanelProp
   return (
     <div className={styles.container}>
       <button className={styles.back} onClick={onBack}><BackIcon /> Voltar aos chamados</button>
-      <h2 className={styles.title}>{regulated ? 'Reclassificar chamado' : 'Regulação'}</h2>
+      <h2 ref={titleRef} tabIndex={-1} className={styles.title}>{regulated ? 'Reclassificar chamado' : 'Regulação'}</h2>
 
       <section className={styles.summary} style={{ '--priority-color': meta.color } as CSSProperties}>
         <div className={styles.summaryHeader}>

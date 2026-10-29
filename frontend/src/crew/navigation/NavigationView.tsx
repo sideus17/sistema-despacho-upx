@@ -37,7 +37,7 @@ import {
   sourceLabel
 } from '../../map/incidents';
 import { IncidentIcon } from '../../ui/IncidentIcon';
-import { ArrivalIcon, CheckCircleIcon, DetourIcon, MyLocationIcon, ReportIcon, VolumeOffIcon, VolumeOnIcon } from '../../ui/icons';
+import { ArrivalIcon, DetourIcon, MyLocationIcon, ReportIcon, VolumeOffIcon, VolumeOnIcon } from '../../ui/icons';
 import ReportSheet from '../incidents/ReportSheet';
 import StillTherePrompt from '../incidents/StillTherePrompt';
 import { useIncidentAlerts } from '../incidents/useIncidentAlerts';
@@ -488,7 +488,7 @@ export default function NavigationView({
         {!nav.arrived && <PanelHandle collapsed={collapsed} onChange={setPanelCollapsed} label="painel da navegação" />}
         {nav.arrived ? (
           <button className={styles.finish} onClick={onExit}>
-            <CheckCircleIcon /> Sair da navegação
+            Sair da navegação
           </button>
         ) : (
           <div className={styles.summary}>

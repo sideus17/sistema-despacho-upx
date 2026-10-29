@@ -619,7 +619,12 @@ export default function CrewApp() {
             </button>
           </div>
         ) : (
-          <button className={styles.finish} onClick={() => setConfirmingFinish(true)}>
+          // Antes de chegar ao local, finalizar fica pequeno (um toque errado no caminho encerraria o
+          // atendimento); continua possível, porque o GPS pode não marcar a chegada
+          <button
+            className={activeCall.times?.onScene ? styles.finish : styles.finishEarly}
+            onClick={() => setConfirmingFinish(true)}
+          >
             <CheckCircleIcon /> Finalizar atendimento
           </button>
         )}

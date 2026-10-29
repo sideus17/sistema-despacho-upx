@@ -58,9 +58,9 @@ describe('classificação de risco no novo chamado', () => {
     const user = userEvent.setup();
     renderWithAuth(<NewCallForm onCallCreated={vi.fn()} />);
     await fillBasics(user);
-    await user.click(screen.getByRole('button', { name: 'Abrir Chamado' }));
+    await user.click(screen.getByRole('button', { name: 'Abrir chamado' }));
     expect(createCall).not.toHaveBeenCalled();
-    expect(await screen.findByText('Escolha a classificação de risco.')).toBeInTheDocument();
+    expect(await screen.findByText('Escolha a cor da classificação de risco.')).toBeInTheDocument();
   });
 
   it('envia a cor escolhida e os sinais com a sugestão', async () => {
@@ -69,7 +69,7 @@ describe('classificação de risco no novo chamado', () => {
     renderWithAuth(<NewCallForm onCallCreated={onCallCreated} />);
     await fillBasics(user);
     await user.click(screen.getByRole('button', { name: 'Dor forte no peito' }));
-    await user.click(screen.getByRole('button', { name: 'Abrir Chamado' }));
+    await user.click(screen.getByRole('button', { name: 'Abrir chamado' }));
 
     expect(createCall).toHaveBeenCalledWith(expect.objectContaining({
       priority: CallPriority.EMERGENCIA,
@@ -90,7 +90,7 @@ describe('endereço do novo chamado', () => {
     expect(screen.getByText(/Sem sugestão escolhida/)).toBeInTheDocument();
     await user.type(screen.getByLabelText(/Ponto de referência/), '  em frente à padaria ');
     await user.click(color('Verde'));
-    await user.click(screen.getByRole('button', { name: 'Abrir Chamado' }));
+    await user.click(screen.getByRole('button', { name: 'Abrir chamado' }));
 
     expect(createCall).toHaveBeenCalledWith(expect.objectContaining({
       address: 'Rua da Penha, 120',
@@ -111,7 +111,7 @@ describe('endereço do novo chamado', () => {
 
     await user.type(screen.getByLabelText('O que aconteceu'), 'Queda em casa');
     await user.click(color('Amarelo'));
-    await user.click(screen.getByRole('button', { name: 'Abrir Chamado' }));
+    await user.click(screen.getByRole('button', { name: 'Abrir chamado' }));
     expect(createCall).toHaveBeenCalledWith(expect.objectContaining({
       address: 'Rua Maylasky, 54 - Centro, Sorocaba',
       location: { lat: -23.4993, lng: -47.4579 }
@@ -130,7 +130,7 @@ describe('endereço do novo chamado', () => {
 
     await user.type(screen.getByLabelText('O que aconteceu'), 'Queda');
     await user.click(color('Verde'));
-    await user.click(screen.getByRole('button', { name: 'Abrir Chamado' }));
+    await user.click(screen.getByRole('button', { name: 'Abrir chamado' }));
     expect(createCall).toHaveBeenCalledWith(expect.objectContaining({ address: 'Avenida Gisele Constantino, 1850 - Parque Campolim, Sorocaba' }));
   });
 
@@ -151,12 +151,39 @@ describe('endereço do novo chamado', () => {
 
     await user.type(screen.getByLabelText('O que aconteceu'), 'Desmaio');
     await user.click(color('Amarelo'));
-    await user.click(screen.getByRole('button', { name: 'Abrir Chamado' }));
+    await user.click(screen.getByRole('button', { name: 'Abrir chamado' }));
     expect(createCall).toHaveBeenCalledWith(expect.objectContaining({ address: 'Rua da Penha, 890 - Centro, Sorocaba', location: point }));
   });
 });
 
 describe('telefone de quem ligou', () => {
+  it('sem endereço e sem descrição: erro junto do campo e o cursor no primeiro que falta', async () => {
+    const user = userEvent.setup();
+    renderWithAuth(<NewCallForm onCallCreated={vi.fn()} />);
+    await user.click(color('Verde'));
+    await user.click(screen.getByRole('button', { name: 'Abrir chamado' }));
+
+    expect(createCall).not.toHaveBeenCalled();
+    expect(screen.getByText('Informe o endereço ou marque no mapa.')).toBeInTheDocument();
+    expect(screen.getByText('Descreva o que aconteceu.')).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Endereço' })).toHaveFocus();
+    expect(screen.getByRole('combobox', { name: 'Endereço' })).toHaveAttribute('aria-invalid', 'true');
+
+    // Preencher tira o erro daquele campo
+    await user.type(screen.getByLabelText('O que aconteceu'), 'queda');
+    expect(screen.queryByText('Descreva o que aconteceu.')).not.toBeInTheDocument();
+  });
+
+  it('sexo começa em "Não informado" e vai em branco', async () => {
+    const user = userEvent.setup();
+    renderWithAuth(<NewCallForm onCallCreated={vi.fn()} />);
+    expect(screen.getByLabelText('Sexo')).toHaveValue('');
+    await fillBasics(user);
+    await user.click(color('Verde'));
+    await user.click(screen.getByRole('button', { name: 'Abrir chamado' }));
+    expect(createCall).toHaveBeenCalledWith(expect.objectContaining({ gender: '' }));
+  });
+
   it('fixo ou celular com máscara; vai só com os dígitos', async () => {
     const user = userEvent.setup();
     renderWithAuth(<NewCallForm onCallCreated={vi.fn()} />);
@@ -166,7 +193,7 @@ describe('telefone de quem ligou', () => {
 
     await fillBasics(user);
     await user.click(color('Verde'));
-    await user.click(screen.getByRole('button', { name: 'Abrir Chamado' }));
+    await user.click(screen.getByRole('button', { name: 'Abrir chamado' }));
     expect(createCall).toHaveBeenCalledWith(expect.objectContaining({ callerPhone: '1532321234' }));
   });
 
@@ -176,7 +203,7 @@ describe('telefone de quem ligou', () => {
     await user.type(screen.getByLabelText(/Telefone de quem ligou/), '159912');
     await fillBasics(user);
     await user.click(color('Verde'));
-    await user.click(screen.getByRole('button', { name: 'Abrir Chamado' }));
+    await user.click(screen.getByRole('button', { name: 'Abrir chamado' }));
     expect(createCall).not.toHaveBeenCalled();
     expect(screen.getByText('Telefone incompleto ou inválido.')).toBeInTheDocument();
   });
@@ -203,7 +230,7 @@ describe('telefone de quem ligou', () => {
 
     expect(await screen.findByText('Possível chamado repetido')).toBeInTheDocument();
     expect(getRecentCalls).toHaveBeenCalledWith({ phone: '15991234567', location: undefined }, expect.any(AbortSignal));
-    expect(screen.getByText('Mesmo telefone · 20 minutos atrás')).toBeInTheDocument();
+    expect(screen.getByText('Mesmo telefone · há 20 min')).toBeInTheDocument();
     expect(screen.getByText(/Amarelo · Em atendimento · USA-01/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Ver no mapa' }));
     expect(onShowCall).toHaveBeenCalledWith(previous);

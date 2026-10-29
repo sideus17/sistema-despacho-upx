@@ -80,7 +80,7 @@ app.get('/', (req: Request, res: Response) => {
 app.use((req: Request, res: Response) => {
   res.status(404).json({
     success: false,
-    error: 'Endpoint not found',
+    error: 'Endereço não encontrado.',
     path: req.path,
     timestamp: new Date().toISOString()
   });
@@ -91,8 +91,7 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   console.error('Error:', err);
   res.status(500).json({
     success: false,
-    error: 'Internal server error',
-    message: err.message,
+    error: 'Erro interno do servidor. Tente de novo.',
     timestamp: new Date().toISOString()
   });
 });

@@ -73,8 +73,14 @@ export function maneuverIcon(step: RouteStep): IconComponent {
   return ICON[modifier] ?? Straight;
 }
 
+// Tipos em que o modificador "uturn" não muda a frase (saída de rotatória, partida, chegada)
+const UTURN_KEEPS_TEXT = new Set(['depart', 'arrive', 'roundabout', 'rotary', 'exit roundabout', 'exit rotary', 'merge']);
+
 export function maneuverText(step: RouteStep): string {
   const direction = DIRECTION[step.modifier ?? ''] ?? '';
+
+  // Retorno é sempre "Faça o retorno", seja qual for o tipo (antes saía "Mantenha-se o retorno")
+  if (step.modifier === 'uturn' && !UTURN_KEEPS_TEXT.has(step.type)) return `Faça o retorno${onStreet(step.name)}`;
 
   switch (step.type) {
     case 'depart':
@@ -87,7 +93,7 @@ export function maneuverText(step: RouteStep): string {
         ? `Na rotatória, pegue a ${step.exit}ª saída${toStreet(step.name)}`
         : `Entre na rotatória${toStreet(step.name)}`;
     case 'roundabout turn':
-      return `Na rotatória, vire ${direction}`;
+      return direction ? `Na rotatória, vire ${direction}` : 'Siga pela rotatória';
     case 'exit roundabout':
     case 'exit rotary':
       return `Saia da rotatória${onStreet(step.name)}`;
@@ -98,15 +104,14 @@ export function maneuverText(step: RouteStep): string {
     case 'off ramp':
       return `Pegue a saída ${direction}${onStreet(step.name)}`.replace('  ', ' ');
     case 'fork':
-      return `Mantenha-se ${direction}${onStreet(step.name)}`;
     case 'new name':
     case 'continue':
-      if (!step.modifier || step.modifier === 'straight') return `Continue${alongStreet(step.name)}`;
+      if (!direction || step.modifier === 'straight') return `Continue${alongStreet(step.name)}`;
       return `Mantenha-se ${direction}${onStreet(step.name)}`;
     default:
       // turn, end of road, notification...
-      if (step.modifier === 'uturn') return `Faça o retorno${onStreet(step.name)}`;
       if (step.modifier === 'straight') return `Siga em frente${onStreet(step.name)}`;
+      if (!direction) return `Siga${alongStreet(step.name)}`;
       return `Vire ${direction}${onStreet(step.name)}`;
   }
 }

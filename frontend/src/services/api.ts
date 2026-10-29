@@ -232,24 +232,10 @@ export async function getOfficialStatus(): Promise<{ enabled: boolean; sources: 
 // DISPATCH
 // ============================================
 
+// Erros (do servidor ou de conexão) seguem para o getErrorMessage de quem chamou
 export async function analyzeDispatch(callId: string): Promise<DispatchRecommendation> {
-  try {
-    const response = await api.post<ApiResponse<DispatchRecommendation>>('/dispatch/analyze', {
-      callId
-    });
-    
-    if (!response.data.success || !response.data.data) {
-      throw new Error(response.data.error || 'Erro ao analisar despacho');
-    }
-    
-    return response.data.data;
-  } catch (error: any) {
-    console.error('Error in analyzeDispatch:', error);
-    if (error.response) {
-      throw new Error(error.response.data?.error || 'Erro ao analisar despacho');
-    }
-    throw new Error('Erro de conexão com o servidor. Verifique se o backend está rodando.');
-  }
+  const response = await api.post<ApiResponse<DispatchRecommendation>>('/dispatch/analyze', { callId });
+  return response.data.data!;
 }
 
 export async function executeDispatch(callId: string, ambulanceId: string): Promise<any> {
@@ -370,17 +356,15 @@ export function getTimeAgo(timestamp: string): string {
   const diffMs = now.getTime() - past.getTime();
   const diffMins = Math.floor(diffMs / 60000);
 
+  // "há 5 min", "há 2 h", "há 3 dias": curto, para ler de relance
   if (diffMins < 1) return 'agora';
-  if (diffMins === 1) return '1 minuto atrás';
-  if (diffMins < 60) return `${diffMins} minutos atrás`;
-  
+  if (diffMins < 60) return `há ${diffMins} min`;
+
   const diffHours = Math.floor(diffMins / 60);
-  if (diffHours === 1) return '1 hora atrás';
-  if (diffHours < 24) return `${diffHours} horas atrás`;
-  
+  if (diffHours < 24) return `há ${diffHours} h`;
+
   const diffDays = Math.floor(diffHours / 24);
-  if (diffDays === 1) return '1 dia atrás';
-  return `${diffDays} dias atrás`;
+  return diffDays === 1 ? 'há 1 dia' : `há ${diffDays} dias`;
 }
 
 // Sem chegada ao hospital, quem finaliza diz como terminou (com ela, o servidor marca o transporte)
@@ -436,10 +420,11 @@ export function isServerUnreachable(error: unknown): boolean {
 
 export function getErrorMessage(error: any, fallback: string): string {
   if (error?.response?.data?.error) return error.response.data.error;
-  if (error?.code === 'ERR_NETWORK' || error?.code === 'ECONNABORTED') {
+  if (error?.code === 'ERR_NETWORK' || error?.code === 'ECONNABORTED' || (error?.isAxiosError && !error.response)) {
     return 'Sem conexão com o servidor. Tente novamente.';
   }
-  return error?.message || fallback;
+  // Mensagem do axios ou de bibliotecas (em inglês, técnica) não vai para a tela: fica a de quem chamou
+  return fallback;
 }
 
 

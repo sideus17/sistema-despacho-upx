@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { AuthLayout, CodeInput } from './AuthUI';
 import styles from './auth.module.css';
+import { authErrorMessage } from './authErrors';
 
 const INVALID_CODE = 'Código inválido. Confira se o horário do celular está automático e tente de novo.';
 
@@ -32,7 +33,7 @@ export function MfaEnroll({ onCancel }: { onCancel: () => void }) {
         friendlyName: `SAMU ${Date.now()}`
       });
       if (enrollError || !data) {
-        setError(enrollError?.message ?? 'Não foi possível iniciar o cadastro do MFA.');
+        setError(authErrorMessage(enrollError, 'Não foi possível começar o cadastro do autenticador. Tente de novo.'));
         return;
       }
       setFactor({ id: data.id, qr: data.totp.qr_code, secret: data.totp.secret, uri: data.totp.uri });

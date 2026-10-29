@@ -21,7 +21,6 @@
 
 .input:focus {
   border-color: var(--color-primary);
-  outline: none;
   background: var(--color-surface);
 }
 

@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Incident, IncidentType } from '../../types';
 import { sourceLabel } from '../../map/incidents';
 import { IncidentIcon } from '../../ui/IncidentIcon';
+import { CheckIcon, CloseIcon } from '../../ui/icons';
 import styles from './StillTherePrompt.module.css';
 
 export const PROMPT_TIMEOUT_MS = 10000;
@@ -43,8 +44,9 @@ export default function StillTherePrompt({ incident, onAnswer }: StillTherePromp
         </div>
       </div>
       <div className={styles.answers}>
-        <button className={styles.yes} onClick={() => onAnswer('SIM')}>Sim</button>
-        <button className={styles.no} onClick={() => onAnswer('NAO')}>Não</button>
+        {/* As duas na mesma cor: de relance, verde e vermelho seriam lidos como "sim" e "não" ao contrário */}
+        <button className={styles.answer} onClick={() => onAnswer('SIM')}><CheckIcon /> Ainda está</button>
+        <button className={styles.answer} onClick={() => onAnswer('NAO')}><CloseIcon /> Já saiu</button>
       </div>
       <span key={incident.id} className={styles.timer} style={{ animationDuration: `${PROMPT_TIMEOUT_MS}ms` }} />
     </section>

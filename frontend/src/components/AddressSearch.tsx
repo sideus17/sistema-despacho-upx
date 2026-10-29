@@ -31,6 +31,8 @@ interface AddressSearchProps {
   onChange: (value: PlaceValue | null) => void;
   onTextChange?: (text: string) => void; // texto digitado, para quem aceita endereço sem sugestão
   actions?: SearchAction[];
+  invalid?: boolean; // campo obrigatório que ficou vazio
+  describedBy?: string; // id da mensagem de erro
 }
 
 type Option = { id: string; place: PlaceValue } | { id: string; action: SearchAction } | { id: string; fill: FillSuggestion };
@@ -54,7 +56,9 @@ export default function AddressSearch({
   value,
   onChange,
   onTextChange,
-  actions = []
+  actions = [],
+  invalid,
+  describedBy
 }: AddressSearchProps) {
   const listId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -138,10 +142,19 @@ export default function AddressSearch({
       const step = event.key === 'ArrowDown' ? 1 : -1;
       setActive(current => (current + step + options.length) % options.length);
     } else if (event.key === 'Enter') {
-      const option = options[active] ?? (searching ? options[0] : undefined);
-      if (open && option) {
+      if (!open) return;
+      // Enter só escolhe o que está destacado. Sem destaque, escolhe sozinho só a única sugestão exata;
+      // senão destaca a primeira e espera outro Enter (a 1ª sugestão pode ser outra rua). Nunca liga
+      // o "Escolher no mapa" sem ele estar destacado, e não envia o formulário com a lista aberta.
+      const highlighted = options[active];
+      const places = options.filter(option => !('action' in option));
+      const only = places.length === 1 && 'place' in places[0] && !places[0].place.approximate ? places[0] : undefined;
+      if (highlighted || only) {
         event.preventDefault();
-        choose(option);
+        choose((highlighted ?? only)!);
+      } else if (searching || options.length > 0) {
+        event.preventDefault();
+        if (options.length > 0) setActive(0);
       }
     } else if (event.key === 'Escape' && open) {
       event.preventDefault();
@@ -170,6 +183,8 @@ export default function AddressSearch({
         aria-expanded={showList}
         aria-controls={listId}
         aria-activedescendant={active >= 0 ? options[active]?.id : undefined}
+        aria-invalid={invalid || undefined}
+        aria-describedby={describedBy}
         placeholder={placeholder}
         value={query}
         onChange={event => {

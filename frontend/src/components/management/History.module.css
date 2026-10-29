@@ -25,9 +25,11 @@
   color: var(--color-text-muted);
 }
 
+/* O anel fica na caixa toda (lupa + campo), com o mesmo contraste do foco do resto */
 .search:focus-within {
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px var(--tint-blue-bg);
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
 }
 
 .search input {
@@ -38,7 +40,10 @@
   color: var(--color-text);
   font: inherit;
   font-size: 14px;
-  outline: none;
+}
+
+.search input:focus-visible {
+  outline: none; /* o anel está na caixa (.search:focus-within) */
 }
 
 .filters select {

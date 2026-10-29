@@ -7,7 +7,7 @@ export function AuthLayout({ title, subtitle, children }: { title?: string; subt
       <main className={styles.card}>
         <div className={styles.brand}>
           <img src="/ambulance.svg" alt="" width={44} height={44} />
-          <span>SAMU · Despacho</span>
+          <span>SAMU Despacho</span>
         </div>
         {title && <h1 className={styles.title}>{title}</h1>}
         {subtitle && <p className={styles.subtitle}>{subtitle}</p>}
