@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CallPriority, CallStatus, EmergencyCall } from '../types';
-import { CREW_ACK_WAIT_MS, callStage, crewAck, elapsedLabel, formatGender, formatWait, lateSummary, queueOf, sortCallsByPriority, timeline, waitLevel, waitSpoken, waitingSince } from './calls';
+import { CREW_ACK_WAIT_MS, callStage, crewAck, elapsedLabel, formatGender, formatWait, formatWaitShort, lateSummary, queueOf, sortCallsByPriority, timeline, waitLevel, waitSpoken, waitingSince } from './calls';
 
 const call = (id: string, priority: CallPriority, timestamp: string): EmergencyCall => ({
   id,
@@ -87,7 +87,12 @@ describe('cronômetro de espera', () => {
     expect(formatWait(-5000)).toBe('0:00');
   });
 
-  it('resumo da espera longa: quantos chamados passaram do limite em cada fila', () => {
+  it('espera numa frase, sem os segundos', () => {
+    expect(formatWaitShort(247_000)).toBe('4 min');
+    expect(formatWaitShort(44_880_000)).toBe('12 h 28 min');
+  });
+
+  it('resumo da espera longa: a pior espera de verdade em cada fila, e quantos mais passaram do limite', () => {
     const now = Date.parse('2026-10-15T10:10:00Z');
     const opened = (id: string, at: string) => ({ ...call(id, CallPriority.URGENTE, at), status: CallStatus.AGUARDANDO_REGULACAO });
     const calls = [
@@ -98,8 +103,8 @@ describe('cronômetro de espera', () => {
       { ...opened('d', '2026-10-15T09:50:00Z'), status: CallStatus.PENDENTE, times: { regulated: '2026-10-15T10:04:00Z' } }
     ];
     expect(lateSummary(calls, now)).toEqual([
-      '2 chamados aguardando regulação há 3 min ou mais',
-      '1 chamado aguardando despacho há 5 min ou mais'
+      'Amarelo aguardando regulação há 10 min · e mais 1 acima de 3 min',
+      'Amarelo aguardando despacho há 6 min'
     ]);
     expect(lateSummary([opened('c', '2026-10-15T10:08:00Z')], now)).toEqual([]);
   });

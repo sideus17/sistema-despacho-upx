@@ -28,7 +28,7 @@ import { TrafficLayer } from '../map/TrafficLayer';
 import { TRAFFIC_COLORS } from '../map/traffic';
 import { EFFECT_META, effectVars, expiryLabel, incidentTypeLabel, sourceLabel } from '../map/incidents';
 import { CALL_STATUS_LABEL, PRIORITIES_BY_SEVERITY, PRIORITY_META, STAGE_META, callStage, elapsedLabel, timeline } from '../utils/calls';
-import { AMBULANCE_STATUS_LABEL, AMBULANCE_TYPE_LABEL } from '../utils/ambulances';
+import { AMBULANCE_STATUS_LABEL, AMBULANCE_TYPE_LABEL, staleLocationText } from '../utils/ambulances';
 import { HOSPITAL_KIND_LABEL } from '../utils/hospitals';
 import { signalsText } from '../utils/triage';
 import { PriorityLabel } from '../ui/PriorityLabel';
@@ -172,6 +172,7 @@ export default function Map({
                 </>
               ) : 'sem motorista em turno'}
             </p>
+            {staleLocationText(ambulance, Date.now()) && <p className={styles.popupWarning}>{staleLocationText(ambulance, Date.now())}</p>}
             <p><strong>Médico:</strong> {ambulance.crew.medic}</p>
             {ambulance.crew.nurse && <p><strong>Enfermeiro:</strong> {ambulance.crew.nurse}</p>}
           </>
@@ -333,7 +334,7 @@ export default function Map({
                 latitude={ambulance.location.lat + offsetLat}
                 onClick={open('ambulance', ambulance.id)}
               >
-                <AmbulanceMarker status={ambulance.status} hasDriver={!!ambulance.driver} />
+                <AmbulanceMarker status={ambulance.status} hasDriver={!!ambulance.driver} stale={!!staleLocationText(ambulance, Date.now())} />
               </Marker>
             );
           })}
@@ -403,6 +404,7 @@ export default function Map({
             <li><span className={styles.legendIcon}><AmbulanceMarker status={AmbulanceStatus.EM_ATENDIMENTO} /></span> Em atendimento</li>
             <li><span className={styles.legendIcon}><AmbulanceMarker status={AmbulanceStatus.INDISPONIVEL} /></span> Indisponível</li>
             <li><span className={styles.legendIcon}><AmbulanceMarker status={AmbulanceStatus.DISPONIVEL} hasDriver={false} /></span> Sem motorista</li>
+            <li><span className={styles.legendIcon}><AmbulanceMarker status={AmbulanceStatus.DISPONIVEL} stale /></span> GPS sem atualizar</li>
             <li>
               <span className={`${styles.legendIcon} ${styles.legendPin}`}><CallMarker priority={CallPriority.EMERGENCIA} /></span> Chamado
               <span className={styles.legendRisk} aria-label="cores: vermelho, amarelo, verde e azul">

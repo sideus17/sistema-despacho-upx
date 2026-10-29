@@ -33,6 +33,8 @@ export { default as ChevronRightIcon } from '~icons/material-symbols/chevron-rig
 export { default as LocationIcon } from '~icons/material-symbols/location-on-rounded';
 export { default as DistanceIcon } from '~icons/material-symbols/straighten-rounded';
 export { default as TimerIcon } from '~icons/material-symbols/timer-rounded';
+export { default as AlarmIcon } from '~icons/material-symbols/alarm-rounded';
+export { default as LocationOffIcon } from '~icons/material-symbols/location-off-rounded';
 export { default as ScheduleIcon } from '~icons/material-symbols/schedule-rounded';
 export { default as DetourIcon } from '~icons/material-symbols/alt-route-rounded';
 export { default as StarIcon } from '~icons/material-symbols/star-rounded';
