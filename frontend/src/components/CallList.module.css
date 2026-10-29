@@ -357,7 +357,7 @@
   padding: 0 7px;
   border-radius: 999px;
   background: var(--color-surface-hover);
-  color: var(--color-text-muted);
+  color: var(--color-text-soft);
   font-size: 11px;
 }
 

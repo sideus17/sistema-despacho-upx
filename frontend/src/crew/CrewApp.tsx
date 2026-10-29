@@ -22,7 +22,7 @@ import { useToast } from '../components/Toast';
 import { STAGE_META, callStage, elapsedLabel, formatGender, needsOutcome, riskVars, timeline } from '../utils/calls';
 import { useNow } from '../hooks/useNow';
 import { OutcomeChoice } from '../ui/OutcomeChoice';
-import { AMBULANCE_STATUS_LABEL } from '../utils/ambulances';
+import { AMBULANCE_STATUS_LABEL, AMBULANCE_TYPE_LABEL } from '../utils/ambulances';
 import { fastestIndex, routeOptions, routeVia, trafficNote } from '../utils/routes';
 import { PriorityLabel } from '../ui/PriorityLabel';
 import { signalsText } from '../utils/triage';
@@ -114,9 +114,7 @@ function PickerPill({ entry }: { entry: PickerEntry }) {
 
 const TYPE_FILTERS: Array<{ value: AmbulanceType | 'ALL'; label: string }> = [
   { value: 'ALL', label: 'Todas' },
-  { value: AmbulanceType.USA, label: 'USA' },
-  { value: AmbulanceType.USB, label: 'USB' },
-  { value: AmbulanceType.MOTOLANCIA, label: 'Motolância' }
+  ...[AmbulanceType.USA, AmbulanceType.USB, AmbulanceType.MOTOLANCIA].map(value => ({ value, label: AMBULANCE_TYPE_LABEL[value] }))
 ];
 
 function StatusPill({ status }: { status: AmbulanceStatus }) {
@@ -508,7 +506,7 @@ export default function CrewApp() {
   const header = (
     <header className={styles.header}>
       <div>
-        <p className={styles.headerCode}><AmbulanceTypeIcon type={ambulance.type} /> {ambulance.code} <span>{ambulance.type} · {me.fullName.split(' ')[0]}</span></p>
+        <p className={styles.headerCode}><AmbulanceTypeIcon type={ambulance.type} /> {ambulance.code} <span>{AMBULANCE_TYPE_LABEL[ambulance.type] ?? ambulance.type} · {me.fullName.split(' ')[0]}</span></p>
         <StatusPill status={ambulance.status} />
       </div>
       {/* Durante um atendimento não dá para encerrar o turno nem sair */}

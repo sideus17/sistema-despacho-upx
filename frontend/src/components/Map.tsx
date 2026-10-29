@@ -28,7 +28,7 @@ import { TrafficLayer } from '../map/TrafficLayer';
 import { TRAFFIC_COLORS } from '../map/traffic';
 import { EFFECT_META, effectVars, expiryLabel, incidentTypeLabel, sourceLabel } from '../map/incidents';
 import { CALL_STATUS_LABEL, PRIORITIES_BY_SEVERITY, PRIORITY_META, STAGE_META, callStage, elapsedLabel, timeline } from '../utils/calls';
-import { AMBULANCE_STATUS_LABEL } from '../utils/ambulances';
+import { AMBULANCE_STATUS_LABEL, AMBULANCE_TYPE_LABEL } from '../utils/ambulances';
 import { HOSPITAL_KIND_LABEL } from '../utils/hospitals';
 import { signalsText } from '../utils/triage';
 import { PriorityLabel } from '../ui/PriorityLabel';
@@ -152,7 +152,7 @@ export default function Map({
         content: (
           <>
             <h3>{ambulance.code}</h3>
-            <p><strong>Tipo:</strong> {ambulance.type}</p>
+            <p><strong>Tipo:</strong> {AMBULANCE_TYPE_LABEL[ambulance.type] ?? ambulance.type}</p>
             <p>
               <strong>Status:</strong>{' '}
               {AMBULANCE_STATUS_LABEL[ambulance.status] ?? ambulance.status}
@@ -409,10 +409,13 @@ export default function Map({
                 {PRIORITIES_BY_SEVERITY.map(priority => <i key={priority} style={{ background: PRIORITY_META[priority].color }} title={PRIORITY_META[priority].name} />)}
               </span>
             </li>
+            <li><span className={`${styles.legendIcon} ${styles.legendPin}`}><CallMarker priority={CallPriority.URGENTE} provisional /></span> Cor sugerida, falta regular</li>
+            <li><span className={`${styles.legendIcon} ${styles.legendPin}`}><CallMarker priority={CallPriority.URGENTE} pulsing /></span> Esperando a viatura (pulsa)</li>
             <li><span className={styles.legendIcon}><BaseMarker /></span> Base</li>
             {hospitals.length > 0 && <li><span className={styles.legendIcon}><HospitalMarker /></span> Hospital</li>}
             <li><span className={styles.legendIcon}><IncidentMarker type={IncidentType.VIA_BLOQUEADA} effect={IncidentEffect.BLOQUEIO} /></span> Bloqueio (rota desvia)</li>
             <li><span className={styles.legendIcon}><IncidentMarker type={IncidentType.ALAGAMENTO} effect={IncidentEffect.RISCO} /></span> Atenção na via</li>
+            <li><span className={styles.legendIcon}><IncidentMarker type={IncidentType.OBRAS} effect={IncidentEffect.AVISO} /></span> Aviso (só informa)</li>
             <li>
               <span className={styles.legendIcon}>
                 <span className={styles.legendTraffic}>

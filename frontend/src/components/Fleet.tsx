@@ -4,7 +4,7 @@ import { AmbulanceTypeIcon } from '../ui/AmbulanceTypeIcon';
 import { CallIcon, LocationIcon } from '../ui/icons';
 import { Avatar } from '../ui/Avatar';
 import { formatPhone } from '../utils/documents';
-import { AMBULANCE_STATUS_LABEL } from '../utils/ambulances';
+import { AMBULANCE_STATUS_LABEL, AMBULANCE_TYPE_LABEL } from '../utils/ambulances';
 import styles from './Fleet.module.css';
 
 // Em turno primeiro (disponíveis no topo); sem motorista por último
@@ -31,7 +31,7 @@ export default function Fleet({ ambulances }: { ambulances: Ambulance[] }) {
           return (
             <li key={ambulance.id} className={`${styles.item} ${!ambulance.driver ? styles.itemOff : ''}`}>
               <div className={styles.header}>
-                <span className={styles.code}><AmbulanceTypeIcon type={ambulance.type} /> {ambulance.code} <small>{ambulance.type}</small></span>
+                <span className={styles.code}><AmbulanceTypeIcon type={ambulance.type} /> {ambulance.code} <small>{AMBULANCE_TYPE_LABEL[ambulance.type] ?? ambulance.type}</small></span>
                 <span className={`${styles.pill} ${styles[`pill_${status}`]}`}>
                   {ambulance.driver ? AMBULANCE_STATUS_LABEL[ambulance.status] : 'Fora de serviço'}
                 </span>

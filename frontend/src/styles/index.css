@@ -97,6 +97,11 @@ body {
   color: var(--color-text);
 }
 
+/* Botões e campos com a fonte do app (o navegador põe Arial neles) */
+:where(button, input, select, textarea) {
+  font-family: inherit;
+}
+
 /* Foco do teclado em qualquer controle: anel de 2 px (cada tela pode refinar, nunca tirar) */
 :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
   outline: 2px solid var(--color-focus);
@@ -337,9 +342,11 @@ body {
   vertical-align: 0;
 }
 
-.tab:hover {
-  background-color: var(--color-surface-hover);
-  color: var(--color-text);
+@media (hover: hover) {
+  .tab:hover {
+    background-color: var(--color-surface-hover);
+    color: var(--color-text);
+  }
 }
 
 .tab.active {

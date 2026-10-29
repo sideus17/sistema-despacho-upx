@@ -124,7 +124,8 @@ function IndicatorView({ data, ambulances, hospitals }: { data: IndicatorData; a
           {quality.missingOnScene > 0 && (
             <p>
               {plural(quality.missingOnScene, 'atendimento finalizado não tem', 'atendimentos finalizados não têm')} a chegada ao
-              local registrada (GPS desligado ou chamado de antes do registro das etapas) e fica fora dos tempos de chegada.
+              local registrada (GPS desligado ou chamado de antes do registro das etapas) e{' '}
+              {quality.missingOnScene === 1 ? 'fica' : 'ficam'} fora dos tempos de chegada.
             </p>
           )}
           {data.truncated && <p>O período tem chamados demais: os números usam só os primeiros 50 000.</p>}
@@ -149,7 +150,12 @@ function IndicatorView({ data, ambulances, hospitals }: { data: IndicatorData; a
         <StatTile
           label="Dentro da meta"
           value={formatPercent(response.overall.withinTarget)}
-          detail={`de ${plural(stages.response.n, 'chegada', 'chegadas')}, pela meta de cada cor`}
+          // A meta de cada cor no detalhe: a média esconde o Vermelho, que é o que mais importa
+          detail={
+            PRIORITIES_BY_SEVERITY.filter(priority => response.byPriority[priority]?.n > 0)
+              .map(priority => `${PRIORITY_META[priority].name} ${formatPercent(response.byPriority[priority].withinTarget)}`)
+              .join(' · ') || `de ${plural(stages.response.n, 'chegada', 'chegadas')}, pela meta de cada cor`
+          }
         />
         <StatTile
           label="Espera na fila (mediana)"
