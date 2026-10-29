@@ -39,6 +39,7 @@ const TEXT_PAIRS: Array<[string, string[]]> = [
   ['--color-text-muted', ['--color-surface', '--color-surface-muted']],
   ['--color-primary-text', ['--color-surface', '--color-surface-muted']],
   ['--color-on-primary', ['--color-primary', '--color-primary-hover']],
+  ['--color-on-action', ['--color-action']],
   ['--color-danger-text', ['--color-surface', '--color-surface-muted', '--tint-error-bg', '--tint-error-bg-strong']],
   ['--tint-neutral-text', ['--tint-neutral-bg', '--tint-neutral-bg-strong']]
 ];
@@ -56,6 +57,10 @@ describe('contraste das cores', () => {
       expect(contrast('#ffffff', color(theme, '--color-header'))).toBeGreaterThanOrEqual(4.5);
       // Anel de foco do teclado
       expect(contrast(color(theme, '--color-focus'), color(theme, '--color-surface'))).toBeGreaterThanOrEqual(3);
+      // À noite o botão cheio da equipe é grafite: o contorno é o que o separa da superfície
+      if (theme === 'night') {
+        expect(contrast(color(theme, '--color-action-border'), color(theme, '--color-surface'))).toBeGreaterThanOrEqual(3);
+      }
     });
 
     it(`pulseira de cada cor aparece sobre a superfície (${theme === 'day' ? 'claro' : 'escuro'})`, () => {

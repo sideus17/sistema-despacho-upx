@@ -45,9 +45,14 @@ textarea.input {
   resize: vertical;
 }
 
+/* Fica no pé do painel enquanto o formulário rola: "Abrir chamado" sempre à vista */
 .submit {
+  position: sticky;
+  bottom: 12px;
+  z-index: 1;
   margin-top: 8px;
   padding: 12px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
   border: none;
   border-radius: 8px;
   background-color: var(--color-primary);
@@ -187,8 +192,10 @@ textarea.input {
   cursor: pointer;
 }
 
-.repeatShow:hover {
-  background: var(--color-surface-hover);
+@media (hover: hover) {
+  .repeatShow:hover {
+    background: var(--color-surface-hover);
+  }
 }
 
 .repeat small {

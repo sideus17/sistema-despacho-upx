@@ -332,22 +332,24 @@ export async function getHeatmap(scope: ManagementScope, signal?: AbortSignal): 
 // UTILITY FUNCTIONS
 // ============================================
 
+// Distância em português: "2,0 km", "850 m"
 export function formatDistance(meters: number): string {
   if (meters >= 1000) {
-    return `${(meters / 1000).toFixed(1)} km`;
+    return `${(meters / 1000).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} km`;
   }
   return `${Math.round(meters)} m`;
 }
 
+// Duração em português: "5 min", "1 h 05 min"
 export function formatDuration(seconds: number): string {
   const minutes = Math.floor(seconds / 60);
   const hours = Math.floor(minutes / 60);
   const remainingMinutes = minutes % 60;
 
   if (hours > 0) {
-    return `${hours}h ${remainingMinutes}min`;
+    return `${hours} h ${String(remainingMinutes).padStart(2, '0')} min`;
   }
-  return `${minutes}min`;
+  return `${minutes} min`;
 }
 
 export function getTimeAgo(timestamp: string): string {

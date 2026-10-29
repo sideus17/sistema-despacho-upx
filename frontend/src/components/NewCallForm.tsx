@@ -307,7 +307,7 @@ export default function NewCallForm({
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Descreva o que está acontecendo com o paciente…"
-            rows={4}
+            rows={3}
             className={styles.input}
             aria-invalid={errors.description}
             aria-describedby={errors.description ? 'call-description-error' : undefined}

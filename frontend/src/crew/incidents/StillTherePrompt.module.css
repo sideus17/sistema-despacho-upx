@@ -60,10 +60,10 @@
   justify-content: center;
   gap: 8px;
   min-height: 72px;
-  border: none;
+  border: 1px solid var(--color-action-border);
   border-radius: 14px;
-  background: var(--color-primary);
-  color: var(--color-on-primary);
+  background: var(--color-action);
+  color: var(--color-on-action);
   font-size: 20px;
   font-weight: 800;
   cursor: pointer;
