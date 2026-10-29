@@ -55,6 +55,19 @@ function RegulationForm({ call, hospitals, onDone, onBack }: RegulationPanelProp
   useEffect(() => {
     if (mode === 'cancelar') reasonsRef.current?.querySelector('input')?.focus();
   }, [mode]);
+  // Vermelho ou Amarelo encerrado sem viatura pede um passo a mais (vale a cor final, a escolhida agora)
+  const [confirmingClose, setConfirmingClose] = useState(false);
+  const severe = priority === CallPriority.EMERGENCIA || priority === CallPriority.URGENTE;
+  useEffect(() => setConfirmingClose(false), [priority, mode]);
+  // "Enviar viatura" na confirmação volta ao passo principal com o foco no botão de enviar
+  const mainActionRef = useRef<HTMLButtonElement>(null);
+  const focusMainAction = useRef(false);
+  useEffect(() => {
+    if (mode === 'main' && focusMainAction.current) {
+      focusMainAction.current = false;
+      mainActionRef.current?.focus();
+    }
+  }, [mode]);
 
   const queue = queueOf(call);
   const changedElsewhere = call.status !== openedStatus;
@@ -145,7 +158,7 @@ function RegulationForm({ call, hospitals, onDone, onBack }: RegulationPanelProp
           </label>
 
           <div className={styles.actions}>
-            <button className={styles.primary} disabled={busy} onClick={() => submit(RegulationDecision.DESPACHAR)}>
+            <button ref={mainActionRef} className={styles.primary} disabled={busy} onClick={() => submit(RegulationDecision.DESPACHAR)}>
               {busy ? 'Salvando…' : regulated ? 'Salvar regulação' : 'Enviar viatura'}
             </button>
             <div className={styles.secondaryRow}>
@@ -169,13 +182,42 @@ function RegulationForm({ call, hospitals, onDone, onBack }: RegulationPanelProp
               autoFocus
             />
           </label>
-          <p className={styles.muted}>O chamado é encerrado sem viatura.</p>
-          <div className={styles.secondaryRow}>
-            <button className={styles.primary} disabled={busy || !note.trim()} onClick={() => submit(RegulationDecision.ORIENTACAO)}>
-              {busy ? 'Salvando…' : 'Encerrar com orientação'}
-            </button>
-            <button className={styles.ghost} disabled={busy} onClick={() => setMode('main')}>Voltar</button>
-          </div>
+          {confirmingClose ? (
+            <div className={styles.confirmSevere} role="alert">
+              <p>
+                <strong>{PRIORITY_META[priority].name} · {PRIORITY_META[priority].label} sem viatura.</strong> Encerrar mesmo assim?
+              </p>
+              <div className={styles.secondaryRow}>
+                <button className={styles.danger} disabled={busy} onClick={() => submit(RegulationDecision.ORIENTACAO)}>
+                  {busy ? 'Salvando…' : 'Sim, encerrar sem viatura'}
+                </button>
+                <button
+                  className={styles.secondary}
+                  disabled={busy}
+                  onClick={() => {
+                    focusMainAction.current = true;
+                    setMode('main');
+                  }}
+                >
+                  Enviar viatura
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <p className={styles.muted}>O chamado é encerrado sem viatura.</p>
+              <div className={styles.secondaryRow}>
+                <button
+                  className={styles.primary}
+                  disabled={busy || !note.trim()}
+                  onClick={() => (severe ? setConfirmingClose(true) : submit(RegulationDecision.ORIENTACAO))}
+                >
+                  {busy ? 'Salvando…' : 'Encerrar com orientação'}
+                </button>
+                <button className={styles.ghost} disabled={busy} onClick={() => setMode('main')}>Voltar</button>
+              </div>
+            </>
+          )}
         </div>
       )}
 

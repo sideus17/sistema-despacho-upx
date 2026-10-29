@@ -36,7 +36,7 @@ interface CallListProps {
   onDispatch: (call: EmergencyCall) => void;
   onFinish: (call: EmergencyCall, outcome?: CallOutcome) => Promise<void>;
   hospitals?: Hospital[];
-  onHospitalChange?: (call: EmergencyCall, hospitalId: string | null) => void;
+  onHospitalChange?: (call: EmergencyCall, hospitalId: string | null) => void | Promise<void>;
   focusCallId?: string | null; // voltando da regulação ou da análise: o foco volta a este cartão
   onFocusRestored?: () => void;
 }
@@ -231,19 +231,7 @@ export default function CallList({
                           Hospital: <strong>{hospital?.shortName ?? 'registrado'}</strong> (chegou às {formatClock(call.times.atHospital)})
                         </p>
                       ) : (
-                        <label className={styles.hospitalPick}>
-                          <span>Hospital de destino</span>
-                          <select
-                            value={call.hospitalId ?? ''}
-                            disabled={!onHospitalChange || hospitals.length === 0}
-                            onChange={(e) => onHospitalChange?.(call, e.target.value || null)}
-                          >
-                            <option value="">{hospitals.length === 0 ? 'Carregando…' : 'Sem escolha (a equipe decide)'}</option>
-                            {hospitalsByDistance(hospitals, call.location).map(({ hospital: option, meters }) => (
-                              <option key={option.id} value={option.id}>{option.shortName} · {formatKm(meters)}</option>
-                            ))}
-                          </select>
-                        </label>
+                        <HospitalPick call={call} hospitals={hospitals} onSave={onHospitalChange} />
                       )}
                     </div>
                   )}
@@ -304,5 +292,64 @@ export default function CallList({
 
       <p className={styles.shortcuts}>Atalhos: N novo chamado · J e K próximo e anterior · R regular · D despachar · Esc voltar</p>
     </div>
+  );
+}
+
+// Hospital de destino do chamado em atendimento: a troca no seletor é um rascunho e só vale no "Salvar destino"
+// (com as setas do teclado, cada opção salvaria e avisaria a equipe de um destino novo)
+function HospitalPick({ call, hospitals, onSave }: {
+  call: EmergencyCall;
+  hospitals: Hospital[];
+  onSave?: (call: EmergencyCall, hospitalId: string | null) => void | Promise<void>;
+}) {
+  const saved = call.hospitalId ?? '';
+  const [draft, setDraft] = useState(saved);
+  const [saving, setSaving] = useState(false);
+  // Mudou fora daqui (a equipe ou outra tela escolheu, ou acabou de salvar): o rascunho acompanha
+  useEffect(() => setDraft(saved), [saved]);
+  const changed = draft !== saved;
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await onSave?.(call, draft || null);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <>
+      <label className={styles.hospitalPick}>
+        <span>Hospital de destino</span>
+        <select
+          value={draft}
+          disabled={!onSave || hospitals.length === 0 || saving}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            // Esc desfaz a troca ainda não salva (sem fechar o resto da tela)
+            if (e.key === 'Escape' && changed) {
+              e.stopPropagation();
+              setDraft(saved);
+            }
+          }}
+        >
+          <option value="">{hospitals.length === 0 ? 'Carregando…' : 'Sem escolha (a equipe decide)'}</option>
+          {hospitalsByDistance(hospitals, call.location).map(({ hospital: option, meters }) => (
+            <option key={option.id} value={option.id}>{option.shortName} · {formatKm(meters)}</option>
+          ))}
+        </select>
+      </label>
+      {changed && (
+        <div className={styles.hospitalSave}>
+          <button type="button" className={styles.primary} disabled={saving} onClick={save}>
+            {saving ? 'Salvando…' : 'Salvar destino'}
+          </button>
+          <button type="button" className={styles.ghost} disabled={saving} onClick={() => setDraft(saved)}>
+            Desfazer
+          </button>
+        </div>
+      )}
+    </>
   );
 }

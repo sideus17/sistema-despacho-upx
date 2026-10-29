@@ -78,7 +78,7 @@ describe('atendimento na central', () => {
     expect(screen.getByText(/^Despacho \d{2}:\d{2} · Local \d{2}:\d{2}$/)).toBeInTheDocument();
   });
 
-  it('hospital de destino: lista do mais perto ao mais longe; escolher avisa o App', async () => {
+  it('hospital de destino: lista do mais perto ao mais longe; a troca só vale no "Salvar destino"', async () => {
     const user = userEvent.setup();
     const onHospitalChange = vi.fn();
     render(
@@ -97,8 +97,42 @@ describe('atendimento na central', () => {
     expect([...select.querySelectorAll('option')].map(option => option.textContent)).toEqual([
       'Sem escolha (a equipe decide)', 'Perto · 1,1 km', 'Longe · 11,1 km'
     ]);
+    // Andar pelas opções (como com as setas) não salva nem avisa a equipe
+    await user.selectOptions(select, 'hosp-longe');
     await user.selectOptions(select, 'hosp-perto');
+    expect(onHospitalChange).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: 'Salvar destino' }));
+    expect(onHospitalChange).toHaveBeenCalledTimes(1);
     expect(onHospitalChange).toHaveBeenCalledWith(expect.objectContaining({ id: 'call-1' }), 'hosp-perto');
+  });
+
+  it('hospital de destino: "Desfazer" e Esc voltam ao que estava salvo', async () => {
+    const user = userEvent.setup();
+    const onHospitalChange = vi.fn();
+    render(
+      <CallList
+        calls={[active()]}
+        ambulances={AMBULANCES}
+        onFocus={vi.fn()}
+        onRegulate={vi.fn()}
+        onDispatch={vi.fn()}
+        onFinish={vi.fn()}
+        hospitals={HOSPITALS}
+        onHospitalChange={onHospitalChange}
+      />
+    );
+    const select = screen.getByRole('combobox', { name: 'Hospital de destino' });
+    await user.selectOptions(select, 'hosp-perto');
+    await user.click(screen.getByRole('button', { name: 'Desfazer' }));
+    expect(select).toHaveValue('');
+
+    await user.selectOptions(select, 'hosp-longe');
+    select.focus();
+    await user.keyboard('{Escape}');
+    expect(select).toHaveValue('');
+    expect(screen.queryByRole('button', { name: 'Salvar destino' })).not.toBeInTheDocument();
+    expect(onHospitalChange).not.toHaveBeenCalled();
   });
 
   it('transportando mostra o destino; depois da chegada, o hospital fica fixo', () => {
