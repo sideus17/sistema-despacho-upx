@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { playAlert } from '../utils/alertSound';
-import { CallPriority, CallStatus, EmergencyCall } from '../types';
+import { CallPriority, CallStatus, EmergencyCall, RouteInfo } from '../types';
 import DispatchAlert, { ALARM_INTERVAL_MS } from './DispatchAlert';
 
 vi.mock('../utils/alertSound', () => ({ playAlert: vi.fn() }));
@@ -33,6 +33,16 @@ describe('alarme do despacho no app da equipe', () => {
     expect(screen.getByText('Rua Barão do Rio Branco, 200 - Centro')).toBeInTheDocument();
     expect(screen.getByText('Referência: em frente à padaria')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Ciente' })).toHaveFocus();
+  });
+
+  it('mostra o que aconteceu e a distância: pela rota, ou em linha reta sem ela', () => {
+    const route = { distance: 2300, duration: 360, geometry: [] } as unknown as RouteInfo;
+    const { rerender } = render(<DispatchAlert call={call} onAck={vi.fn()} route={route} />);
+    expect(screen.getByText('queda')).toBeInTheDocument();
+    expect(screen.getByText('2,3 km · 6 min')).toBeInTheDocument();
+
+    rerender(<DispatchAlert call={call} onAck={vi.fn()} from={{ lat: -23.51, lng: -47.45 }} />);
+    expect(screen.getByText(/em linha reta$/)).toHaveTextContent('~1,1 km em linha reta');
   });
 
   it('toca na hora e repete até o "Ciente"; depois para', () => {
