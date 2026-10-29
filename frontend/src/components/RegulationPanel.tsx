@@ -119,7 +119,7 @@ function RegulationForm({ call, hospitals, onDone, onBack }: RegulationPanelProp
       <section className={styles.summary} style={riskVars(priority)}>
         <div className={styles.summaryHeader}>
           <PriorityLabel priority={priority} />
-          <WaitPill waited={waited} queue={queue} />
+          <WaitPill waited={waited} queue={queue} priority={registeredPriority} />
         </div>
         {registeredPriority !== priority && (
           <p className={styles.muted}>

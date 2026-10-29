@@ -157,17 +157,41 @@ export function waitingSince(call: EmergencyCall): string {
   return call.status === CallStatus.PENDENTE ? call.times?.regulated ?? call.timestamp : call.timestamp;
 }
 
-// Espera: regulação amarela com 1 min e vermelha com 3 min; despacho amarelo com 2 min e vermelho com 5 min
-export const QUEUE_WAIT: Record<Queue, { warning: number; critical: number }> = {
-  regulacao: { warning: 60_000, critical: 3 * 60_000 },
-  despacho: { warning: 2 * 60_000, critical: 5 * 60_000 }
+// Espera tolerada na fila, por cor (na regulação, a cor é a pré-classificação do atendente):
+// o Vermelho fica crítico em 1 min na regulação e 2 min no despacho; o Azul, em 15 e 30 min
+const MIN = 60_000;
+export const QUEUE_WAIT: Record<Queue, Record<CallPriority, { warning: number; critical: number }>> = {
+  regulacao: {
+    [CallPriority.EMERGENCIA]: { warning: 0.5 * MIN, critical: MIN },
+    [CallPriority.URGENTE]: { warning: MIN, critical: 3 * MIN },
+    [CallPriority.PRIORITARIO]: { warning: 3 * MIN, critical: 10 * MIN },
+    [CallPriority.NAO_URGENTE]: { warning: 5 * MIN, critical: 15 * MIN }
+  },
+  despacho: {
+    [CallPriority.EMERGENCIA]: { warning: MIN, critical: 2 * MIN },
+    [CallPriority.URGENTE]: { warning: 2 * MIN, critical: 5 * MIN },
+    [CallPriority.PRIORITARIO]: { warning: 5 * MIN, critical: 15 * MIN },
+    [CallPriority.NAO_URGENTE]: { warning: 10 * MIN, critical: 30 * MIN }
+  }
 };
 export type WaitLevel = 'normal' | 'atencao' | 'critico';
 
-export function waitLevel(ms: number, queue: Queue = 'despacho'): WaitLevel {
-  if (ms >= QUEUE_WAIT[queue].critical) return 'critico';
-  if (ms >= QUEUE_WAIT[queue].warning) return 'atencao';
+// Sem cor conhecida, vale a do Amarelo
+export function queueWait(queue: Queue, priority: CallPriority): { warning: number; critical: number } {
+  return QUEUE_WAIT[queue][priority] ?? QUEUE_WAIT[queue][CallPriority.URGENTE];
+}
+
+export function waitLevel(ms: number, queue: Queue, priority: CallPriority): WaitLevel {
+  const limits = queueWait(queue, priority);
+  if (ms >= limits.critical) return 'critico';
+  if (ms >= limits.warning) return 'atencao';
   return 'normal';
+}
+
+// Passou da meta da cor na fila em que está
+export function isLate(call: EmergencyCall, now: number): boolean {
+  const queue = queueOf(call);
+  return !!queue && now - Date.parse(waitingSince(call)) >= queueWait(queue, call.priority).critical;
 }
 
 // "04:07"; passando de 1 h, "1:02:09"
@@ -178,10 +202,11 @@ export function formatWait(ms: number): string {
   return hours > 0 ? `${hours} h ${pad(minutes)} min` : `${minutes}:${pad(seconds)}`;
 }
 
-// Espera numa frase, sem os segundos: "4 min", "12 h 28 min"
+// Espera numa frase, sem os segundos: "30 s", "4 min", "12 h 28 min"
 export function formatWaitShort(ms: number): string {
-  const { hours, minutes } = splitWait(ms);
-  return hours > 0 ? formatWait(ms) : `${minutes} min`;
+  const { hours, minutes, seconds } = splitWait(ms);
+  if (hours > 0) return formatWait(ms);
+  return minutes > 0 ? `${minutes} min` : `${seconds} s`;
 }
 
 // A mesma espera por extenso, para o leitor de tela: "4 min 7 s", "10 h 45 min"
@@ -198,16 +223,16 @@ function splitWait(ms: number) {
 }
 
 // Resumo da espera longa no topo da fila, calculado a cada segundo (some sozinho quando a espera acaba).
-// Diz a pior espera de verdade, não o limite: "Vermelho aguardando regulação há 12 h 28 min · e mais 1 acima de 3 min"
+// Diz a pior espera de verdade, não o limite: "Vermelho aguardando regulação há 12 h 28 min · e mais 1 acima da meta"
 export function lateSummary(calls: EmergencyCall[], now: number): Array<{ text: string; callId: string }> {
   return (['regulacao', 'despacho'] as Queue[]).flatMap(queue => {
     const late = calls
-      .filter(call => queueOf(call) === queue && now - Date.parse(waitingSince(call)) >= QUEUE_WAIT[queue].critical)
+      .filter(call => queueOf(call) === queue && isLate(call, now))
       .sort((a, b) => Date.parse(waitingSince(a)) - Date.parse(waitingSince(b)));
     if (late.length === 0) return [];
     const [worst] = late;
     const label = queue === 'regulacao' ? 'aguardando regulação' : 'aguardando despacho';
-    const others = late.length > 1 ? ` · e mais ${late.length - 1} acima de ${QUEUE_WAIT[queue].critical / 60_000} min` : '';
+    const others = late.length > 1 ? ` · e mais ${late.length - 1} acima da meta` : '';
     return [{ text: `${PRIORITY_META[worst.priority].name} ${label} há ${formatWaitShort(now - Date.parse(waitingSince(worst)))}${others}`, callId: worst.id }];
   });
 }

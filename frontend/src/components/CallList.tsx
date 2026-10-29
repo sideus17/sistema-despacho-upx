@@ -219,7 +219,7 @@ export default function CallList({
                       </span>
                     ) : (
                       // Na fila: há quanto tempo espera a regulação (desde a abertura) ou a viatura (desde a regulação)
-                      <WaitPill waited={waited} queue={queue ?? 'despacho'} />
+                      <WaitPill waited={waited} queue={queue ?? 'despacho'} priority={call.priority} />
                     )}
                   </header>
 
