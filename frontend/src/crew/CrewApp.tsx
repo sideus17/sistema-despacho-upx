@@ -27,7 +27,7 @@ import { fastestIndex, routeOptions, routeVia, trafficNote } from '../utils/rout
 import { PriorityLabel } from '../ui/PriorityLabel';
 import { signalsText } from '../utils/triage';
 import { AmbulanceTypeIcon } from '../ui/AmbulanceTypeIcon';
-import { BellIcon, CheckCircleIcon, DistanceIcon, HospitalIcon, NavigateIcon, ReportIcon, TimerIcon } from '../ui/icons';
+import { BellIcon, CheckCircleIcon, DistanceIcon, HospitalIcon, LocationOffIcon, NavigateIcon, ReportIcon, TimerIcon } from '../ui/icons';
 import { useWakeLock } from '../ui/useWakeLock';
 import DispatchAlert from './DispatchAlert';
 import { useDispatchPush } from './useDispatchPush';
@@ -225,7 +225,7 @@ export default function CrewApp() {
 
   // O celular é o GPS da viatura durante o turno (na navegação quem manda é ela; na simulação, a viatura anda sozinha).
   // Em atendimento manda mais vezes: é a posição que marca as etapas (saiu, chegou, hospital)
-  useShiftLocation(ambulance?.id, !navigating && !SIMULATE, !!activeCall);
+  const gps = useShiftLocation(ambulance?.id, !navigating && !SIMULATE, !!activeCall);
 
   // Sem turno: localiza o celular e as bases para ordenar e descrever as viaturas
   const choosing = !ambulance;
@@ -371,13 +371,29 @@ export default function CrewApp() {
   };
 
   const hasData = ambulances.length > 0;
-  const offlineBanner = hasData && (!online || connection === 'error') && (
+  const clock = (at: number) => new Date(at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  // GPS com problema: o motorista fica sabendo que a central o vê parado (as etapas e a distância vêm dele)
+  const gpsBanner = gps.problem && (
+    <div className={styles.gpsBanner} role="alert">
+      <p>
+        <LocationOffIcon />{' '}
+        {gps.problem === 'negado' ? 'Localização desligada' : 'GPS sem sinal'}:{' '}
+        {gps.hadFix ? `a central vê a viatura parada desde ${clock(gps.since)}.` : 'a central não recebe a posição da viatura.'}
+      </p>
+      <button type="button" onClick={gps.retry}>
+        {gps.problem === 'negado' ? 'Ativar localização' : 'Tentar de novo'}
+      </button>
+    </div>
+  );
+  const connectionBanner = hasData && (!online || connection === 'error') && (
     <div className={styles.offline} role="status">
       Sem conexão. Mostrando os dados das{' '}
       {savedAt ? new Date(savedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '—'}.
       {pending > 0 && ` ${pending === 1 ? '1 relato aguarda' : `${pending} relatos aguardam`} sinal.`}
     </div>
   );
+
+  const offlineBanner = (connectionBanner || gpsBanner) && <>{connectionBanner}{gpsBanner}</>;
 
   // Carregando pela primeira vez
   if (!hasData) {

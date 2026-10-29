@@ -5,7 +5,7 @@ import { useNow } from '../hooks/useNow';
 import { WaitPill } from '../ui/WaitPill';
 import { trafficNote } from '../utils/routes';
 import { STAGE_META, callStage, elapsedLabel, riskVars, waitingSince } from '../utils/calls';
-import { AMBULANCE_TYPE_LABEL } from '../utils/ambulances';
+import { AMBULANCE_TYPE_LABEL, staleLocationText } from '../utils/ambulances';
 import { PriorityLabel } from '../ui/PriorityLabel';
 import { AmbulanceTypeIcon } from '../ui/AmbulanceTypeIcon';
 import RouteNotes from './RouteNotes';
@@ -175,6 +175,11 @@ export default function DispatchAnalysis({
                       </span>
                     </button>
                   </header>
+
+                  {/* Distância e tempo saem da última posição: com o GPS parado, ela pode estar longe da real */}
+                  {staleLocationText(ambulance, now) && (
+                    <p className={styles.staleNote}>{staleLocationText(ambulance, now)}: distância a partir da última posição</p>
+                  )}
 
                   {rec.route ? (
                     <>

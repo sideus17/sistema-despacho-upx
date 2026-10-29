@@ -79,7 +79,7 @@
   flex-shrink: 0;
   min-height: 72px;
   margin: 0 20px calc(env(safe-area-inset-bottom) + 20px);
-  border: 1px solid var(--color-action-border);
+  border: 2px solid var(--color-action-border);
   border-radius: 14px;
   background: var(--color-action);
   color: var(--color-on-action);

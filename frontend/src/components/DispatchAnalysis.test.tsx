@@ -56,6 +56,14 @@ describe('análise do despacho', () => {
     expect(screen.getByRole('region', { name: 'Em atendimento' })).toHaveTextContent('USA-01');
   });
 
+  it('viatura com o GPS parado: avisa que a distância sai da última posição', () => {
+    renderAnalysis(
+      [score('amb-livre', 60)],
+      [{ ...ambulance('amb-livre', 'USB-02', AmbulanceStatus.DISPONIVEL), locationUpdatedAt: new Date(Date.now() - 30 * 60_000).toISOString() }]
+    );
+    expect(screen.getByText('GPS sem atualizar há 30 min: distância a partir da última posição')).toBeInTheDocument();
+  });
+
   it('sem viatura livre: diz que o chamado continua na fila e volta para ela', async () => {
     const user = userEvent.setup();
     const busyCall: EmergencyCall = {

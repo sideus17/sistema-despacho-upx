@@ -25,6 +25,24 @@ function renderList(call: EmergencyCall) {
   return onFinish;
 }
 
+describe('GPS da viatura no cartão', () => {
+  it('com o GPS parado, a etapa avisa que pode estar velha', () => {
+    const stale = [{ id: 'amb-1', code: 'USA-01', driver: { id: 'm1', name: 'Motorista' }, locationUpdatedAt: new Date(Date.now() - 20 * 60_000).toISOString() } as Ambulance];
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60_000).toISOString();
+    render(
+      <CallList
+        calls={[active({ times: { dispatched: tenMinutesAgo, onScene: tenMinutesAgo } })]}
+        ambulances={stale}
+        onFocus={vi.fn()}
+        onRegulate={vi.fn()}
+        onDispatch={vi.fn()}
+        onFinish={vi.fn()}
+      />
+    );
+    expect(screen.getByText(/GPS sem atualizar há 20 min/).parentElement).toHaveTextContent('No local · há 10 min · GPS sem atualizar há 20 min');
+  });
+});
+
 describe('finalizar atendimento na central', () => {
   it('sem chegada ao hospital, pergunta como terminou; a escolha finaliza', async () => {
     const user = userEvent.setup();
