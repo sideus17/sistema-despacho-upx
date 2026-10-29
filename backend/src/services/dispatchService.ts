@@ -3,7 +3,7 @@ import { DispatchRecommendation, AmbulanceStatus, CallStatus, Coordinates, Route
 import { CallError } from './calls';
 import { calculateRoute } from './routingService';
 import { listActiveIncidents } from './incidentService';
-import { Candidate, scoreCandidate } from './dispatchScore';
+import { Candidate, rankScores, scoreCandidate } from './dispatchScore';
 
 export async function analyzeDispatch(callId: string): Promise<DispatchRecommendation> {
   const { data: callData, error: callError } = await supabase
@@ -50,15 +50,14 @@ export async function analyzeDispatch(callId: string): Promise<DispatchRecommend
     })
   );
 
-  const scores = candidates.map((candidate, index) =>
-    scoreCandidate(candidate, callLocation, callData.priority, incidents, routes[index])
-  );
-  // Maior nota primeiro; empate: quem chega antes
-  scores.sort((a, b) => b.totalScore - a.totalScore || a.arrivalSeconds - b.arrivalSeconds);
+  const ranked = rankScores(candidates.map((candidate, index) => ({
+    status: candidate.status,
+    score: scoreCandidate(candidate, callLocation, callData.priority, incidents, routes[index])
+  })));
 
   return {
     callId,
-    recommendations: scores,
+    recommendations: ranked.map(item => item.score),
     timestamp: new Date().toISOString()
   };
 }

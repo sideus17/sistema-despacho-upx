@@ -36,6 +36,19 @@ export interface Candidate {
 
 export const estimateSeconds = (from: Coordinates, to: Coordinates) => Math.round(distanceMeters(from, to) / ESTIMATE_SPEED);
 
+// Nome do tipo como a equipe fala (o tipo vem do banco em maiúsculas, sem acento)
+const TYPE_LABEL: Record<string, string> = { USA: 'USA', USB: 'USB', MOTOLANCIA: 'Motolância' };
+const typeLabel = (type: string) => TYPE_LABEL[type] ?? type;
+const km = (meters: number) => (meters / 1000).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
+// Ordem da análise: livres primeiro (só elas podem ser despachadas); depois a maior nota e, no empate, quem chega antes
+export function rankScores<T extends { status: string; score: DispatchScore }>(items: T[]): T[] {
+  const free = (item: T) => (item.status === AmbulanceStatus.DISPONIVEL ? 0 : 1);
+  return [...items].sort(
+    (a, b) => free(a) - free(b) || b.score.totalScore - a.score.totalScore || a.score.arrivalSeconds - b.score.arrivalSeconds
+  );
+}
+
 export function timeScore(seconds: number): number {
   const share = (ZERO_SCORE_SECONDS - seconds) / (ZERO_SCORE_SECONDS - FULL_SCORE_SECONDS);
   return Math.round(100 * Math.min(1, Math.max(0, share)));
@@ -123,10 +136,10 @@ function explain(
   const minutes = Math.max(1, Math.floor(arrivalSeconds / 60));
   const arrival = route && route.engine !== 'linha-reta'
     ? `chega em ~${minutes} min${route.durationSource === 'TRANSITO' ? ' com o trânsito de agora' : ' pela rota'}`
-    : `está a ${(distanceMeters(ambulance.location, callLocation) / 1000).toFixed(1)} km do chamado (~${minutes} min em linha reta)`;
+    : `está a ${km(distanceMeters(ambulance.location, callLocation))} km do chamado (~${minutes} min, estimativa sem rota)`;
   const availability = ambulance.status === AmbulanceStatus.DISPONIVEL ? ' e está disponível' : ', mas está em atendimento';
   // "USA-01 (USA) chega em ~6 min com o trânsito de agora e está disponível. É o tipo ideal..."
-  const parts = [`${ambulance.code} (${ambulance.type}) ${arrival}${availability}`];
+  const parts = [`${ambulance.code} (${typeLabel(ambulance.type)}) ${arrival}${availability}`];
 
   if (type >= 90) parts.push('É o tipo ideal para este chamado');
   else if (type >= 70) parts.push('É adequada para este chamado');
