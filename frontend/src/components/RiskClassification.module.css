@@ -48,7 +48,7 @@
 .groupName {
   color: var(--color-text-soft);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: var(--weight-bold);
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }

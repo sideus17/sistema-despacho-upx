@@ -21,7 +21,7 @@
 
 .sheet h2 {
   font-size: 20px;
-  font-weight: 800;
+  font-weight: var(--weight-display);
 }
 
 .hint {
@@ -50,7 +50,7 @@
   background: var(--tint-neutral-bg);
   color: var(--color-text);
   font-size: 14px;
-  font-weight: 800;
+  font-weight: var(--weight-bold);
   line-height: 1.15;
   text-align: center;
   cursor: pointer;

@@ -243,7 +243,7 @@
   background: var(--color-surface);
   color: var(--color-text);
   font-size: 13px;
-  font-weight: 800;
+  font-weight: var(--weight-bold);
   line-height: 1.4;
 }
 
@@ -281,7 +281,7 @@
 
 .crewAckLate {
   color: var(--color-text);
-  font-weight: 800;
+  font-weight: var(--weight-bold);
 }
 
 .stage {
@@ -355,7 +355,7 @@
   margin: 0 0 8px;
   color: var(--color-text-soft);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: var(--weight-bold);
   letter-spacing: 0.03em;
   text-transform: uppercase;
 }

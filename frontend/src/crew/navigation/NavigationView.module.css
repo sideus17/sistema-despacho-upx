@@ -56,7 +56,8 @@
 
 .distance {
   font-size: 26px;
-  font-weight: 800;
+  font-weight: var(--weight-display);
+  font-variant-numeric: tabular-nums; /* a distância muda a cada metro: os algarismos não dançam */
   line-height: 1.1;
 }
 
@@ -81,7 +82,7 @@
 .noticeStrong {
   border-color: var(--color-text);
   font-size: 16px;
-  font-weight: 800;
+  font-weight: var(--weight-bold);
 }
 
 .recenter {
@@ -161,7 +162,8 @@
 .summary strong {
   color: var(--color-text);
   font-size: 26px;
-  font-weight: 800;
+  font-weight: var(--weight-display);
+  font-variant-numeric: tabular-nums;
 }
 
 .summary span {
@@ -182,7 +184,7 @@
   justify-content: center;
   min-height: 52px;
   border-radius: 12px;
-  font-weight: 800;
+  font-weight: var(--weight-bold);
   cursor: pointer;
 }
 
@@ -222,7 +224,7 @@
   background: var(--color-action);
   color: var(--color-on-action);
   font-size: 17px;
-  font-weight: 800;
+  font-weight: var(--weight-bold);
   cursor: pointer;
 }
 
@@ -285,7 +287,7 @@
 
 .incidentAlert strong {
   font-size: 18px;
-  font-weight: 800;
+  font-weight: var(--weight-bold);
 }
 
 .incidentAlert span {
@@ -308,7 +310,7 @@
   background: var(--color-action);
   color: var(--color-on-action);
   font-size: 16px;
-  font-weight: 800;
+  font-weight: var(--weight-bold);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   cursor: pointer;
 }

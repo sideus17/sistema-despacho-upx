@@ -129,7 +129,7 @@
 
 .popup .popupWarning {
   color: var(--color-text);
-  font-weight: 800;
+  font-weight: var(--weight-bold);
 }
 
 /* Embaixo, acima dos créditos: em cima ficam o zoom e a legenda */

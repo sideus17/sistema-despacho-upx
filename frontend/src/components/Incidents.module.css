@@ -106,7 +106,7 @@
 
 .itemTitle h3 {
   font-size: 15px;
-  font-weight: 800;
+  font-weight: var(--weight-bold);
 }
 
 .itemTitle p {
@@ -142,7 +142,7 @@
   margin-top: 4px;
   color: var(--color-text);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: var(--weight-bold);
 }
 
 .actions {
@@ -171,7 +171,7 @@
   margin-bottom: 4px;
   color: var(--color-text);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: var(--weight-bold);
   text-transform: uppercase;
 }
 

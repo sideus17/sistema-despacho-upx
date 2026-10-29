@@ -260,7 +260,7 @@
 
 .noFreeTitle {
   font-size: 16px;
-  font-weight: 800;
+  font-weight: var(--weight-bold);
 }
 
 .noFree .execute {
@@ -276,7 +276,7 @@
   margin: 0 0 8px;
   color: var(--color-text-soft);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: var(--weight-bold);
   letter-spacing: 0.03em;
   text-transform: uppercase;
 }

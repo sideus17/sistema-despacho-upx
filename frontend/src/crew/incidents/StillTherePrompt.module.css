@@ -38,7 +38,7 @@
 
 .question {
   font-size: 19px;
-  font-weight: 800;
+  font-weight: var(--weight-bold);
   line-height: 1.2;
 }
 
@@ -65,7 +65,7 @@
   background: var(--color-action);
   color: var(--color-on-action);
   font-size: 20px;
-  font-weight: 800;
+  font-weight: var(--weight-display);
   cursor: pointer;
 }
 

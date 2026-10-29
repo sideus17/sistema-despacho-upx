@@ -22,7 +22,7 @@
 
 .sheet h2 {
   font-size: 20px;
-  font-weight: 800;
+  font-weight: var(--weight-display);
 }
 
 .hint {
@@ -76,7 +76,7 @@
   border-radius: 6px;
   background: var(--color-primary);
   color: var(--color-on-primary);
-  font-weight: 800;
+  font-weight: var(--weight-bold);
 }
 
 .text {
