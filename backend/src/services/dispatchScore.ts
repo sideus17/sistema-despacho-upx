@@ -128,8 +128,8 @@ function explain(
   // "USA-01 (USA) chega em ~6 min com o trânsito de agora e está disponível. É o tipo ideal..."
   const parts = [`${ambulance.code} (${ambulance.type}) ${arrival}${availability}`];
 
-  if (type >= 90) parts.push('É o tipo ideal para esta emergência');
-  else if (type >= 70) parts.push('É adequada para esta emergência');
+  if (type >= 90) parts.push('É o tipo ideal para este chamado');
+  else if (type >= 70) parts.push('É adequada para este chamado');
   else parts.push('Pode atender, mas não é o tipo ideal');
 
   if (penalty < 0) parts.push('Atenção: há ocorrências perto da viatura ou do chamado');

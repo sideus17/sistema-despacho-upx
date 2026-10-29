@@ -48,6 +48,12 @@ import {
 
 const router = Router();
 
+// Erro inesperado (banco fora, bug): o detalhe técnico vai para o log; a tela recebe uma mensagem em português
+const serverError = (res: Response, error: unknown, message = 'Não foi possível concluir a operação. Tente de novo.') => {
+  console.error(message, error);
+  return fail(res, 500, message);
+};
+
 const fail = (res: Response, status: number, error: string) =>
   res.status(status).json({ success: false, error, timestamp: new Date().toISOString() });
 
@@ -205,7 +211,7 @@ router.post('/me/password', async (req: Request, res: Response) => {
 
 router.post('/shifts/start', requireRole(UserRole.MOTORISTA), async (req: Request, res: Response) => {
   const { ambulanceId } = req.body ?? {};
-  if (!ambulanceId) return fail(res, 400, 'ambulanceId is required');
+  if (!ambulanceId) return fail(res, 400, 'Escolha a viatura.');
   // Posição do celular, opcional (sem GPS a viatura fica onde estava, normalmente na base)
   const location = req.body?.location == null ? null : parseCoordinates(req.body.location);
   if (req.body?.location != null && !location) return fail(res, 400, 'Localização inválida.');
@@ -228,7 +234,7 @@ router.post('/shifts/start', requireRole(UserRole.MOTORISTA), async (req: Reques
     .is('driver_id', null)
     .select('id');
 
-  if (error) return fail(res, 500, error.message);
+  if (error) return serverError(res, error);
   if (!taken || taken.length === 0) return fail(res, 409, 'Esta viatura já está com outro motorista.');
 
   // Viatura parada passa a ficar disponível; se estava em atendimento, o motorista assume o chamado
@@ -253,7 +259,7 @@ router.post('/shifts/end', requireRole(UserRole.MOTORISTA), async (req: Request,
     .update({ driver_id: null, status: AmbulanceStatus.INDISPONIVEL })
     .eq('id', ambulance.id);
 
-  if (error) return fail(res, 500, error.message);
+  if (error) return serverError(res, error);
   res.json({ success: true, data: { ambulanceId: ambulance.id }, timestamp: new Date().toISOString() });
 });
 
@@ -268,7 +274,7 @@ router.get('/ambulances', async (req: Request, res: Response) => {
   const withPhone = req.user!.role === UserRole.OPERADOR;
 
   if (error) {
-    return res.status(500).json({ success: false, error: error.message, timestamp: new Date().toISOString() });
+    return serverError(res, error);
   }
 
   const formattedAmbulances = data.map(amb => ({
@@ -307,7 +313,7 @@ router.patch('/ambulances/:id/status', requireRole(UserRole.MOTORISTA), async (r
   const { status } = req.body;
 
   if (status !== AmbulanceStatus.DISPONIVEL && status !== AmbulanceStatus.INDISPONIVEL) {
-    return res.status(400).json({ success: false, error: 'Invalid status', timestamp: new Date().toISOString() });
+    return res.status(400).json({ success: false, error: 'Status inválido.', timestamp: new Date().toISOString() });
   }
 
   const { data, error } = await supabase
@@ -319,7 +325,7 @@ router.patch('/ambulances/:id/status', requireRole(UserRole.MOTORISTA), async (r
     .select('id');
 
   if (error) {
-    return res.status(500).json({ success: false, error: error.message, timestamp: new Date().toISOString() });
+    return serverError(res, error);
   }
   if (!data || data.length === 0) return fail(res, 409, 'Não foi possível mudar o status desta viatura agora.');
 
@@ -331,7 +337,7 @@ router.patch('/ambulances/:id/location', requireRole(UserRole.MOTORISTA), async 
   const { lat, lng, speed } = req.body;
 
   if (typeof lat !== 'number' || typeof lng !== 'number') {
-    return res.status(400).json({ success: false, error: 'Invalid coordinates', timestamp: new Date().toISOString() });
+    return res.status(400).json({ success: false, error: 'Coordenadas inválidas.', timestamp: new Date().toISOString() });
   }
 
   const { data, error } = await supabase
@@ -342,7 +348,7 @@ router.patch('/ambulances/:id/location', requireRole(UserRole.MOTORISTA), async 
     .select('id');
 
   if (error) {
-    return res.status(500).json({ success: false, error: error.message, timestamp: new Date().toISOString() });
+    return serverError(res, error);
   }
   if (!data || data.length === 0) return fail(res, 403, 'Esta viatura não está no seu turno.');
 
@@ -364,7 +370,7 @@ router.get('/calls', async (req: Request, res: Response) => {
   const { data, error } = await supabase.from('calls').select('*');
 
   if (error) {
-    return res.status(500).json({ success: false, error: error.message, timestamp: new Date().toISOString() });
+    return serverError(res, error);
   }
 
   res.json({
@@ -385,7 +391,7 @@ router.get('/calls/pending', async (req: Request, res: Response) => {
     .in('status', req.user!.role === UserRole.OPERADOR ? OPEN_FOR_CENTRAL : OPEN_FOR_CREW);
 
   if (error) {
-    return res.status(500).json({ success: false, error: error.message, timestamp: new Date().toISOString() });
+    return serverError(res, error);
   }
 
   res.json({
@@ -410,7 +416,7 @@ router.get('/calls/recent', requireRole(UserRole.OPERADOR), async (req: Request,
 
   const since = new Date(Date.now() - RECENT_WINDOW_MS).toISOString();
   const { data, error } = await supabase.from('calls').select('*').gte('timestamp', since).neq('status', CallStatus.CANCELADO);
-  if (error) return fail(res, 500, error.message);
+  if (error) return serverError(res, error);
 
   const matches = recentMatches(data, { phone, location }).slice(0, MAX_RECENT);
   res.json({
@@ -469,11 +475,8 @@ router.post('/calls', requireRole(UserRole.OPERADOR), async (req: Request, res: 
     }));
     res.status(201).json({ success: true, data: toCall(data[0], req.user!.role), timestamp: new Date().toISOString() });
   } catch (error) {
-    res.status(error instanceof CallError ? error.status : 400).json({
-      success: false,
-      error: error instanceof Error ? error.message : 'Erro ao criar chamado.',
-      timestamp: new Date().toISOString()
-    });
+    if (error instanceof CallError) return fail(res, error.status, error.message);
+    serverError(res, error, 'Erro ao criar chamado.');
   }
 });
 
@@ -638,7 +641,7 @@ router.get('/bases', async (req: Request, res: Response) => {
   const { data, error } = await supabase.from('bases').select('*');
 
   if (error) {
-    return res.status(500).json({ success: false, error: error.message, timestamp: new Date().toISOString() });
+    return serverError(res, error);
   }
 
   const formattedBases = data.map(base => ({
@@ -711,7 +714,7 @@ router.post('/dispatch/analyze', requireRole(UserRole.OPERADOR), async (req: Req
     if (!callId) {
       const response: ApiResponse<null> = {
         success: false,
-        error: 'callId is required',
+        error: 'Informe o chamado.',
         timestamp: new Date().toISOString()
       };
       return res.status(400).json(response);
@@ -728,12 +731,7 @@ router.post('/dispatch/analyze', requireRole(UserRole.OPERADOR), async (req: Req
 
   } catch (error) {
     if (error instanceof CallError) return fail(res, error.status, error.message);
-    const response: ApiResponse<null> = {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-      timestamp: new Date().toISOString()
-    };
-    res.status(500).json(response);
+    serverError(res, error, 'Não foi possível analisar o despacho.');
   }
 });
 
@@ -742,7 +740,7 @@ router.post('/dispatch/execute', requireRole(UserRole.OPERADOR), async (req: Req
     const { callId, ambulanceId } = req.body;
     
     if (!callId || !ambulanceId) {
-      return res.status(400).json({ success: false, error: 'callId and ambulanceId are required', timestamp: new Date().toISOString() });
+      return res.status(400).json({ success: false, error: 'Informe o chamado e a viatura.', timestamp: new Date().toISOString() });
     }
 
     // Busca o chamado e a ambulância diretamente no Supabase
@@ -754,7 +752,7 @@ router.post('/dispatch/execute', requireRole(UserRole.OPERADOR), async (req: Req
       .single();
 
     if (callError || ambError || !callData || !ambData) {
-      return res.status(404).json({ success: false, error: 'Call or ambulance not found', timestamp: new Date().toISOString() });
+      return res.status(404).json({ success: false, error: 'Chamado ou viatura não encontrados.', timestamp: new Date().toISOString() });
     }
     assertAwaitingDispatch(callData.status);
 
@@ -828,7 +826,7 @@ router.post('/dispatch/execute', requireRole(UserRole.OPERADOR), async (req: Req
 
   } catch (error) {
     if (error instanceof CallError) return fail(res, error.status, error.message);
-    res.status(500).json({ success: false, error: error instanceof Error ? error.message : 'Unknown error', timestamp: new Date().toISOString() });
+    serverError(res, error, 'Não foi possível despachar a viatura.');
   }
 });
 
@@ -836,7 +834,7 @@ router.post('/dispatch/finish', async (req: Request, res: Response) => {
   const { callId } = req.body;
 
   if (!callId) {
-    return res.status(400).json({ success: false, error: 'callId is required', timestamp: new Date().toISOString() });
+    return res.status(400).json({ success: false, error: 'Informe o chamado.', timestamp: new Date().toISOString() });
   }
 
   try {
@@ -847,7 +845,7 @@ router.post('/dispatch/finish', async (req: Request, res: Response) => {
       .eq('id', callId)
       .single();
     if (callError || !callData) {
-      return res.status(404).json({ success: false, error: 'Call not found', timestamp: new Date().toISOString() });
+      return res.status(404).json({ success: false, error: 'Chamado não encontrado.', timestamp: new Date().toISOString() });
     }
     if (callData.status !== CallStatus.EM_ATENDIMENTO) return fail(res, 409, 'Este chamado não está em atendimento.');
 
@@ -882,7 +880,7 @@ router.post('/dispatch/finish', async (req: Request, res: Response) => {
     res.json({ success: true, data: { callId, ambulanceId: callData.ambulance_id, outcome }, timestamp: new Date().toISOString() });
   } catch (error) {
     if (error instanceof CallError) return fail(res, error.status, error.message);
-    res.status(500).json({ success: false, error: error instanceof Error ? error.message : 'Erro ao finalizar', timestamp: new Date().toISOString() });
+    serverError(res, error, 'Não foi possível finalizar o atendimento.');
   }
 });
 
@@ -986,7 +984,7 @@ router.get('/stats', requireRole(UserRole.OPERADOR), async (req: Request, res: R
 
     res.json({ success: true, data: stats, timestamp: new Date().toISOString() });
   } catch (error) {
-     res.status(500).json({ success: false, error: 'Failed to fetch stats', timestamp: new Date().toISOString() });
+     res.status(500).json({ success: false, error: 'Não foi possível carregar o resumo.', timestamp: new Date().toISOString() });
   }
 });
 
