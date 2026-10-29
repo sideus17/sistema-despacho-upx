@@ -8,11 +8,10 @@ build/
 */dist/
 */build/
 
-# Environment variables (só os modelos e o .env.production público vão para o git)
+# Environment variables (só os modelos vão para o git; a produção fica no painel da Vercel e do Render)
 .env
 .env.*
 !.env.example
-!.env.production
 
 # IDE
 .vscode/
