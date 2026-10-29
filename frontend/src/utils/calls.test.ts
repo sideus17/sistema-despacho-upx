@@ -50,15 +50,24 @@ describe('fila de chamados', () => {
 });
 
 describe('cronômetro de espera', () => {
-  it('amarelo a partir de 2 min, vermelho a partir de 5 min', () => {
-    expect(waitLevel(119_000)).toBe('normal');
-    expect(waitLevel(120_000)).toBe('atencao');
-    expect(waitLevel(299_000)).toBe('atencao');
-    expect(waitLevel(300_000)).toBe('critico');
-    // A regulação é mais apertada: 1 min e 3 min
-    expect(waitLevel(59_000, 'regulacao')).toBe('normal');
-    expect(waitLevel(60_000, 'regulacao')).toBe('atencao');
-    expect(waitLevel(180_000, 'regulacao')).toBe('critico');
+  it('Amarelo: despacho em atenção com 2 min e crítico com 5; regulação com 1 e 3', () => {
+    const yellow = CallPriority.URGENTE;
+    expect(waitLevel(119_000, 'despacho', yellow)).toBe('normal');
+    expect(waitLevel(120_000, 'despacho', yellow)).toBe('atencao');
+    expect(waitLevel(299_000, 'despacho', yellow)).toBe('atencao');
+    expect(waitLevel(300_000, 'despacho', yellow)).toBe('critico');
+    expect(waitLevel(59_000, 'regulacao', yellow)).toBe('normal');
+    expect(waitLevel(60_000, 'regulacao', yellow)).toBe('atencao');
+    expect(waitLevel(180_000, 'regulacao', yellow)).toBe('critico');
+  });
+
+  it('a meta depende da cor: o Vermelho fica crítico em 1 min na regulação; o Azul segue normal aos 3', () => {
+    expect(waitLevel(30_000, 'regulacao', CallPriority.EMERGENCIA)).toBe('atencao');
+    expect(waitLevel(60_000, 'regulacao', CallPriority.EMERGENCIA)).toBe('critico');
+    expect(waitLevel(120_000, 'despacho', CallPriority.EMERGENCIA)).toBe('critico');
+    expect(waitLevel(180_000, 'regulacao', CallPriority.NAO_URGENTE)).toBe('normal');
+    expect(waitLevel(15 * 60_000, 'regulacao', CallPriority.NAO_URGENTE)).toBe('critico');
+    expect(waitLevel(10 * 60_000, 'despacho', CallPriority.PRIORITARIO)).toBe('atencao');
   });
 
   it('a regulação conta da abertura; o despacho, da regulação', () => {
@@ -88,6 +97,7 @@ describe('cronômetro de espera', () => {
   });
 
   it('espera numa frase, sem os segundos', () => {
+    expect(formatWaitShort(30_000)).toBe('30 s');
     expect(formatWaitShort(247_000)).toBe('4 min');
     expect(formatWaitShort(44_880_000)).toBe('12 h 28 min');
   });
@@ -103,7 +113,7 @@ describe('cronômetro de espera', () => {
       { ...opened('d', '2026-10-15T09:50:00Z'), status: CallStatus.PENDENTE, times: { regulated: '2026-10-15T10:04:00Z' } }
     ];
     expect(lateSummary(calls, now)).toEqual([
-      { text: 'Amarelo aguardando regulação há 10 min · e mais 1 acima de 3 min', callId: 'a' },
+      { text: 'Amarelo aguardando regulação há 10 min · e mais 1 acima da meta', callId: 'a' },
       { text: 'Amarelo aguardando despacho há 6 min', callId: 'd' }
     ]);
     expect(lateSummary([opened('c', '2026-10-15T10:08:00Z')], now)).toEqual([]);

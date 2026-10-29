@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Ambulance, AmbulanceStatus, EmergencyCall } from '../types';
-import { PRIORITY_META, QUEUE_WAIT, Queue, queueOf, waitingSince } from '../utils/calls';
+import { PRIORITY_META, Queue, isLate, queueOf } from '../utils/calls';
 import { playAlert, unlockAlertSound } from '../utils/alertSound';
 
 type Toast = (message: string, kind?: 'success' | 'error' | 'info') => void;
@@ -180,7 +180,7 @@ export function useCallAlerts(
     const now = Date.now();
     for (const queue of ['regulacao', 'despacho'] as Queue[]) {
       const late = waiting.filter(
-        call => queueOf(call) === queue && now - Date.parse(waitingSince(call)) >= QUEUE_WAIT[queue].critical && !warned.current!.has(queueKey(call))
+        call => queueOf(call) === queue && isLate(call, now) && !warned.current!.has(queueKey(call))
       );
       if (late.length === 0) continue;
       late.forEach(call => warned.current!.add(queueKey(call)));

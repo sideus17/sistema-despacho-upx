@@ -200,9 +200,9 @@
 .mapsButton {
   flex: 0 0 auto;
   padding: 0 16px;
-  border: 1px solid var(--color-border-strong);
+  border: 1px solid var(--color-secondary-border);
   background: transparent;
-  color: var(--color-text-soft);
+  color: var(--color-secondary-text);
   font-size: 15px;
   text-decoration: none;
   text-align: center;

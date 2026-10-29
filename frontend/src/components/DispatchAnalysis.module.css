@@ -36,6 +36,8 @@
 
 .callContextHeader {
   display: flex;
+  flex-wrap: wrap;
+  gap: 6px 8px;
   justify-content: space-between;
   align-items: center;
   gap: 8px;

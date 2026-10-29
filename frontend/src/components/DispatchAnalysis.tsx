@@ -93,7 +93,7 @@ export default function DispatchAnalysis({
       <section className={styles.callContext} style={riskVars(call.priority)}>
         <div className={styles.callContextHeader}>
           <span className={styles.priority}><PriorityLabel priority={call.priority} /></span>
-          <WaitPill waited={waited} queue="despacho" />
+          <WaitPill waited={waited} queue="despacho" priority={call.priority} />
         </div>
         <p className={styles.address}><LocationIcon /> {call.address}</p>
         {call.reference && <p className={styles.reference}>Referência: {call.reference}</p>}
