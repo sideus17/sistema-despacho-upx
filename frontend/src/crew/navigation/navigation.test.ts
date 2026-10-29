@@ -73,6 +73,19 @@ describe('instruções em português', () => {
     expect(maneuverText(step('arrive', undefined, ''))).toBe('Você chegou ao destino');
   });
 
+  it('retorno é "Faça o retorno" em qualquer tipo de manobra, e nada sai com espaço duplo', () => {
+    const types = ['turn', 'fork', 'continue', 'new name', 'roundabout turn', 'on ramp', 'off ramp', 'end of road'];
+    for (const type of types) {
+      expect(maneuverText(step(type, 'uturn', 'Avenida São Paulo'))).toBe('Faça o retorno na Avenida São Paulo');
+      for (const modifier of ['left', 'right', 'slight left', 'sharp right', 'straight', 'desconhecido', undefined]) {
+        const text = maneuverText(step(type, modifier, 'Rua X'));
+        expect(text).not.toMatch(/ {2}|Mantenha-se o|vire o/);
+      }
+    }
+    expect(maneuverText(step('fork', 'slight right', 'Rua X'))).toBe('Mantenha-se levemente à direita na Rua X');
+    expect(maneuverText(step('roundabout', 'uturn', 'Rua X', 4))).toBe('Na rotatória, pegue a 4ª saída para a Rua X');
+  });
+
   it('distância arredondada e versão falada', () => {
     expect(formatNavDistance(37)).toBe('40 m');
     expect(formatNavDistance(260)).toBe('250 m');
