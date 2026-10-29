@@ -1,9 +1,8 @@
 import { useEffect } from 'react';
 import { EmergencyCall } from '../types';
-import { riskVars } from '../utils/calls';
+import { PRIORITY_META, riskVars } from '../utils/calls';
 import { signalsText } from '../utils/triage';
 import { playAlert } from '../utils/alertSound';
-import { PriorityLabel } from '../ui/PriorityLabel';
 import styles from './DispatchAlert.module.css';
 
 // Intervalo do toque: o alarme repete até a equipe tocar em "Ciente"
@@ -30,17 +29,20 @@ export default function DispatchAlert({ call, onAck }: DispatchAlertProps) {
     };
   }, []);
 
+  // A tela inteira na cor do chamado: é informação clínica, a única que pode ocupar tudo
+  const meta = PRIORITY_META[call.priority];
+  const RiskIcon = meta.icon;
   return (
     <div
       className={styles.screen}
       role="alertdialog"
       aria-modal="true"
-      aria-labelledby="novo-despacho"
+      aria-labelledby="novo-despacho despacho-cor"
       style={riskVars(call.priority)}
     >
       <div className={styles.content}>
         <h1 id="novo-despacho" className={styles.title}>Novo despacho</h1>
-        <p className={styles.priority}><PriorityLabel priority={call.priority} /></p>
+        <p id="despacho-cor" className={styles.priority}><RiskIcon /> {meta.name} · {meta.label}</p>
         <p className={styles.address}>{call.address}</p>
         {call.reference && <p className={styles.detail}>Referência: {call.reference}</p>}
         {call.triage?.signals.length ? <p className={styles.detail}>Sinais: {signalsText(call.triage.signals)}</p> : null}
