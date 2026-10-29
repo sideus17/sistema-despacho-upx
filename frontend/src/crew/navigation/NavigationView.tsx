@@ -40,6 +40,7 @@ import {
 import { IncidentIcon } from '../../ui/IncidentIcon';
 import { ArrivalIcon, DetourIcon, HospitalIcon, LocationIcon, MyLocationIcon, ReportIcon, VolumeOffIcon, VolumeOnIcon } from '../../ui/icons';
 import { riskVars } from '../../utils/calls';
+import { MAP_LOCALE } from '../../map/locale';
 import ReportSheet from '../incidents/ReportSheet';
 import StillTherePrompt from '../incidents/StillTherePrompt';
 import { useIncidentAlerts } from '../incidents/useIncidentAlerts';
@@ -192,6 +193,7 @@ export default function NavigationView({
       pitch: 50,
       bearing: nav.routeBearing,
       attributionControl: { compact: true, customAttribution: DATA_ATTRIBUTION },
+      locale: MAP_LOCALE,
       // Os blocos do trânsito vêm da nossa API, que exige login
       transformRequest: withAuthRequest
     });

@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { CallPriority, CallStatus, CloseReason, EmergencyCall, Hospital, RegulationDecision, RegulationRequest } from '../types';
 import { getErrorMessage, regulateCall } from '../services/api';
-import { CALL_STATUS_LABEL, CLOSE_REASON_LABEL, PRIORITY_META, formatGender, formatWait, queueOf, riskVars, waitLevel, waitingSince } from '../utils/calls';
+import { CALL_STATUS_LABEL, CLOSE_REASON_LABEL, PRIORITY_META, formatGender, queueOf, riskVars, waitingSince } from '../utils/calls';
 import { formatKm, hospitalsByDistance } from '../utils/hospitals';
 import { formatPhone } from '../utils/documents';
 import { useNow } from '../hooks/useNow';
 import { PriorityLabel } from '../ui/PriorityLabel';
-import { BackIcon, CallIcon, LocationIcon, PersonIcon, TimerIcon } from '../ui/icons';
+import { BackIcon, CallIcon, LocationIcon, PersonIcon } from '../ui/icons';
+import { WaitPill } from '../ui/WaitPill';
 import RiskClassification from './RiskClassification';
 import { useToast } from './Toast';
 import styles from './RegulationPanel.module.css';
@@ -49,6 +50,11 @@ function RegulationForm({ call, hospitals, onDone, onBack }: RegulationPanelProp
   const [busy, setBusy] = useState(false);
   const toast = useToast();
   const now = useNow(1000);
+  const reasonsRef = useRef<HTMLFieldSetElement>(null);
+  // Ao abrir "Cancelar chamado", o foco vai para o primeiro motivo
+  useEffect(() => {
+    if (mode === 'cancelar') reasonsRef.current?.querySelector('input')?.focus();
+  }, [mode]);
 
   const queue = queueOf(call);
   const changedElsewhere = call.status !== openedStatus;
@@ -94,12 +100,7 @@ function RegulationForm({ call, hospitals, onDone, onBack }: RegulationPanelProp
       <section className={styles.summary} style={riskVars(priority)}>
         <div className={styles.summaryHeader}>
           <PriorityLabel priority={priority} />
-          <span
-            className={`${styles.wait} ${styles[`wait_${waitLevel(waited, queue)}`]}`}
-            aria-label={`${regulated ? 'Aguardando despacho' : 'Aguardando regulação'} há ${formatWait(waited)}`}
-          >
-            <TimerIcon /> {formatWait(waited)}
-          </span>
+          <WaitPill waited={waited} queue={queue} />
         </div>
         {registeredPriority !== priority && (
           <p className={styles.muted}>
@@ -180,7 +181,7 @@ function RegulationForm({ call, hospitals, onDone, onBack }: RegulationPanelProp
 
       {mode === 'cancelar' && (
         <div className={styles.closing}>
-          <fieldset className={styles.reasons}>
+          <fieldset ref={reasonsRef} className={styles.reasons}>
             <legend>Motivo do cancelamento</legend>
             {Object.values(CloseReason).map(option => (
               <label key={option} className={styles.reason}>

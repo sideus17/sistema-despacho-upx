@@ -1,6 +1,6 @@
 import { AmbulanceStatus, CallPriority, Hospital, IncidentEffect, IncidentType } from '../types';
 import { PRIORITY_META } from '../utils/calls';
-import { AmbulanceMarkerIcon, EmergencyIcon, HospitalIcon } from '../ui/icons';
+import { AmbulanceMarkerIcon, HospitalIcon } from '../ui/icons';
 import { IncidentIcon } from '../ui/IncidentIcon';
 import { effectVars } from './incidents';
 import styles from './Markers.module.css';
@@ -33,6 +33,8 @@ export function CallMarker({ priority, selected = false, pulsing = false, provis
   const meta = PRIORITY_META[priority] ?? PRIORITY_META[CallPriority.EMERGENCIA];
   // O pino vazado é branco: o contorno usa a cor de borda, que tem contraste sobre o branco
   const stroke = provisional ? meta.edge.day : 'white';
+  // O ícone da cor no pino: quem não distingue as cores ainda diferencia os chamados
+  const Icon = meta.icon;
   return (
     <div className={`${styles.call} ${selected ? styles.callSelected : ''}`}>
       {pulsing && <span className={styles.pulse} style={{ background: meta.color }} />}
@@ -45,7 +47,7 @@ export function CallMarker({ priority, selected = false, pulsing = false, provis
         />
       </svg>
       <span className={styles.callIcon} style={{ color: provisional ? meta.edge.day : meta.onColor }}>
-        <EmergencyIcon />
+        <Icon />
       </span>
     </div>
   );

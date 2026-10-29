@@ -153,7 +153,7 @@ describe('filas da central', () => {
     renderQueues([active({ id: 'ativo' }), opened('despacho', 6, { status: CallStatus.PENDENTE }), opened('novo', 1)]);
     const titles = screen.getAllByRole('heading', { level: 3 }).map(heading => heading.textContent);
     expect(titles).toEqual(['Aguardando regulação 1', 'Aguardando despacho 1', 'Em atendimento 1']);
-    expect(screen.getByRole('tab', { name: 'Regulação 1' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Regulação 1' })).toBeInTheDocument();
   });
 
   it('chamado novo tem cor sugerida e botão Regular; o regulado, Despachar e Reclassificar', async () => {
@@ -177,15 +177,15 @@ describe('filas da central', () => {
       opened('novo', 2),
       opened('regulado', 30, { status: CallStatus.PENDENTE, times: { regulated: new Date(Date.now() - 60_000).toISOString() } })
     ]);
-    // Regulação: 2 min já é amarelo; despacho: 1 min desde a regulação (não os 30 desde a abertura)
-    expect(screen.getByLabelText(/^Aguardando regulação há 02:0\d$/)).toHaveClass(/wait_atencao/);
-    expect(screen.getByLabelText(/^Aguardando despacho há 01:0\d$/)).toHaveClass(/wait_normal/);
+    // Regulação: 2 min já é atenção; despacho: 1 min desde a regulação (não os 30 desde a abertura)
+    expect(screen.getByLabelText(/^Aguardando regulação há 2 min( \d s)?$/)).toHaveClass(/wait_atencao/);
+    expect(screen.getByLabelText(/^Aguardando despacho há 1 min( \d s)?$/)).toHaveClass(/wait_normal/);
   });
 
   it('filtro sem chamados avisa', async () => {
     const user = userEvent.setup();
     renderQueues([opened('novo', 1)]);
-    await user.click(screen.getByRole('tab', { name: 'Despacho 0' }));
+    await user.click(screen.getByRole('button', { name: 'Despacho 0' }));
     expect(screen.getByText('Nenhum chamado aguardando despacho')).toBeInTheDocument();
   });
 });

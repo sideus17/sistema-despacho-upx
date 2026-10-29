@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { DispatchRecommendation, Ambulance, AmbulanceStatus, CallStatus, EmergencyCall } from '../types';
-import { formatDistance, formatDuration, getTimeAgo } from '../services/api';
+import { formatDistance, formatDuration } from '../services/api';
+import { useNow } from '../hooks/useNow';
+import { WaitPill } from '../ui/WaitPill';
 import { trafficNote } from '../utils/routes';
 import { STAGE_META, callStage, elapsedLabel, riskVars, waitingSince } from '../utils/calls';
 import { AMBULANCE_TYPE_LABEL } from '../utils/ambulances';
@@ -42,6 +44,7 @@ export default function DispatchAnalysis({
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [executing, setExecuting] = useState(false);
   const titleRef = useRef<HTMLHeadingElement>(null);
+  const now = useNow(1000);
 
   // Ao abrir o passo, o foco vai para o título (teclado e leitor de tela começam daqui)
   useEffect(() => titleRef.current?.focus(), [call?.id]);
@@ -59,9 +62,8 @@ export default function DispatchAnalysis({
     );
   }
 
-  // Espera pela viatura: desde a regulação (chamado de antes da regulação: desde a abertura)
-  const timeAgo = getTimeAgo(waitingSince(call));
-  const waiting = timeAgo === 'agora' ? 'aberto agora' : `aguardando ${timeAgo}`;
+  // Espera pela viatura: desde a regulação (chamado de antes da regulação: desde a abertura), no mesmo cronômetro da fila
+  const waited = now - Date.parse(waitingSince(call));
 
   // Livres primeiro (o servidor já ordena assim); "Recomendada" é só a melhor livre
   const options = (recommendation?.recommendations ?? []).flatMap((rec, index) => {
@@ -90,7 +92,7 @@ export default function DispatchAnalysis({
       <section className={styles.callContext} style={riskVars(call.priority)}>
         <div className={styles.callContextHeader}>
           <span className={styles.priority}><PriorityLabel priority={call.priority} /></span>
-          <span className={styles.waiting}>{waiting}</span>
+          <WaitPill waited={waited} queue="despacho" />
         </div>
         <p className={styles.address}><LocationIcon /> {call.address}</p>
         {call.reference && <p className={styles.reference}>Referência: {call.reference}</p>}
@@ -116,7 +118,7 @@ export default function DispatchAnalysis({
       {!loading && recommendation && options.length > 0 && free.length === 0 && (
         <section className={styles.noFree} role="status">
           <p className={styles.noFreeTitle}>Nenhuma viatura livre agora.</p>
-          <p>O chamado continua na fila de despacho.</p>
+          <p>O chamado continua na fila de despacho. Você é avisado quando uma viatura ficar livre.</p>
           <button className={styles.execute} onClick={onBack}>Voltar à fila</button>
         </section>
       )}

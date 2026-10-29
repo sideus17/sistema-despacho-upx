@@ -2,6 +2,16 @@ import { RefObject, useEffect, useRef } from 'react';
 
 const FOCUSABLE = 'button:not([disabled]), a[href], summary, input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
+// Ao fechar (desmontar), o foco volta ao controle que abriu. Chame antes do useFocusTrap, que move o foco.
+export function useRestoreFocus() {
+  useEffect(() => {
+    const opener = document.activeElement as HTMLElement | null;
+    return () => {
+      if (opener && document.contains(opener)) opener.focus();
+    };
+  }, []);
+}
+
 /**
  * Enquanto `active`: foca o primeiro controle, o Tab circula só dentro de `ref` e o Esc chama `onEscape`.
  */

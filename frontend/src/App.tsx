@@ -22,6 +22,7 @@ import {
   Hospital,
   RegulationDecision
 } from './types';
+import { queueOf } from './utils/calls';
 import {
   getAmbulances,
   getPendingCalls,
@@ -65,6 +66,8 @@ function App() {
   const [recommendation, setRecommendation] = useState<DispatchRecommendation | null>(null);
   // Chamado aberto na regulação (o painel acompanha a versão da lista, atualizada a cada 10 s)
   const [regulatingId, setRegulatingId] = useState<string | null>(null);
+  // Chamado de onde a regulação ou a análise foi aberta: ao voltar, o foco volta ao cartão dele
+  const [returnCallId, setReturnCallId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [routeLoadingId, setRouteLoadingId] = useState<string | null>(null);
   const [connection, setConnection] = useState<Connection>('connecting');
@@ -107,7 +110,9 @@ function App() {
 
   // Chamados abertos ou regulados nesta tela não disparam os alertas de chegada na fila
   const ownQueueKeys = useRef(new Set<string>());
-  useCallAlerts(calls, ownQueueKeys, toast);
+  // Viaturas liberadas por esta tela (ao finalizar): o aviso de "ficou livre" não volta para quem finalizou
+  const ownFreed = useRef(new Set<string>());
+  useCallAlerts(calls, ownQueueKeys, toast, ambulances, ownFreed);
 
   // "Escolher no mapa" do formulário de chamado: o próximo clique no mapa vira o local
   const callPickHandler = useRef<((location: Coordinates) => void) | null>(null);
@@ -148,6 +153,7 @@ function App() {
 
   const handleAnalyze = async (call: EmergencyCall) => {
     setSelectedCall(call);
+    setReturnCallId(call.id);
     setActiveTab('analysis');
     setSelectedRouteIndex(0);
     setLoading(true);
@@ -167,6 +173,7 @@ function App() {
   // Regulação: o mesmo atendente que registrou já pode regular (ou outro, pela fila)
   const handleRegulate = (call: EmergencyCall) => {
     setSelectedCall(call);
+    setReturnCallId(call.id);
     setRecommendation(null);
     setRegulatingId(call.id);
     setActiveTab('regulation');
@@ -231,6 +238,48 @@ function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, [activeTab]);
 
+  // Atalhos da central, fora de campos de texto e diálogos: N abre o novo chamado; na fila, J e K andam
+  // entre os chamados (foco no endereço do cartão), R regula e D despacha o chamado em foco
+  useEffect(() => {
+    if (view !== 'operacao') return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
+      if ((event.target as HTMLElement | null)?.closest('input, textarea, select, [contenteditable="true"], [role="dialog"]')) return;
+      const key = event.key.toLowerCase();
+      if (key === 'n') {
+        event.preventDefault();
+        setActiveTab('new-call');
+        window.setTimeout(() => document.getElementById('call-phone')?.focus(), 0);
+        return;
+      }
+      if (activeTab !== 'calls') return;
+      if (key === 'j' || key === 'k') {
+        const cards = Array.from(document.querySelectorAll<HTMLElement>('[data-card-button]'));
+        if (cards.length === 0) return;
+        event.preventDefault();
+        const current = cards.indexOf(document.activeElement as HTMLElement);
+        const next = current === -1 ? 0 : Math.min(cards.length - 1, Math.max(0, current + (key === 'j' ? 1 : -1)));
+        cards[next].focus();
+        return;
+      }
+      if (key === 'r' || key === 'd') {
+        const id = (document.activeElement as HTMLElement | null)?.closest<HTMLElement>('[data-call-id]')?.dataset.callId;
+        const call = calls.find(item => item.id === id);
+        const queue = call ? queueOf(call) : null;
+        if (!call || !queue) return;
+        if (key === 'r') {
+          event.preventDefault();
+          handleRegulate(call);
+        } else if (queue === 'despacho') {
+          event.preventDefault();
+          handleAnalyze(call);
+        }
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [view, activeTab, calls]);
+
   // Rota da opção selecionada: o servidor já traz a das livres; calcula aqui só se faltar (motor fora do ar)
   const handleSelectRoute = async (index: number) => {
     setSelectedRouteIndex(index);
@@ -287,6 +336,7 @@ function App() {
   };
 
   const handleFinish = async (call: EmergencyCall, outcome?: CallOutcome) => {
+    if (call.ambulance_id) ownFreed.current.add(call.ambulance_id);
     try {
       await finishDispatch(call.id, outcome);
       toast('Atendimento finalizado. Viatura liberada.', 'success');
@@ -395,6 +445,7 @@ function App() {
                   type="button"
                   role="tab"
                   aria-selected={selected}
+                  {...(tab === 'new-call' && { title: 'Novo chamado (N)', 'aria-keyshortcuts': 'N' })}
                   className={`tab ${selected ? 'active' : ''}`}
                   onClick={() => setActiveTab(tab)}
                 >
@@ -418,6 +469,8 @@ function App() {
                 onFinish={handleFinish}
                 hospitals={hospitals}
                 onHospitalChange={handleHospitalChange}
+                focusCallId={returnCallId}
+                onFocusRestored={() => setReturnCallId(null)}
               />
             )}
 

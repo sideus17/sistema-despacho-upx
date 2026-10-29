@@ -4,6 +4,7 @@ import '../../map/maplibre';
 import { Base, CallPriority, Hospital, ManagementScope } from '../../types';
 import { getHeatmap, withAuthRequest } from '../../services/api';
 import { useMapStyle } from '../../map/useMapStyle';
+import { MAP_LOCALE } from '../../map/locale';
 import { DATA_ATTRIBUTION } from '../../map/attribution';
 import { CallHeatLayer } from '../../map/CallHeatLayer';
 import { HEAT_RAMP } from '../../map/heat';
@@ -46,6 +47,7 @@ export default function HeatMap({ scope, hospitals, bases }: { scope: Management
       {mapStyle ? (
         <MapGL
           ref={mapRef}
+          locale={MAP_LOCALE}
           initialViewState={INITIAL_VIEW}
           mapStyle={mapStyle}
           style={{ width: '100%', height: '100%' }}

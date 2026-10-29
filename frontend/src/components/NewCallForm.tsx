@@ -201,7 +201,19 @@ export default function NewCallForm({
         Registre o chamado enquanto fala com quem ligou. No endereço, escolha uma sugestão (rua e número, local ou CEP) ou marque no mapa.
       </p>
 
-      <form ref={formRef} onSubmit={handleSubmit} className={styles.form} noValidate>
+      <form
+        ref={formRef}
+        onSubmit={handleSubmit}
+        // Ctrl+Enter (ou Cmd+Enter) abre o chamado de qualquer campo, inclusive da descrição
+        onKeyDown={event => {
+          if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+            event.preventDefault();
+            formRef.current?.requestSubmit();
+          }
+        }}
+        className={styles.form}
+        noValidate
+      >
         <div>
           <label className={styles.label} htmlFor="call-phone">Telefone de quem ligou <span className={styles.optional}>(opcional)</span></label>
           <input

@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Coordinates, IncidentType } from '../../types';
 import { getErrorMessage } from '../../services/api';
 import { useToast } from '../../components/Toast';
 import { incidentTypeLabel } from '../../map/incidents';
 import { IncidentIcon } from '../../ui/IncidentIcon';
 import { ReportOutcome, submitReport } from './reportQueue';
+import { useFocusTrap, useRestoreFocus } from '../../ui/useFocusTrap';
 import styles from './ReportSheet.module.css';
 
 // Como no Waze: o que bloqueia ou atrasa primeiro, depois o que só pede atenção
@@ -33,12 +34,19 @@ interface ReportSheetProps {
 export default function ReportSheet({ getPosition, onClose, onReported, speak }: ReportSheetProps) {
   const [sending, setSending] = useState<IncidentType | null>(null);
   const toast = useToast();
+  const sheetRef = useRef<HTMLElement>(null);
+  useRestoreFocus();
+  useFocusTrap(sheetRef, true, onClose);
 
+  // Fecha sozinha se ninguém tocar. O onClose mais recente fica num ref: quem abre a folha passa uma
+  // função nova a cada atualização (GPS, lista), e isso não pode reiniciar a contagem
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
   useEffect(() => {
     if (sending) return;
-    const timer = window.setTimeout(onClose, AUTO_CLOSE_MS);
+    const timer = window.setTimeout(() => closeRef.current(), AUTO_CLOSE_MS);
     return () => window.clearTimeout(timer);
-  }, [sending, onClose]);
+  }, [sending]);
 
   const report = async (type: IncidentType) => {
     const label = incidentTypeLabel(type);
@@ -72,7 +80,14 @@ export default function ReportSheet({ getPosition, onClose, onReported, speak }:
 
   return (
     <div className={styles.backdrop} onClick={onClose}>
-      <section className={styles.sheet} role="dialog" aria-label="Relatar ocorrência" onClick={event => event.stopPropagation()}>
+      <section
+        ref={sheetRef}
+        className={styles.sheet}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Relatar ocorrência"
+        onClick={event => event.stopPropagation()}
+      >
         <h2>O que tem na via?</h2>
         <p className={styles.hint}>Um toque basta. Se puder, peça ao parceiro de guarnição.</p>
         <div className={styles.grid}>

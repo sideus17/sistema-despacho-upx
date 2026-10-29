@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { CallPriority, CallStatus, EmergencyCall } from '../types';
+import { Ambulance, AmbulanceStatus, AmbulanceType, CallPriority, CallStatus, EmergencyCall } from '../types';
 import { playAlert } from '../utils/alertSound';
 import { useCallAlerts } from './useCallAlerts';
 
@@ -27,12 +27,21 @@ beforeEach(() => {
 
 afterEach(() => vi.useRealTimers());
 
-function setup(initial: EmergencyCall[], own: string[] = []) {
+function setup(initial: EmergencyCall[], own: string[] = [], ambulances: Ambulance[] = []) {
   const toast = vi.fn();
   const ownKeys = { current: new Set(own) };
-  const view = renderHook(({ calls }) => useCallAlerts(calls, ownKeys, toast), { initialProps: { calls: initial } });
-  return { ...view, toast, ownKeys };
+  const ownFreed = { current: new Set<string>() };
+  const view = renderHook(
+    ({ calls, ambulances = [] }: { calls: EmergencyCall[]; ambulances?: Ambulance[] }) => useCallAlerts(calls, ownKeys, toast, ambulances, ownFreed),
+    { initialProps: { calls: initial, ambulances } as { calls: EmergencyCall[]; ambulances?: Ambulance[] } }
+  );
+  return { ...view, toast, ownKeys, ownFreed };
 }
+
+const ambulance = (id: string, status: AmbulanceStatus): Ambulance => ({
+  id, code: id.toUpperCase(), type: AmbulanceType.USA, status, location: { lat: -23.5, lng: -47.45 }, baseId: 'base-1',
+  crew: { driver: '', medic: '' }, driver: { id: `motorista-${id}`, name: 'Motorista' }, locationUpdatedAt: null
+});
 
 // Chamado regulado: espera a viatura desde a regulação
 const regulated = (id: string, minutesAgo = 0): EmergencyCall => ({
@@ -65,16 +74,17 @@ describe('alertas da central', () => {
     expect(playAlert).toHaveBeenCalledWith('novo');
   });
 
-  it('espera de 3 min na regulação avisa uma vez por chamado', () => {
+  it('espera de 3 min na regulação toca uma vez por chamado, sem aviso por cima do mapa', () => {
     const { toast } = setup([call('velho', 2)]);
-    expect(toast).not.toHaveBeenCalled();
+    expect(playAlert).not.toHaveBeenCalled();
 
     act(() => vi.advanceTimersByTime(65_000));
-    expect(toast).toHaveBeenCalledWith('Chamado aguardando regulação há 3 min ou mais: Amarelo · Rua velho, 1', 'error');
     expect(playAlert).toHaveBeenCalledWith('espera');
+    // O resumo fica na própria fila (lateSummary), não num aviso de erro
+    expect(toast).not.toHaveBeenCalled();
 
     act(() => vi.advanceTimersByTime(60_000));
-    expect(toast).toHaveBeenCalledTimes(1);
+    expect(playAlert).toHaveBeenCalledTimes(1);
   });
 
   it('no despacho, a espera conta da regulação e avisa com 5 min', () => {
@@ -83,8 +93,32 @@ describe('alertas da central', () => {
     expect(toast).not.toHaveBeenCalled();
 
     act(() => vi.advanceTimersByTime(65_000));
-    rerender({ calls: [{ ...regulated('b', 4), timestamp: new Date(NOW - 10 * 60_000).toISOString() }] });
-    expect(toast).toHaveBeenCalledWith('Chamado aguardando despacho há 5 min ou mais: Amarelo · Rua b, 1', 'error');
+    rerender({ calls: [{ ...regulated('b', 4), timestamp: new Date(NOW - 10 * 60_000).toISOString() }], ambulances: [] });
+    expect(playAlert).toHaveBeenCalledWith('espera');
+    expect(toast).not.toHaveBeenCalled();
+  });
+
+  it('viatura que fica livre com chamado esperando despacho avisa e toca', () => {
+    const waiting = [regulated('b')];
+    const { rerender, toast } = setup(waiting, ['PENDENTE:b'], [ambulance('amb-1', AmbulanceStatus.EM_ATENDIMENTO)]);
+    expect(toast).not.toHaveBeenCalled();
+
+    rerender({ calls: waiting, ambulances: [ambulance('amb-1', AmbulanceStatus.DISPONIVEL)] });
+    expect(toast).toHaveBeenCalledWith('AMB-1 ficou livre: 1 chamado esperando despacho', 'info');
+    expect(playAlert).toHaveBeenCalledWith('novo');
+  });
+
+  it('viatura livre sem chamado esperando, ou liberada por esta tela, não avisa', () => {
+    const { rerender, toast, ownFreed } = setup([], [], [ambulance('amb-1', AmbulanceStatus.EM_ATENDIMENTO)]);
+    rerender({ calls: [], ambulances: [ambulance('amb-1', AmbulanceStatus.DISPONIVEL)] });
+    expect(toast).not.toHaveBeenCalled();
+
+    // Esta tela finalizou o atendimento: quem finalizou já sabe que ela ficou livre
+    const waiting = [regulated('b')];
+    rerender({ calls: waiting, ambulances: [ambulance('amb-1', AmbulanceStatus.EM_ATENDIMENTO)] });
+    ownFreed.current.add('amb-1');
+    rerender({ calls: waiting, ambulances: [ambulance('amb-1', AmbulanceStatus.DISPONIVEL)] });
+    expect(toast).not.toHaveBeenCalledWith(expect.stringContaining('ficou livre'), 'info');
   });
 
   it('com os alertas desligados, o aviso na tela continua, mas sem som', async () => {

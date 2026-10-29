@@ -46,11 +46,6 @@
   font-size: 13px;
 }
 
-.waiting {
-  color: var(--color-text-muted);
-  font-size: 12px;
-}
-
 .address {
   margin-bottom: 4px;
   font-size: 15px;

@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Coordinates, Hospital } from '../types';
 import { getErrorMessage, setCallHospital } from '../services/api';
 import { useToast } from '../components/Toast';
 import { HOSPITAL_KIND_LABEL, formatKm, hospitalsByDistance } from '../utils/hospitals';
+import { useFocusTrap, useRestoreFocus } from '../ui/useFocusTrap';
 import styles from './HospitalSheet.module.css';
 
 interface HospitalSheetProps {
@@ -18,6 +19,10 @@ interface HospitalSheetProps {
 export default function HospitalSheet({ callId, hospitals, current, from, onClose, onChosen }: HospitalSheetProps) {
   const [saving, setSaving] = useState<string | null>(null);
   const toast = useToast();
+  const sheetRef = useRef<HTMLElement>(null);
+  // Folha modal: o foco fica nela, Esc fecha e, ao fechar, volta ao botão que abriu
+  useRestoreFocus();
+  useFocusTrap(sheetRef, true, onClose);
 
   const choose = async (hospital: Hospital) => {
     setSaving(hospital.id);
@@ -35,7 +40,14 @@ export default function HospitalSheet({ callId, hospitals, current, from, onClos
 
   return (
     <div className={styles.backdrop} onClick={onClose}>
-      <section className={styles.sheet} role="dialog" aria-label="Hospital de destino" onClick={event => event.stopPropagation()}>
+      <section
+        ref={sheetRef}
+        className={styles.sheet}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Hospital de destino"
+        onClick={event => event.stopPropagation()}
+      >
         <h2>Hospital de destino</h2>
         <p className={styles.hint}>Do mais perto para o mais longe. A central vê a escolha.</p>
         <ul className={styles.list}>

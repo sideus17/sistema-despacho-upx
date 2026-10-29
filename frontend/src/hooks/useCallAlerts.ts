@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { EmergencyCall } from '../types';
+import { Ambulance, AmbulanceStatus, EmergencyCall } from '../types';
 import { PRIORITY_META, QUEUE_WAIT, Queue, queueOf, waitingSince } from '../utils/calls';
 import { playAlert, unlockAlertSound } from '../utils/alertSound';
 
@@ -75,20 +75,26 @@ const ARRIVAL: Record<Queue, { one: string; many: (count: number) => string; tit
   despacho: { one: 'Chamado regulado, aguardando despacho', many: count => `${count} chamados regulados aguardando despacho`, title: 'Chamado regulado' }
 };
 
-const LATE: Record<Queue, { minutes: number; label: string }> = {
-  regulacao: { minutes: QUEUE_WAIT.regulacao.critical / 60_000, label: 'aguardando regulação' },
-  despacho: { minutes: QUEUE_WAIT.despacho.critical / 60_000, label: 'aguardando despacho' }
-};
+const waitingDispatch = (count: number) => `${count} ${count === 1 ? 'chamado esperando' : 'chamados esperando'} despacho`;
 
 /**
  * Avisa a central: chamado novo para regular, chamado regulado esperando viatura (os que esta tela
- * abriu ou regulou não contam) e espera longa em cada fila (3 min na regulação, 5 min no despacho;
- * uma vez por chamado e fila). O aviso na tela sai sempre; som e notificação, só com os alertas ligados.
+ * abriu ou regulou não contam), espera longa em cada fila (3 min na regulação, 5 min no despacho; uma
+ * vez por chamado e fila) e viatura que ficou livre com chamado esperando despacho (as que esta tela
+ * liberou ao finalizar não contam). A espera longa aparece na própria fila (CallList), não num aviso:
+ * aqui ela só toca e notifica. Som e notificação, só com os alertas ligados.
  */
-export function useCallAlerts(calls: EmergencyCall[], ownKeys: { current: Set<string> }, toast: Toast) {
+export function useCallAlerts(
+  calls: EmergencyCall[],
+  ownKeys: { current: Set<string> },
+  toast: Toast,
+  ambulances: Ambulance[] = [],
+  ownFreed: { current: Set<string> } = { current: new Set() }
+) {
   const on = useCallAlertsEnabled();
   const seen = useRef<Set<string> | null>(null);
   const warned = useRef(new Set<string>());
+  const free = useRef<Set<string> | null>(null);
   const waiting = calls.filter(call => queueOf(call) !== null);
   const [tick, setTick] = useState(0);
 
@@ -146,17 +152,36 @@ export function useCallAlerts(calls: EmergencyCall[], ownKeys: { current: Set<st
       if (late.length === 0) continue;
       late.forEach(call => warned.current.add(queueKey(call)));
 
-      const { minutes, label } = LATE[queue];
-      toast(
-        late.length === 1
-          ? `Chamado ${label} há ${minutes} min ou mais: ${describe(late[0])}`
-          : `${late.length} chamados ${label} há ${minutes} min ou mais`,
-        'error'
-      );
       if (on) {
         playAlert('espera');
         late.forEach(call => notify('Chamado aguardando', describe(call), `${queueKey(call)}-espera`));
       }
     }
   }, [tick, calls]);
+
+  // Viatura que ficou livre (fim de atendimento, voltou a ficar disponível ou entrou em turno) com chamado
+  // esperando despacho: a central volta a ter quem mandar
+  useEffect(() => {
+    if (ambulances.length === 0) return;
+    const ids = new Set(ambulances.filter(ambulance => ambulance.driver && ambulance.status === AmbulanceStatus.DISPONIVEL).map(ambulance => ambulance.id));
+    if (free.current === null) {
+      // Primeira leitura: as que já estavam livres não são novidade
+      free.current = ids;
+      return;
+    }
+    const released = ambulances.filter(ambulance => ids.has(ambulance.id) && !free.current!.has(ambulance.id));
+    free.current = ids;
+    const pending = calls.filter(call => queueOf(call) === 'despacho').length;
+
+    for (const ambulance of released) {
+      // Liberada por esta tela ao finalizar: quem finalizou já sabe
+      if (ownFreed.current.delete(ambulance.id) || pending === 0) continue;
+      const text = `${ambulance.code} ficou livre: ${waitingDispatch(pending)}`;
+      toast(text, 'info');
+      if (on) {
+        playAlert('novo');
+        notify('Viatura livre', text, `livre-${ambulance.id}`);
+      }
+    }
+  }, [ambulances]);
 }

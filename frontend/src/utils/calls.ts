@@ -1,10 +1,11 @@
 import type { CSSProperties } from 'react';
 import { CallOutcome, CallPriority, CallStatus, CloseReason, EmergencyCall } from '../types';
-import { EmergencyIcon, IconComponent, InfoIcon, WarningIcon } from '../ui/icons';
+import { EmergencyIcon, IconComponent, InfoIcon, ScheduleIcon, WarningIcon } from '../ui/icons';
 
 // Classificação de risco em 4 cores (Regulação Médica das Urgências, Ministério da Saúde): a única fonte
 // das cores fortes do sistema. `color` pinta o selo e o pino; `onColor` é o texto sobre ela (o amarelo pede
 // texto escuro); `edge` é a pulseira, a borda e o gráfico, com 3:1 sobre a superfície de cada tema.
+// Cada cor tem o seu ícone (o Azul, "pode esperar", é o relógio), para a cor não ser o único sinal.
 export type RiskKey = 'red' | 'yellow' | 'green' | 'blue';
 export const PRIORITY_META: Record<CallPriority, {
   key: RiskKey;
@@ -19,7 +20,7 @@ export const PRIORITY_META: Record<CallPriority, {
   [CallPriority.EMERGENCIA]: { key: 'red', name: 'Vermelho', label: 'Emergência', color: '#dc2626', onColor: '#ffffff', edge: { day: '#dc2626', night: '#ef4444' }, icon: EmergencyIcon, order: 0 },
   [CallPriority.URGENTE]: { key: 'yellow', name: 'Amarelo', label: 'Urgência', color: '#eab308', onColor: '#422006', edge: { day: '#a87c00', night: '#eab308' }, icon: WarningIcon, order: 1 },
   [CallPriority.PRIORITARIO]: { key: 'green', name: 'Verde', label: 'Pouco urgente', color: '#15803d', onColor: '#ffffff', edge: { day: '#15803d', night: '#22c55e' }, icon: InfoIcon, order: 2 },
-  [CallPriority.NAO_URGENTE]: { key: 'blue', name: 'Azul', label: 'Não urgente', color: '#2563eb', onColor: '#ffffff', edge: { day: '#2563eb', night: '#3b82f6' }, icon: InfoIcon, order: 3 }
+  [CallPriority.NAO_URGENTE]: { key: 'blue', name: 'Azul', label: 'Não urgente', color: '#2563eb', onColor: '#ffffff', edge: { day: '#2563eb', night: '#3b82f6' }, icon: ScheduleIcon, order: 3 }
 };
 
 // Variáveis do CSS da cor de um chamado (--risk, --risk-on e --risk-edge), para a pulseira e os selos.
@@ -170,11 +171,35 @@ export function waitLevel(ms: number, queue: Queue = 'despacho'): WaitLevel {
 }
 
 // "04:07"; passando de 1 h, "1:02:09"
+// Espera na fila: abaixo de 1 h "4:07"; daí em diante "10 h 45 min" (com horas, "10:45:47" parecia horário)
 export function formatWait(ms: number): string {
-  const total = Math.max(0, Math.floor(ms / 1000));
-  const hours = Math.floor(total / 3600);
-  const minutes = Math.floor((total % 3600) / 60);
-  const seconds = total % 60;
+  const { hours, minutes, seconds } = splitWait(ms);
   const pad = (value: number) => String(value).padStart(2, '0');
-  return hours > 0 ? `${hours}:${pad(minutes)}:${pad(seconds)}` : `${pad(minutes)}:${pad(seconds)}`;
+  return hours > 0 ? `${hours} h ${pad(minutes)} min` : `${minutes}:${pad(seconds)}`;
+}
+
+// A mesma espera por extenso, para o leitor de tela: "4 min 7 s", "10 h 45 min"
+export function waitSpoken(ms: number): string {
+  const { hours, minutes, seconds } = splitWait(ms);
+  if (hours > 0) return `${hours} h ${minutes} min`;
+  if (minutes > 0) return seconds > 0 ? `${minutes} min ${seconds} s` : `${minutes} min`;
+  return `${seconds} s`;
+}
+
+function splitWait(ms: number) {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  return { hours: Math.floor(total / 3600), minutes: Math.floor((total % 3600) / 60), seconds: total % 60 };
+}
+
+// Resumo da espera longa no topo da fila, calculado a cada segundo (some sozinho quando a espera acaba):
+// "2 chamados aguardando regulação há 3 min ou mais"
+export function lateSummary(calls: EmergencyCall[], now: number): string[] {
+  return (['regulacao', 'despacho'] as Queue[]).flatMap(queue => {
+    const count = calls.filter(
+      call => queueOf(call) === queue && now - Date.parse(waitingSince(call)) >= QUEUE_WAIT[queue].critical
+    ).length;
+    if (count === 0) return [];
+    const label = queue === 'regulacao' ? 'aguardando regulação' : 'aguardando despacho';
+    return [`${count} ${count === 1 ? 'chamado' : 'chamados'} ${label} há ${QUEUE_WAIT[queue].critical / 60_000} min ou mais`];
+  });
 }

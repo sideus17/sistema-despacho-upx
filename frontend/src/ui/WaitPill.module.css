@@ -1,0 +1,27 @@
+/* Espera na fila; a longa escala por contorno e inversão, sem as cores da classificação */
+.wait {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.wait_atencao {
+  border-color: var(--color-text-soft);
+  color: var(--color-text);
+  font-weight: 800;
+}
+
+.wait_critico {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font-weight: 800;
+}
