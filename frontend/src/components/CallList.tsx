@@ -43,6 +43,9 @@ interface CallListProps {
 
 type Filter = 'all' | 'regulation' | 'dispatch' | 'active';
 
+// Quanto dura o realce do cartão de um chamado que acabou de chegar
+const FRESH_MS = 2000;
+
 const EMPTY: Record<Filter, string> = {
   all: 'Nenhum chamado em aberto',
   regulation: 'Nenhum chamado aguardando regulação',
@@ -77,6 +80,12 @@ export default function CallList({
 
   // Cronômetro de espera e tempo na etapa, ao vivo, só enquanto há chamado na lista
   const now = useNow(1000, calls.length > 0);
+  // Chamado que entrou na lista depois de ela abrir: o cartão nasce com um realce de fundo que some em 2 s
+  // (sem movimento: a fila que se mexe faria o clique cair no chamado errado)
+  const firstSeen = useRef<Map<string, number> | null>(null);
+  if (firstSeen.current === null) firstSeen.current = new Map(calls.map(call => [call.id, 0]));
+  for (const call of calls) if (!firstSeen.current.has(call.id)) firstSeen.current.set(call.id, Date.now());
+  const isFresh = (id: string) => Date.now() - (firstSeen.current?.get(id) ?? 0) < FRESH_MS;
   const late = lateSummary(calls, now);
   const alertsOn = useCallAlertsEnabled();
   // Na ordem do trabalho: regulação, despacho e os que já estão com uma viatura
@@ -165,7 +174,8 @@ export default function CallList({
                   data-call-id={call.id}
                   className={[
                     styles.card,
-                    selectedCallId === call.id ? styles.cardSelected : ''
+                    selectedCallId === call.id ? styles.cardSelected : '',
+                    isFresh(call.id) ? styles.cardFresh : ''
                   ].join(' ')}
                   style={riskVars(call.priority)}
                   onClick={() => onFocus(call)}

@@ -47,7 +47,8 @@
 
 .tableToggle[aria-pressed='true'] {
   border-color: var(--color-primary);
-  color: var(--color-primary-text);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
 }
 
 @media (hover: hover) {
@@ -143,7 +144,7 @@
 
 .column {
   fill: var(--chart-accent);
-  transition: opacity 0.12s;
+  transition: opacity var(--dur-fast) var(--ease-out);
 }
 
 .hit {

@@ -10,6 +10,7 @@
 
 .sheet {
   width: 100%;
+  animation: sheetIn var(--dur-base) var(--ease-out);
   padding: 18px 16px calc(env(safe-area-inset-bottom) + 16px);
   border-radius: 20px 20px 0 0;
   background: var(--color-surface);
@@ -82,3 +83,16 @@
   cursor: pointer;
 }
 
+/* A folha sobe da barra com um deslize curto; com "reduzir movimento", aparece direto */
+@keyframes sheetIn {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet {
+    animation: none;
+  }
+}
