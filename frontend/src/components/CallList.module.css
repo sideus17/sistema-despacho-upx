@@ -205,6 +205,22 @@
   font-weight: 700;
 }
 
+/* Resumo da espera longa no topo da fila */
+.late {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--color-text-soft);
+  border-radius: 8px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
 /* Som e notificação de chamado novo e de espera longa */
 .alerts {
   flex-shrink: 0;
@@ -227,34 +243,6 @@
   border-color: var(--color-primary);
   color: var(--color-text);
   font-weight: 700;
-}
-
-/* Cronômetro de espera do chamado pendente */
-.wait {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
-  border-radius: 999px;
-  color: var(--color-text-muted);
-  font-size: 13px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-/* Espera longa: atenção em negrito com contorno; crítica invertida (sem as cores da classificação) */
-.wait_atencao {
-  border: 1px solid var(--color-text-soft);
-  color: var(--color-text);
-  font-weight: 800;
-}
-
-.wait_critico {
-  border: 1px solid var(--color-primary);
-  background: var(--color-primary);
-  color: var(--color-on-primary);
-  font-weight: 800;
 }
 
 /* Etapa do atendimento (marcada pelo GPS da viatura) */

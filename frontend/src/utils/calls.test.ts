@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CallPriority, CallStatus, EmergencyCall } from '../types';
-import { CREW_ACK_WAIT_MS, callStage, crewAck, elapsedLabel, formatGender, formatWait, queueOf, sortCallsByPriority, timeline, waitLevel, waitingSince } from './calls';
+import { CREW_ACK_WAIT_MS, callStage, crewAck, elapsedLabel, formatGender, formatWait, lateSummary, queueOf, sortCallsByPriority, timeline, waitLevel, waitSpoken, waitingSince } from './calls';
 
 const call = (id: string, priority: CallPriority, timestamp: string): EmergencyCall => ({
   id,
@@ -74,11 +74,34 @@ describe('cronômetro de espera', () => {
     expect(queueOf({ ...opened, status: CallStatus.EM_ATENDIMENTO })).toBeNull();
   });
 
-  it('mm:ss, e h:mm:ss depois de 1 hora', () => {
-    expect(formatWait(0)).toBe('00:00');
-    expect(formatWait(247_900)).toBe('04:07');
-    expect(formatWait(3_729_000)).toBe('1:02:09');
-    expect(formatWait(-5000)).toBe('00:00');
+  it('m:ss, e "10 h 45 min" depois de 1 hora', () => {
+    expect(formatWait(0)).toBe('0:00');
+    expect(formatWait(247_900)).toBe('4:07');
+    // Com horas não parece horário: "10 h 45 min", não "10:45:47"
+    expect(formatWait((10 * 3600 + 45 * 60 + 47) * 1000)).toBe('10 h 45 min');
+    expect(waitSpoken(247_900)).toBe('4 min 7 s');
+    expect(waitSpoken(120_000)).toBe('2 min');
+    expect(waitSpoken(35_000)).toBe('35 s');
+    expect(waitSpoken((10 * 3600 + 45 * 60) * 1000)).toBe('10 h 45 min');
+    expect(formatWait(3_729_000)).toBe('1 h 02 min');
+    expect(formatWait(-5000)).toBe('0:00');
+  });
+
+  it('resumo da espera longa: quantos chamados passaram do limite em cada fila', () => {
+    const now = Date.parse('2026-10-15T10:10:00Z');
+    const opened = (id: string, at: string) => ({ ...call(id, CallPriority.URGENTE, at), status: CallStatus.AGUARDANDO_REGULACAO });
+    const calls = [
+      opened('a', '2026-10-15T10:00:00Z'),
+      opened('b', '2026-10-15T10:06:00Z'),
+      // Na regulação há 2 min: ainda não
+      opened('c', '2026-10-15T10:08:00Z'),
+      { ...opened('d', '2026-10-15T09:50:00Z'), status: CallStatus.PENDENTE, times: { regulated: '2026-10-15T10:04:00Z' } }
+    ];
+    expect(lateSummary(calls, now)).toEqual([
+      '2 chamados aguardando regulação há 3 min ou mais',
+      '1 chamado aguardando despacho há 5 min ou mais'
+    ]);
+    expect(lateSummary([opened('c', '2026-10-15T10:08:00Z')], now)).toEqual([]);
   });
 });
 

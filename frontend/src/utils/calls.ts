@@ -170,11 +170,35 @@ export function waitLevel(ms: number, queue: Queue = 'despacho'): WaitLevel {
 }
 
 // "04:07"; passando de 1 h, "1:02:09"
+// Espera na fila: abaixo de 1 h "4:07"; daí em diante "10 h 45 min" (com horas, "10:45:47" parecia horário)
 export function formatWait(ms: number): string {
-  const total = Math.max(0, Math.floor(ms / 1000));
-  const hours = Math.floor(total / 3600);
-  const minutes = Math.floor((total % 3600) / 60);
-  const seconds = total % 60;
+  const { hours, minutes, seconds } = splitWait(ms);
   const pad = (value: number) => String(value).padStart(2, '0');
-  return hours > 0 ? `${hours}:${pad(minutes)}:${pad(seconds)}` : `${pad(minutes)}:${pad(seconds)}`;
+  return hours > 0 ? `${hours} h ${pad(minutes)} min` : `${minutes}:${pad(seconds)}`;
+}
+
+// A mesma espera por extenso, para o leitor de tela: "4 min 7 s", "10 h 45 min"
+export function waitSpoken(ms: number): string {
+  const { hours, minutes, seconds } = splitWait(ms);
+  if (hours > 0) return `${hours} h ${minutes} min`;
+  if (minutes > 0) return seconds > 0 ? `${minutes} min ${seconds} s` : `${minutes} min`;
+  return `${seconds} s`;
+}
+
+function splitWait(ms: number) {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  return { hours: Math.floor(total / 3600), minutes: Math.floor((total % 3600) / 60), seconds: total % 60 };
+}
+
+// Resumo da espera longa no topo da fila, calculado a cada segundo (some sozinho quando a espera acaba):
+// "2 chamados aguardando regulação há 3 min ou mais"
+export function lateSummary(calls: EmergencyCall[], now: number): string[] {
+  return (['regulacao', 'despacho'] as Queue[]).flatMap(queue => {
+    const count = calls.filter(
+      call => queueOf(call) === queue && now - Date.parse(waitingSince(call)) >= QUEUE_WAIT[queue].critical
+    ).length;
+    if (count === 0) return [];
+    const label = queue === 'regulacao' ? 'aguardando regulação' : 'aguardando despacho';
+    return [`${count} ${count === 1 ? 'chamado' : 'chamados'} ${label} há ${QUEUE_WAIT[queue].critical / 60_000} min ou mais`];
+  });
 }

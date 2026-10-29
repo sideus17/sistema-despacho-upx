@@ -99,33 +99,6 @@
   text-underline-offset: 2px;
 }
 
-.wait {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
-  border: 1px solid var(--color-border);
-  border-radius: 999px;
-  color: var(--color-text-soft);
-  font-size: 13px;
-  font-variant-numeric: tabular-nums;
-  font-weight: 700;
-}
-
-/* Espera longa: atenção em negrito com contorno; crítica invertida (sem as cores da classificação) */
-.wait_atencao {
-  border-color: var(--color-text-soft);
-  color: var(--color-text);
-  font-weight: 800;
-}
-
-.wait_critico {
-  border-color: var(--color-primary);
-  background: var(--color-primary);
-  color: var(--color-on-primary);
-  font-weight: 800;
-}
-
 .field {
   display: flex;
   flex-direction: column;

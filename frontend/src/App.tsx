@@ -107,7 +107,9 @@ function App() {
 
   // Chamados abertos ou regulados nesta tela não disparam os alertas de chegada na fila
   const ownQueueKeys = useRef(new Set<string>());
-  useCallAlerts(calls, ownQueueKeys, toast);
+  // Viaturas liberadas por esta tela (ao finalizar): o aviso de "ficou livre" não volta para quem finalizou
+  const ownFreed = useRef(new Set<string>());
+  useCallAlerts(calls, ownQueueKeys, toast, ambulances, ownFreed);
 
   // "Escolher no mapa" do formulário de chamado: o próximo clique no mapa vira o local
   const callPickHandler = useRef<((location: Coordinates) => void) | null>(null);
@@ -287,6 +289,7 @@ function App() {
   };
 
   const handleFinish = async (call: EmergencyCall, outcome?: CallOutcome) => {
+    if (call.ambulance_id) ownFreed.current.add(call.ambulance_id);
     try {
       await finishDispatch(call.id, outcome);
       toast('Atendimento finalizado. Viatura liberada.', 'success');

@@ -8,13 +8,12 @@ import {
   elapsedLabel,
   formatClock,
   formatGender,
-  formatWait,
+  lateSummary,
   needsOutcome,
   riskVars,
   queueOf,
   sortCallsByPriority,
   timeline,
-  waitLevel,
   waitingSince
 } from '../utils/calls';
 import { formatKm, hospitalsByDistance } from '../utils/hospitals';
@@ -24,7 +23,8 @@ import { PriorityLabel } from '../ui/PriorityLabel';
 import { OutcomeChoice } from '../ui/OutcomeChoice';
 import { signalsText } from '../utils/triage';
 import { formatPhone } from '../utils/documents';
-import { AmbulanceIcon, BellIcon, BellOffIcon, CallIcon, CheckCircleIcon, LocationIcon, PersonIcon, TimerIcon, WarningIcon } from '../ui/icons';
+import { AmbulanceIcon, BellIcon, BellOffIcon, CallIcon, CheckCircleIcon, LocationIcon, PersonIcon, WarningIcon } from '../ui/icons';
+import { WaitPill } from '../ui/WaitPill';
 import styles from './CallList.module.css';
 
 interface CallListProps {
@@ -65,6 +65,7 @@ export default function CallList({
 
   // Cronômetro de espera e tempo na etapa, ao vivo, só enquanto há chamado na lista
   const now = useNow(1000, calls.length > 0);
+  const late = lateSummary(calls, now);
   const alertsOn = useCallAlertsEnabled();
   // Na ordem do trabalho: regulação, despacho e os que já estão com uma viatura
   const byStatus = (status: CallStatus) => sortCallsByPriority(calls.filter(call => call.status === status));
@@ -119,6 +120,13 @@ export default function CallList({
         </button>
       </div>
 
+      {/* Espera longa: o resumo fica na própria fila (some sozinho), em vez de um aviso por cima do mapa */}
+      {late.length > 0 && (
+        <div className={styles.late} role="status">
+          {late.map(line => <p key={line}><WarningIcon /> {line}</p>)}
+        </div>
+      )}
+
       {visibleSections.length === 0 ? (
         <p className={styles.empty}><CheckCircleIcon /> {EMPTY[filter]}</p>
       ) : visibleSections.map(section => (
@@ -150,12 +158,6 @@ export default function CallList({
                   ].join(' ')}
                   style={riskVars(call.priority)}
                   onClick={() => onFocus(call)}
-                  onKeyDown={(e) => {
-                    if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
-                      e.preventDefault();
-                      onFocus(call);
-                    }
-                  }}
                 >
                   <header className={styles.cardHeader}>
                     <span className={styles.priority}>
@@ -169,13 +171,7 @@ export default function CallList({
                       </span>
                     ) : (
                       // Na fila: há quanto tempo espera a regulação (desde a abertura) ou a viatura (desde a regulação)
-                      <span
-                        className={`${styles.wait} ${styles[`wait_${waitLevel(waited, queue ?? 'despacho')}`]}`}
-                        title={queue === 'regulacao' ? 'Esperando a regulação' : 'Esperando a viatura'}
-                        aria-label={`${queue === 'regulacao' ? 'Aguardando regulação' : 'Aguardando despacho'} há ${formatWait(waited)}`}
-                      >
-                        <TimerIcon /> {formatWait(waited)}
-                      </span>
+                      <WaitPill waited={waited} queue={queue ?? 'despacho'} />
                     )}
                   </header>
 
