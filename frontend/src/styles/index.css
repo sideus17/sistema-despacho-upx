@@ -19,6 +19,10 @@
   --color-background: #f3f4f6;
   --color-map-loading: #e5e7eb;
   --color-header: #111827;
+  /* Botões cheios do app da equipe (ver o escuro abaixo) */
+  --color-action: var(--color-primary);
+  --color-on-action: var(--color-on-primary);
+  --color-action-border: transparent;
 
   /* Caixas de aviso: neutra (informação, estado, atenção) e de erro */
   --tint-neutral-bg: #f3f4f6;
@@ -59,6 +63,10 @@
   --color-background: #0b1120;
   --color-map-loading: #1c2531;
   --color-header: #0b1120;
+  /* Na cabine escura, o botão cheio é grafite com contorno, não uma placa clara */
+  --color-action: #374151;
+  --color-on-action: #f9fafb;
+  --color-action-border: #6b7280;
 
   --tint-neutral-bg: #111827;
   --tint-neutral-bg-strong: #374151;

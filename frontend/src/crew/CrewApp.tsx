@@ -27,7 +27,7 @@ import { fastestIndex, routeOptions, routeVia, trafficNote } from '../utils/rout
 import { PriorityLabel } from '../ui/PriorityLabel';
 import { signalsText } from '../utils/triage';
 import { AmbulanceTypeIcon } from '../ui/AmbulanceTypeIcon';
-import { BellIcon, CheckCircleIcon, DistanceIcon, NavigateIcon, ReportIcon, TimerIcon } from '../ui/icons';
+import { BellIcon, CheckCircleIcon, DistanceIcon, HospitalIcon, NavigateIcon, ReportIcon, TimerIcon } from '../ui/icons';
 import { useWakeLock } from '../ui/useWakeLock';
 import DispatchAlert from './DispatchAlert';
 import { useDispatchPush } from './useDispatchPush';
@@ -529,6 +529,8 @@ export default function CrewApp() {
   if (activeCall && destination) {
     const hospital = hospitals.find(item => item.id === activeCall.hospitalId);
     const steps = timeline(activeCall);
+    // Já no local e sem hospital: escolher o hospital é o próximo passo, e o botão vai para a barra do polegar
+    const needsHospital = !!activeCall.times?.onScene && !hospital && !activeCall.times?.atHospital && hospitals.length > 0;
     info = (
       <section className={styles.callCard} style={riskVars(activeCall.priority)}>
         <p className={styles.priority}><PriorityLabel priority={activeCall.priority} /></p>
@@ -552,7 +554,7 @@ export default function CrewApp() {
           {steps.length > 0 && <p className={styles.timeline}>{steps.map(step => `${step.label} ${step.time}`).join(' · ')}</p>}
           <div className={styles.hospitalRow}>
             <span>Hospital: <strong>{hospital?.shortName ?? 'a definir'}</strong></span>
-            {!activeCall.times?.atHospital && hospitals.length > 0 && (
+            {!activeCall.times?.atHospital && hospitals.length > 0 && !needsHospital && (
               <button className={styles.hospitalButton} onClick={() => setChoosingHospital(true)}>
                 {hospital ? 'Trocar' : 'Escolher'}
               </button>
@@ -578,14 +580,29 @@ export default function CrewApp() {
       </div>
     );
 
-    details = (
+    details = chosenRoute && (
       <>
-        {routeChoices.length > 1 ? (
-          // Como no Waze: escolhe o caminho antes de sair (no mapa, a escolhida fica azul)
+        <div className={styles.routeInfo}>
+          <span><DistanceIcon /> <strong>{formatDistance(chosenRoute.distance)}</strong></span>
+          <span><TimerIcon /> <strong>{formatDuration(chosenRoute.duration)}</strong></span>
+          {trafficNote(chosenRoute) && <span>{trafficNote(chosenRoute)}</span>}
+        </div>
+        <RouteNotes route={chosenRoute} />
+      </>
+    );
+
+    actionBar = (
+      <nav className={styles.actionBar}>
+        {needsHospital && (
+          <button className={styles.chooseHospital} onClick={() => setChoosingHospital(true)}>
+            <HospitalIcon /> Escolher hospital
+          </button>
+        )}
+        {routeChoices.length > 1 && (
+          // Como no Waze: escolhe o caminho antes de sair, logo acima de "Iniciar navegação" (no mapa, a escolhida fica azul)
           <div className={styles.routeChoices} role="radiogroup" aria-label="Escolha a rota">
             {routeChoices.map((option, index) => {
               const via = routeVia(option);
-              const traffic = trafficNote(option);
               return (
                 <button
                   key={index}
@@ -595,25 +612,12 @@ export default function CrewApp() {
                   onClick={() => setRouteIndex(index)}
                 >
                   <strong>{formatDuration(option.duration)}</strong>
-                  <span>{formatDistance(option.distance)}{traffic && ` · ${traffic}`}{via && ` · via ${via}`}</span>
-                  {index === fastestIndex(routeChoices) && <em>Mais rápida</em>}
+                  <span>{index === fastestIndex(routeChoices) ? 'Mais rápida' : via ? `via ${via}` : formatDistance(option.distance)}</span>
                 </button>
               );
             })}
           </div>
-        ) : chosenRoute && (
-          <div className={styles.routeInfo}>
-            <span><DistanceIcon /> <strong>{formatDistance(chosenRoute.distance)}</strong></span>
-            <span><TimerIcon /> <strong>{formatDuration(chosenRoute.duration)}</strong></span>
-            {trafficNote(chosenRoute) && <span>{trafficNote(chosenRoute)}</span>}
-          </div>
         )}
-        {chosenRoute && <RouteNotes route={chosenRoute} />}
-      </>
-    );
-
-    actionBar = (
-      <nav className={styles.actionBar}>
         <div className={styles.navRow}>
           <button
             className={styles.navigate}
@@ -628,7 +632,7 @@ export default function CrewApp() {
         </div>
 
         {confirmingFinish && needsOutcome(activeCall) ? (
-          <OutcomeChoice busy={busy} onChoose={handleFinish} onCancel={() => setConfirmingFinish(false)} large />
+          <OutcomeChoice busy={busy} onChoose={handleFinish} onCancel={() => setConfirmingFinish(false)} large={!landscape} />
         ) : confirmingFinish ? (
           <div className={styles.navRow}>
             <button className={styles.finishConfirm} disabled={busy} onClick={() => handleFinish()}>
