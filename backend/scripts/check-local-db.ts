@@ -1,6 +1,6 @@
 /**
  * Confere o Supabase local (npm run db:start) de ponta a ponta. Roda no GitHub Actions (banco.yml):
- * - as chaves dos .env.example batem com as do banco local;
+ * - o backend/.env.example aponta para o banco local (as chaves lá são marcadores, saem do db:status);
  * - viaturas, bases e usuários do seed estão lá, e o RLS barra a anon key;
  * - os usuários do seed entram com senha + código do app autenticador (TOTP);
  * - com o backend apontando para o banco local, o perfil carrega e um cadastro novo é gravado nele;
@@ -75,13 +75,9 @@ async function backend(path: string, init: RequestInit & { token?: string } = {}
 }
 
 async function main() {
-  // As chaves documentadas são as que o banco local usa
+  // O modelo do .env aponta para o banco local (as chaves não vão para o git: saem do db:status)
   const backendEnv = envFile('backend/.env.example');
-  const frontendEnv = envFile('frontend/.env.example');
   check(backendEnv.SUPABASE_URL === API_URL, 'backend/.env.example aponta para o banco local');
-  check(backendEnv.SUPABASE_SERVICE_ROLE_KEY === SERVICE_ROLE_KEY, 'service_role do backend/.env.example confere');
-  check(backendEnv.SUPABASE_ANON_KEY === ANON_KEY, 'anon key do backend/.env.example confere');
-  check(frontendEnv.VITE_SUPABASE_ANON_KEY === ANON_KEY, 'anon key do frontend/.env.example confere');
 
   // Seed
   const admin = createClient(API_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
