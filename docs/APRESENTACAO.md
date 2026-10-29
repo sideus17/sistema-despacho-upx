@@ -1,358 +1,103 @@
-# 🎓 Guia de Apresentação - Sistema SAMU Inteligente
+# Guia de Apresentação
 
-> Material para apresentação e defesa do projeto acadêmico
-
----
-
-## 📋 Estrutura da Apresentação (15-20 minutos)
-
-### 1. Introdução (2 minutos)
-**Slide 1: Título**
-- Nome do projeto: Sistema de Despacho Inteligente de Ambulâncias SAMU
-- Equipe: [Nomes dos membros]
-- Instituição e curso
-- Data
-
-**Slide 2: Contexto**
-- Problema: Despacho manual de ambulâncias é lento e subjetivo
-- Solução: Sistema automatizado com algoritmo de score ponderado + análise de risco
-- Objetivo: Otimizar tempo de resposta e salvar vidas
-
-### 2. Demonstração do Sistema (5 minutos)
-**Slide 3: Interface Principal**
-- Mostrar dashboard com mapa de Sorocaba
-- Explicar elementos visuais:
-  - 🚑 4 ambulâncias (USA, USB, Motolância)
-  - 📍 3 chamados de emergência
-  - 🏥 2 bases operacionais
-  - ⚠️ 3 áreas de risco (análise preditiva)
-
-**Demonstração ao vivo:**
-1. Selecionar um chamado no mapa
-2. Sistema analisa automaticamente
-3. Mostrar recomendações ordenadas por score
-4. Explicar rota calculada
-5. Executar despacho
-
-### 3. Algoritmo de Despacho (4 minutos)
-**Slide 4: Fórmula do Score**
-```
-Score Total = (Tempo de chegada × 40%) + 
-              (Disponibilidade × 30%) + 
-              (Tipo × 20%) + 
-              (Ocorrências na rota × 10%)
-```
-
-**Slide 5: Detalhamento dos Fatores**
-
-**Tempo de chegada (40%):**
-- Tempo da rota com o trânsito de agora (sem rota, estimativa pela distância em linha reta, com Haversine)
-- Até 3 min = 100 pontos, 25 min ou mais = 0 pontos
-- Peso maior porque tempo é crítico
-
-**Disponibilidade (30%):**
-- DISPONIVEL = 100 pontos
-- EM_ATENDIMENTO = 30 pontos
-- INDISPONIVEL = 0 pontos
-
-**Tipo (20%):**
-- EMERGENCIA → USA (100), USB (70), MOTO (50)
-- URGENTE → USB (100), USA (90), MOTO (60)
-- PRIORITARIO → MOTO (100), USB (80), USA (70)
-
-**Análise de Risco (10%):**
-- CRITICO: -15 pontos (89%+ probabilidade)
-- ALTO: -10 pontos (70-89% probabilidade)
-- MEDIO: -5 pontos (50-69% probabilidade)
-- BAIXO: -2 pontos (30-49% probabilidade)
-
-**Como calculamos o risco?**
-- Topografia: Áreas baixas têm maior risco de alagamento
-- Hidrografia: Proximidade a córregos aumenta risco
-- Arborização: Densidade de árvores + vento = risco de queda
-- Clima atual: Chuva forte, ventos, etc.
-
-### 4. Tecnologias Utilizadas (3 minutos)
-**Slide 6: Stack Tecnológico**
-
-**Backend:**
-- Node.js 20 + Express
-- TypeScript (type safety)
-- Arquitetura REST API
-
-**Frontend:**
-- React 18 + TypeScript
-- Vite (build tool moderno)
-- Leaflet (mapas interativos)
-
-**Roteamento:**
-- OSRM (Open Source Routing Machine)
-- Serviço gratuito e open source
-- Rotas reais (não linha reta)
-
-**Dados:**
-- JSON mockados (MVP acadêmico)
-- Estrutura pronta para migração
-
-### 5. Arquitetura do Sistema (3 minutos)
-**Slide 7: Diagrama de Arquitetura**
-
-```
-┌─────────────┐
-│   Frontend  │ (React + Leaflet)
-│  Port 5173  │
-└──────┬──────┘
-       │ HTTP/REST
-       ↓
-┌─────────────┐
-│   Backend   │ (Node.js + Express)
-│  Port 3000  │
-└──────┬──────┘
-       │
-       ├─→ Dados Mockados (JSON)
-       │   - Ambulâncias
-       │   - Chamados
-       │   - Bases
-       │   - Eventos Climáticos
-       │
-       └─→ OSRM API (Rotas)
-           - Cálculo de distância
-           - Tempo estimado
-           - Geometria da rota
-```
-
-**Slide 8: Fluxo de Dados**
-1. Usuário seleciona chamado
-2. Frontend envia request para backend
-3. Backend executa algoritmo de score
-4. Backend consulta OSRM para rotas
-5. Backend retorna recomendações ordenadas
-6. Frontend exibe resultados no mapa
-
-### 6. Análise de Risco: Abordagem Preditiva (3 minutos)
-**Slide 9: Como Funciona a Análise de Risco**
-
-**NÃO é detecção em tempo real!**
-É análise preditiva baseada em probabilidades, similar à Defesa Civil.
-
-**Dados Utilizados:**
-1. **Topografia (IBGE):** Identifica áreas baixas propensas a alagamento
-2. **Hidrografia:** Mapeia córregos e rios próximos
-3. **Arborização:** Densidade de árvores na região
-4. **Clima Atual:** Condições meteorológicas do momento
-
-**Cálculo de Probabilidade:**
-```
-Risco de Alagamento =
-  (Topografia Baixa × 40%) +
-  (Proximidade Córrego × 30%) +
-  (Chuva Forte × 30%)
-
-Exemplo: 89% = ALTO risco
-```
-
-**Slide 10: Por Que Essa Abordagem?**
-✅ Defensável academicamente (não precisa de sensores em tempo real)
-✅ Baseada em dados públicos (IBGE, INMET)
-✅ Similar ao que Defesa Civil usa
-✅ Viável para MVP acadêmico
-✅ Pode evoluir para tempo real no futuro
-
-### 7. Dados Mockados vs Produção (2 minutos)
-**Slide 11: Justificativa**
-
-**Por que dados mockados?**
-- MVP acadêmico para demonstração de conceito
-- Não temos acesso ao sistema real do SAMU
-- APIs governamentais requerem cadastro institucional
-- Foco no algoritmo e arquitetura
-
-**Como seria em produção?**
-- Integração com APIs governamentais:
-  - IBGE (topografia real)
-  - INMET (clima em tempo real)
-  - Defesa Civil (alertas oficiais)
-  - CPTEC (previsões)
-- Banco de dados PostgreSQL
-- GPS em tempo real
-- Autenticação de usuários
-
-**Migração:**
-- Código estruturado para facilitar
-- Apenas trocar camada de dados
-- Lógica de negócio permanece igual
-
-### 8. Resultados e Conclusão (2 minutos)
-**Slide 12: Resultados Alcançados**
-✅ Sistema funcional completo
-✅ Algoritmo inteligente implementado
-✅ Interface intuitiva e profissional
-✅ Roteamento real (OSRM)
-✅ Análise preditiva de riscos
-✅ 100% TypeScript (type safety)
-✅ Código documentado e organizado
-
-**Slide 13: Aprendizados**
-- Desenvolvimento full-stack
-- Algoritmos de otimização
-- Integração com APIs externas
-- Visualização geográfica
-- Trabalho em equipe
-
-**Slide 14: Próximos Passos**
-- Integração com dados reais
-- Banco de dados
-- Autenticação
-- Histórico de atendimentos
-- Relatórios e estatísticas
-- App mobile para motoristas
+Roteiro para apresentar o sistema à banca, com a demonstração no site no ar (https://sistema-despacho-upx.vercel.app) e as perguntas que costumam aparecer. O funcionamento completo e a arquitetura estão no [README](../README.md).
 
 ---
 
-## 🎤 Perguntas Frequentes da Banca
+## Roteiro (15 a 20 minutos)
+
+### 1. O problema (2 min)
+
+- No despacho feito à mão, o atendente escolhe a viatura de cabeça, pelo mapa e pelo rádio.
+- A viatura mais perto em linha reta nem sempre é a que chega antes: trânsito, alagamento e via bloqueada mudam a conta.
+- A equipe dirigindo não deveria precisar mexer no celular para dizer em que etapa está.
+
+### 2. A solução em uma frase (1 min)
+
+Um sistema só para a central, a regulação e a equipe: o chamado passa por **registro → regulação → despacho → app da equipe → Gestão**, e cada etapa fica registrada com horário e autor.
+
+### 3. Demonstração ao vivo (7 min)
+
+Duas telas lado a lado: a central no computador e o app da equipe no celular (ou numa janela estreita).
+
+1. **Central, registro:** abrir um chamado pelo endereço, marcar "dor no peito" na triagem e mostrar a cor sugerida (Vermelho).
+2. **Regulação:** confirmar a cor, mostrar as outras saídas (orientação por telefone, cancelamento por trote) e mandar para o despacho.
+3. **Despacho:** mostrar a lista de viaturas com a nota, o tempo com o trânsito de agora e a frase que explica a escolha. Despachar a primeira.
+4. **App da equipe:** o alarme em tela cheia com som e vibração até o "Ciente"; depois, a rota no mapa e a navegação por voz.
+5. **Ocorrências:** mostrar no mapa um alagamento ou bloqueio e como a rota desvia dele.
+6. **Gestão:** tempo-resposta por cor contra a meta, a linha do tempo do chamado que acabou de ser feito e a auditoria de quem fez cada passo.
+
+### 4. Como a viatura é escolhida (3 min)
+
+```
+Nota = Tempo de chegada × 0,4 + Disponibilidade × 0,3 + Tipo × 0,2 + Ocorrências × 0,1
+```
+
+- **Tempo de chegada (40%):** o tempo da rota com o trânsito de agora. Até 3 min vale 100; 25 min ou mais, 0.
+- **Disponibilidade (30%):** disponível 100, em atendimento 30, indisponível 0.
+- **Tipo (20%):** USA para o Vermelho, USB para o Amarelo, Motolância para o Verde e o Azul.
+- **Ocorrências (10%):** a pior ocorrência a até 1 km da viatura ou do chamado (bloqueio −15, risco −10, aviso −5).
+
+Livres vêm primeiro; depois, a maior nota; no empate, quem chega antes.
+
+### 5. Arquitetura (3 min)
+
+- **Frontend:** React, TypeScript e Vite, com mapa MapLibre, publicado na Vercel. O app da equipe é o mesmo site, instalável no celular.
+- **Backend:** Node.js, Express e TypeScript, publicado no Render.
+- **Banco e login:** Supabase, com Postgres, RLS e MFA por app autenticador.
+- **Rotas:** Valhalla, que desvia de áreas, com OSRM de reserva. O TomTom cronometra a rota com o trânsito.
+- **Ocorrências:** CEMADEN (chuva) com os setores de inundação do SGB, alertas da Defesa Civil, trânsito do TomTom e relatos das equipes.
+- **Aviso no celular:** Web Push.
+
+### 6. Fechamento (2 min)
+
+- O que o sistema já faz de ponta a ponta, em produção.
+- O que ficou de fora e por quê (ver "Limitações").
+- Aprendizados do grupo.
+
+---
+
+## Perguntas frequentes da banca
 
 ### Técnicas
 
-**P: Por que TypeScript e não JavaScript?**
-> "TypeScript adiciona type safety, reduzindo bugs em tempo de desenvolvimento. É especialmente importante em sistemas críticos como este, onde erros podem custar vidas. Além disso, melhora a manutenibilidade do código."
+**Por que esses pesos (40%, 30%, 20%, 10%)?**
+> O tempo até o paciente é o que mais pesa no desfecho. A disponibilidade vem em seguida, porque uma viatura ocupada só serve se não houver outra. O tipo garante o recurso certo para a gravidade, e as ocorrências são um ajuste fino, já que o trânsito entra pelo próprio tempo. Os pesos ficam num lugar só no código e são fáceis de mudar.
 
-**P: Como funciona a fórmula de Haversine?**
-> "A fórmula de Haversine calcula a distância entre dois pontos em uma esfera (Terra) usando suas coordenadas geográficas. É mais precisa que distância euclidiana porque considera a curvatura da Terra. Essencial para cálculos geográficos."
+**E se o serviço de rotas cair?**
+> O Valhalla é o principal. Se ele não responde, o OSRM calcula a rota sem o desvio de áreas; se nenhum responde, a nota usa a distância em linha reta (Haversine) a 40 km/h. O despacho nunca trava por causa da rota.
 
-**P: Por que esses pesos específicos no algoritmo (40%, 30%, 20%, 10%)?**
-> "Baseamos nos princípios do SAMU: tempo de resposta é crítico (40% para o tempo de chegada), disponibilidade garante atendimento (30%), tipo adequado melhora qualidade (20%), e ocorrências na rota são fator externo (10%). Pesos podem ser ajustados conforme necessidade."
+**Como o sistema sabe que a viatura chegou?**
+> Pela posição do celular do motorista. "No local" é parar a até 150 m do chamado; "no hospital", parar a até 200 m do hospital. Passar em frente não conta, para a outra pista da avenida não marcar a etapa errada.
 
-**P: E se o OSRM ficar fora do ar?**
-> "Implementamos fallback: se OSRM falhar, usamos cálculo de distância direta (Haversine) e estimamos tempo baseado em velocidade média urbana (40 km/h). O sistema continua funcionando, apenas com precisão reduzida."
+**Como os dados ficam protegidos?**
+> Só o login fala direto com o Supabase, e exige senha e o código do app autenticador. Os dados passam pelo backend, que confere o token e o papel da pessoa. As tabelas têm RLS ligado sem nenhuma política, então a chave pública do site sozinha não lê nada.
 
-**P: Como garantem que o algoritmo escolhe a melhor ambulância?**
-> "O algoritmo calcula score para TODAS as ambulâncias disponíveis, considerando múltiplos fatores simultaneamente. Ordena por score total e recomenda a melhor. Testamos com diversos cenários para validar."
+**Como vocês testam?**
+> Testes automáticos no backend e no frontend rodam a cada push no GitHub Actions, e o `main` só aceita merge com eles passando. Quando o banco muda, outro workflow sobe um Supabase de teste e faz um chamado inteiro, do registro ao fim, conferindo a auditoria.
 
 ### Acadêmicas
 
-**P: Qual a contribuição científica do projeto?**
-> "Demonstramos aplicação prática de algoritmos de otimização em sistemas de emergência. Combinamos múltiplos fatores (distância, disponibilidade, tipo, clima) em um score único, algo não trivial. Código open source pode ser base para pesquisas futuras."
+**Qual a contribuição do projeto?**
+> Juntar num fluxo só a classificação de risco do Ministério da Saúde, a escolha da viatura pelo tempo real de chegada e a coleta automática dos tempos de cada etapa, que alimenta os indicadores da Gestão.
 
-**P: Como validaram o algoritmo?**
-> "Criamos cenários de teste com diferentes combinações de chamados e ambulâncias. Comparamos resultados com decisões que um despachante experiente tomaria. Algoritmo mostrou consistência e lógica nas recomendações."
-
-**P: Quais as limitações do sistema?**
-> "Principais limitações: dados mockados (não refletem realidade), sem integração com GPS real, não considera trânsito em tempo real, sem histórico de atendimentos. São limitações do MVP, não do conceito."
-
-**P: Como mediram o desempenho?**
-> "Backend responde em média 200-500ms para análise completa. Frontend renderiza mapa em <2s. OSRM retorna rotas em <1s. Performance adequada para uso real, mas pode ser otimizada com cache."
+**Quais as limitações?**
+> A cobertura é de Sorocaba, com as fontes públicas disponíveis. Os serviços de rota são públicos e gratuitos, sem garantia de disponibilidade. A Gestão pode incluir um histórico de demonstração, marcado como tal, para os gráficos terem volume. A classificação inicial é uma sugestão: a decisão clínica é sempre do regulador.
 
 ### Práticas
 
-**P: Quanto custaria implementar em produção?**
-> "MVP: R$ 0 (tudo gratuito). Produção: ~R$ 100-300/mês (servidor + APIs). Principais custos: servidor cloud, APIs de clima (algumas pagas), manutenção. Muito mais barato que sistemas proprietários."
+**Quanto custa manter?**
+> As rotas vêm de servidores públicos e gratuitos (Valhalla e OSRM), e o TomTom é usado dentro da cota gratuita diária, com um teto no próprio backend. Para uso real, o caminho é um Valhalla próprio (licença MIT) e planos pagos de hospedagem.
 
-**P: Quanto tempo levou o desenvolvimento?**
-> "Planejamos 12 semanas: 2 semanas setup, 4 semanas backend, 4 semanas frontend, 2 semanas integração e testes. Desenvolvimento real foi mais rápido, mas simulamos cronograma realista para projeto acadêmico."
-
-**P: Como seria a implantação no SAMU real?**
-> "Fase 1: Piloto em uma base (1-2 meses). Fase 2: Treinamento de despachantes (1 mês). Fase 3: Expansão gradual (3-6 meses). Fase 4: Integração completa (6-12 meses). Total: ~1 ano para implantação completa."
+**Como seria a implantação num SAMU de verdade?**
+> Piloto numa base, treinamento dos atendentes e das equipes, e expansão gradual, com os indicadores da Gestão comparando antes e depois.
 
 ---
 
-## 📊 Dados para Demonstração
+## Antes de apresentar
 
-### Cenário 1: Emergência Cardíaca
-- **Chamado:** Dor no peito, 65 anos, Centro
-- **Melhor opção:** USA-01 (score 87)
-- **Justificativa:** Disponível, próxima, tipo adequado
-- **Tempo estimado:** 8 minutos
-
-### Cenário 2: Queda com Fratura
-- **Chamado:** Queda de altura, 42 anos, Vila Hortência
-- **Melhor opção:** USB-01 (score 82)
-- **Justificativa:** USB adequada para urgência, mais próxima
-- **Tempo estimado:** 6 minutos
-
-### Cenário 3: Mal-estar Diabético
-- **Chamado:** Tontura, 58 anos, Jardim Vergueiro
-- **Melhor opção:** MOTO-01 (score 78)
-- **Justificativa:** Prioridade baixa, moto é rápida
-- **Tempo estimado:** 5 minutos
-
----
-
-## 🎯 Dicas para Apresentação
-
-### Antes
-- [ ] Testar sistema 30 minutos antes
-- [ ] Verificar conexão com internet (OSRM)
-- [ ] Preparar backup de slides em PDF
-- [ ] Ensaiar transições entre slides
-- [ ] Revisar perguntas frequentes
-
-### Durante
-- [ ] Falar claramente e pausadamente
-- [ ] Manter contato visual com banca
-- [ ] Usar ponteiro laser para destacar elementos
-- [ ] Demonstrar sistema ao vivo (impressiona!)
-- [ ] Ter confiança nas escolhas técnicas
-
-### Demonstração ao Vivo
-1. Abrir backend: `cd backend && npm run dev`
-2. Abrir frontend: `cd frontend && npm run dev`
-3. Mostrar mapa carregado
-4. Selecionar chamado
-5. Explicar análise em tempo real
-6. Mostrar rota calculada
-7. Executar despacho
-
-### Se Algo Der Errado
-- Manter calma
-- Explicar o que deveria acontecer
-- Mostrar código relevante
-- Usar slides como backup
-- Banca entende que é demonstração ao vivo
-
----
-
-## 📝 Checklist Final
-
-### Documentação
-- [ ] README.md completo
-- [ ] Código comentado
-- [ ] API documentada
-- [ ] Guia de instalação testado
-
-### Código
-- [ ] Backend funcionando
-- [ ] Frontend funcionando
-- [ ] Integração testada
-- [ ] Sem erros no console
-
-### Apresentação
-- [ ] Slides prontos
-- [ ] Demonstração ensaiada
-- [ ] Perguntas revisadas
-- [ ] Backup preparado
-
----
-
-## 🏆 Pontos Fortes para Destacar
-
-1. **Algoritmo Inteligente:** Não é simples "mais próximo", considera múltiplos fatores
-2. **Tecnologias Modernas:** TypeScript, React, Node.js - stack profissional
-3. **Roteamento Real:** OSRM fornece rotas reais, não linha reta
-4. **Interface Profissional:** Mapa interativo, visualização clara
-5. **Código Limpo:** Bem estruturado, documentado, type-safe
-6. **Escalável:** Arquitetura permite crescimento
-7. **Open Source:** Tudo gratuito, pode ser usado por outros
-8. **Impacto Social:** Sistema pode salvar vidas
-
----
-
-## 🎓 Boa Sorte!
-
-Lembre-se:
-- Vocês dominam o projeto
-- Banca quer ver aprendizado
-- Demonstração ao vivo impressiona
-- Confiança é fundamental
-- Projeto está excelente!
-
-**Você consegue! 🚀**
+- [ ] Abrir o site 30 minutos antes e entrar com as duas contas (central e equipe), com o app autenticador à mão.
+- [ ] Começar o turno do motorista no celular e permitir localização, som e notificações.
+- [ ] Conferir se há viaturas livres e se o mapa mostra o trânsito.
+- [ ] Ter capturas de tela de cada etapa como reserva, caso a internet falhe.
+- [ ] Ensaiar a demonstração com o tempo marcado.
