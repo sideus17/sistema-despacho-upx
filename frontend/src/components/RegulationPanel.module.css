@@ -24,6 +24,10 @@
   font-weight: bold;
 }
 
+.title:focus {
+  outline: none; /* foco de programa ao abrir o passo, não de teclado */
+}
+
 .notice {
   padding: 12px 14px;
   border: 1px solid var(--tint-yellow-border);

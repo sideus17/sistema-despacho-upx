@@ -161,18 +161,41 @@
   margin-bottom: 12px;
 }
 
+.title {
+  margin: 0 0 12px;
+  color: var(--color-text);
+  font-size: 20px;
+  font-weight: bold;
+}
+
+.title:focus {
+  outline: none; /* foco de programa ao abrir o passo, não de teclado */
+}
+
 .ambulance {
   display: flex;
   align-items: center;
   gap: 10px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
-.ambulance h3 {
+.ambulanceText {
+  display: flex;
+  flex-direction: column;
+}
+
+.ambulance .code {
   font-size: 16px;
   font-weight: 700;
 }
 
-.ambulance p {
+.ambulance .meta {
   color: var(--color-text-muted);
   font-size: 12px;
 }

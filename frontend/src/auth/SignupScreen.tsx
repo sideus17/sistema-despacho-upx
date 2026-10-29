@@ -6,6 +6,7 @@ import { AmbulanceIcon, HeadsetIcon } from '../ui/icons';
 import { formatCpf, formatPhone, isValidCellphone, isValidCpf, onlyDigits } from '../utils/documents';
 import { AuthLayout } from './AuthUI';
 import styles from './auth.module.css';
+import { authErrorMessage } from './authErrors';
 
 const ROLES = [
   { value: UserRole.MOTORISTA, Icon: AmbulanceIcon, label: 'Motorista', description: 'Recebe despachos e navega até o local' },
@@ -57,7 +58,11 @@ export default function SignupScreen({ onLogin }: { onLogin: () => void }) {
       });
       // Conta criada: entra direto, e o AuthGate leva para o cadastro do MFA
       const { error: signInError } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
-      if (signInError) throw signInError;
+      if (signInError) {
+        setError(authErrorMessage(signInError, 'Conta criada, mas não foi possível entrar. Tente pela tela de login.'));
+        setLoading(false);
+        return;
+      }
     } catch (err) {
       setError(getErrorMessage(err, 'Não foi possível criar a conta.'));
       setLoading(false);

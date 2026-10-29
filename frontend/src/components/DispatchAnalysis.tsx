@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { DispatchRecommendation, Ambulance, AmbulanceStatus, EmergencyCall } from '../types';
 import { formatDistance, formatDuration, getTimeAgo } from '../services/api';
 import { trafficNote } from '../utils/routes';
@@ -6,7 +6,7 @@ import { PRIORITY_META, waitingSince } from '../utils/calls';
 import { PriorityLabel } from '../ui/PriorityLabel';
 import { AmbulanceTypeIcon } from '../ui/AmbulanceTypeIcon';
 import RouteNotes from './RouteNotes';
-import { BackIcon, CheckCircleIcon, DistanceIcon, LocationIcon, StarIcon, TimerIcon } from '../ui/icons';
+import { BackIcon, DistanceIcon, LocationIcon, StarIcon, TimerIcon } from '../ui/icons';
 import { Avatar } from '../ui/Avatar';
 import styles from './DispatchAnalysis.module.css';
 
@@ -37,6 +37,10 @@ export default function DispatchAnalysis({
 }: DispatchAnalysisProps) {
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [executing, setExecuting] = useState(false);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+
+  // Ao abrir o passo, o foco vai para o título (teclado e leitor de tela começam daqui)
+  useEffect(() => titleRef.current?.focus(), [call?.id]);
 
   // Trocar de opção cancela uma confirmação em andamento
   useEffect(() => setConfirmingId(null), [selectedIndex, recommendation?.callId]);
@@ -54,7 +58,7 @@ export default function DispatchAnalysis({
   const meta = PRIORITY_META[call.priority];
   // Espera pela viatura: desde a regulação (chamado de antes da regulação: desde a abertura)
   const timeAgo = getTimeAgo(waitingSince(call));
-  const waiting = timeAgo === 'agora' ? 'aberto agora' : `aguardando há ${timeAgo.replace(' atrás', '')}`;
+  const waiting = timeAgo === 'agora' ? 'aberto agora' : `aguardando ${timeAgo}`;
 
   const handleConfirm = async (ambulanceId: string) => {
     setExecuting(true);
@@ -69,6 +73,7 @@ export default function DispatchAnalysis({
   return (
     <div className={styles.container}>
       <button className={styles.back} onClick={onBack}><BackIcon /> Voltar aos chamados</button>
+      <h2 ref={titleRef} tabIndex={-1} className={styles.title}>Despacho</h2>
 
       <section className={styles.callContext} style={{ '--priority-color': meta?.color } as React.CSSProperties}>
         <div className={styles.callContextHeader}>
@@ -119,13 +124,23 @@ export default function DispatchAnalysis({
                   {index === 0 && <span className={styles.bestBadge}><StarIcon /> Recomendada</span>}
 
                   <header className={styles.optionHeader}>
-                    <div className={styles.ambulance}>
+                    {/* O cartão todo responde ao clique; o botão é o caminho pelo teclado */}
+                    <button
+                      type="button"
+                      className={styles.ambulance}
+                      aria-pressed={isSelected}
+                      aria-label={`Ver ${ambulance.code}${index === 0 ? ' (recomendada)' : ''}`}
+                      onClick={event => {
+                        event.stopPropagation();
+                        onSelectRoute(index);
+                      }}
+                    >
                       <span className={styles.typeIcon}><AmbulanceTypeIcon type={ambulance.type} /></span>
-                      <div>
-                        <h3>{ambulance.code}</h3>
-                        <p>{ambulance.type}{!isAvailable && ' · ocupada'}</p>
+                      <span className={styles.ambulanceText}>
+                        <span className={styles.code}>{ambulance.code}</span>
+                        <span className={styles.meta}>{ambulance.type}{!isAvailable && ' · ocupada'}</span>
                         {ambulance.driver && (
-                          <p className={styles.driver}>
+                          <span className={styles.driver}>
                             <Avatar
                               name={ambulance.driver.name}
                               seed={ambulance.driver.id}
@@ -134,10 +149,10 @@ export default function DispatchAnalysis({
                               size={20}
                             />
                             {ambulance.driver.name}
-                          </p>
+                          </span>
                         )}
-                      </div>
-                    </div>
+                      </span>
+                    </button>
                   </header>
 
                   {rec.route ? (
@@ -151,7 +166,7 @@ export default function DispatchAnalysis({
                     </>
                   ) : (
                     <div className={styles.routePending}>
-                      {routeLoadingId === rec.ambulanceId ? 'Calculando rota…' : 'Toque para ver a rota no mapa'}
+                      {routeLoadingId === rec.ambulanceId ? 'Calculando rota…' : 'Clique para ver a rota no mapa'}
                     </div>
                   )}
 
@@ -176,7 +191,7 @@ export default function DispatchAnalysis({
                         </div>
                       ) : (
                         <button className={styles.execute} onClick={() => setConfirmingId(rec.ambulanceId)}>
-                          <CheckCircleIcon /> Executar despacho
+                          Despachar {ambulance.code}
                         </button>
                       )}
                     </div>

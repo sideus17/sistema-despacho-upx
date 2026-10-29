@@ -88,6 +88,42 @@ describe('campo de endereço com autocompletar', () => {
     expect(input).toHaveValue('Rua da Penha, 890');
   });
 
+  it('Enter sem nada destacado não grava a primeira sugestão: destaca e espera', async () => {
+    const OTHER = { label: 'Rua Visconde do Rio Branco, 200', detail: 'Vila Jardini, Sorocaba', location: { lat: -23.51, lng: -47.46 } };
+    vi.mocked(searchPlaces).mockResolvedValue([OTHER, HOSPITAL]);
+    const onChange = vi.fn();
+    renderWithAuth(<Field onChange={onChange} />);
+    const user = userEvent.setup();
+    const input = screen.getByRole('combobox', { name: 'Destino' });
+    await user.type(input, 'rua barão do rio branco');
+    await screen.findByRole('option', { name: /Visconde/ });
+
+    await user.keyboard('{Enter}');
+    expect(onChange).not.toHaveBeenCalled();
+    expect(screen.getByRole('option', { name: /Visconde/ })).toHaveAttribute('aria-selected', 'true');
+    // O segundo Enter confirma o que está destacado
+    await user.keyboard('{Enter}');
+    expect(onChange).toHaveBeenLastCalledWith({ ...OTHER, kind: 'endereco' });
+  });
+
+  it('Enter com uma sugestão só (exata) escolhe; enquanto busca, não liga o "Escolher no mapa"', async () => {
+    let resolve: (value: typeof HOSPITAL[]) => void = () => {};
+    vi.mocked(searchPlaces).mockReturnValue(new Promise(done => { resolve = done; }));
+    const onChange = vi.fn();
+    const onPick = vi.fn();
+    renderWithAuth(<Field onChange={onChange} onPick={onPick} />);
+    const user = userEvent.setup();
+    await user.type(screen.getByRole('combobox', { name: 'Destino' }), 'hospital');
+    await user.keyboard('{Enter}');
+    expect(onPick).not.toHaveBeenCalled();
+
+    resolve([HOSPITAL]);
+    await screen.findByRole('option', { name: /Hospital Regional/ });
+    await user.keyboard('{Enter}');
+    expect(onChange).toHaveBeenLastCalledWith({ ...HOSPITAL, kind: 'endereco' });
+    expect(onPick).not.toHaveBeenCalled();
+  });
+
   it('voltar a digitar num endereço escolhido mantém o texto', async () => {
     vi.mocked(searchPlaces).mockResolvedValue([HOSPITAL]);
     renderWithAuth(<Field />);

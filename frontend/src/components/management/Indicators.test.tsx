@@ -85,7 +85,8 @@ describe('indicadores', () => {
   });
 
   it('erro com botão para tentar de novo', async () => {
-    vi.mocked(getIndicators).mockRejectedValueOnce(new Error('Servidor fora do ar'));
+    // Como chega do axios: a mensagem em português vem do servidor
+    vi.mocked(getIndicators).mockRejectedValueOnce(Object.assign(new Error('Request failed'), { response: { data: { error: 'Servidor fora do ar' } } }));
     const user = userEvent.setup();
     render(<Indicators scope={SCOPE} ambulances={[]} hospitals={[]} />);
     expect(await screen.findByRole('alert')).toHaveTextContent('Servidor fora do ar');

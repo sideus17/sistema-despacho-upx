@@ -191,7 +191,7 @@ export default function Map({
         offset: 48,
         content: (
           <>
-            <h3>Chamado de Emergência</h3>
+            <h3>Chamado</h3>
             <p><PriorityLabel priority={call.priority} /></p>
             {!stage && <p><strong>Situação:</strong> {CALL_STATUS_LABEL[call.status]}</p>}
             <p><strong>Endereço:</strong> {call.address}</p>

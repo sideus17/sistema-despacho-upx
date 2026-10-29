@@ -59,6 +59,7 @@
 
   --radius: 10px;
   --touch-target: 44px;
+  --color-focus: var(--color-primary); /* anel de foco do teclado */
 }
 
 /* Escuro: cinzas da navegação noturna; cores com significado (prioridade, status) não mudam */
@@ -128,6 +129,12 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background-color: var(--color-background);
   color: var(--color-text);
+}
+
+/* Foco do teclado em qualquer controle: anel de 2 px (cada tela pode refinar, nunca tirar) */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
 }
 
 /* Ícones SVG (unplugin-icons) alinhados ao texto */
@@ -341,7 +348,22 @@ body {
   font-size: 14px;
   font-weight: 600;
   color: var(--color-text-muted);
-  transition: all 0.2s;
+  transition: color 0.2s, background-color 0.2s, border-color 0.2s;
+}
+
+.tab:focus-visible {
+  outline-offset: -2px;
+}
+
+/* Chamado em preenchimento no "Novo" enquanto o atendente está em outra aba */
+.tab-dot {
+  position: absolute;
+  top: 6px;
+  right: calc(50% - 18px);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-warning-text);
 }
 
 .tab .icon {

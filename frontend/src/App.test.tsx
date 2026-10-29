@@ -30,12 +30,28 @@ describe('operação e gestão', () => {
 
     await user.click(screen.getByRole('button', { name: 'Gestão' }));
     expect(await screen.findByText('Página de gestão')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Novo/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: /Novo/ })).not.toBeInTheDocument();
     expect(screen.getByText('Mapa da operação')).not.toBeVisible();
 
     // Chamados esperando regulação ou despacho aparecem no botão de voltar
     await user.click(await screen.findByRole('button', { name: 'Voltar à operação (3 aguardando regulação ou despacho)' }));
     expect(screen.queryByText('Página de gestão')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Novo/ })).toBeVisible();
+    expect(screen.getByRole('tab', { name: /Novo/ })).toBeVisible();
+  });
+
+  it('trocar de aba no meio da ligação não apaga o chamado em preenchimento', async () => {
+    const user = userEvent.setup();
+    renderWithAuth(<App />);
+    await screen.findByText('Mapa da operação');
+
+    await user.click(screen.getByRole('tab', { name: /Novo/ }));
+    await user.type(screen.getByLabelText('O que aconteceu'), 'Dor no peito há 20 minutos');
+    await user.click(screen.getByRole('tab', { name: /Frota/ }));
+    // A aba "Novo" avisa que há um chamado em preenchimento
+    expect(screen.getByRole('tab', { name: /Novo.*em preenchimento/ })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: /Novo/ }));
+    expect(screen.getByLabelText('O que aconteceu')).toHaveValue('Dor no peito há 20 minutos');
+    expect(screen.getByRole('tab', { name: /Novo/ })).toHaveAttribute('aria-selected', 'true');
   });
 });

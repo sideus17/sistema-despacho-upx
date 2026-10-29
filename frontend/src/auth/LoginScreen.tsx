@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { AuthLayout } from './AuthUI';
 import styles from './auth.module.css';
+import { authErrorMessage } from './authErrors';
 
 export default function LoginScreen({ onSignup }: { onSignup: () => void }) {
   const [email, setEmail] = useState('');
@@ -17,7 +18,7 @@ export default function LoginScreen({ onSignup }: { onSignup: () => void }) {
     // Sucesso: o AuthGate recebe o evento de login e segue para o MFA
     const { error: signInError } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
     if (signInError) {
-      setError(signInError.message.includes('Invalid login credentials') ? 'E-mail ou senha incorretos.' : signInError.message);
+      setError(authErrorMessage(signInError, 'Não foi possível entrar. Tente de novo.'));
     }
     setLoading(false);
   };

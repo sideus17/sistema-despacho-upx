@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Ambulance, CallPriority, Coordinates, EmergencyCall, RecentCallMatch } from '../types';
 import { createCall, getErrorMessage, getRecentCalls, getTimeAgo, reversePlace } from '../services/api';
 import { CALL_STATUS_LABEL, PRIORITY_META } from '../utils/calls';
@@ -18,6 +18,7 @@ interface NewCallFormProps {
   onCancelPick?: () => void;
   // Local escolhido, para o pino de prévia no mapa
   onDraftChange?: (location: Coordinates | null) => void;
+  onDirtyChange?: (dirty: boolean) => void; // há algo digitado (a aba mostra o rascunho)
   // Aviso de chamado repetido: viatura de cada um e "Ver no mapa"
   ambulances?: Ambulance[];
   onShowCall?: (call: EmergencyCall) => void;
@@ -45,6 +46,7 @@ export default function NewCallForm({
   onPickOnMap,
   onCancelPick,
   onDraftChange,
+  onDirtyChange,
   ambulances = [],
   onShowCall
 }: NewCallFormProps) {
@@ -52,7 +54,8 @@ export default function NewCallForm({
   const [phoneBlurred, setPhoneBlurred] = useState(false);
   const [repeats, setRepeats] = useState<RecentCallMatch[]>([]);
   const [age, setAge] = useState('');
-  const [gender, setGender] = useState('M');
+  // Vazio = não informado (fica em branco no chamado): nada vem marcado por padrão
+  const [gender, setGender] = useState('');
   // Local escolhido (sugestão ou mapa) ou só o texto digitado, que o servidor procura
   const [place, setPlace] = useState<PlaceValue | null>(null);
   const [addressText, setAddressText] = useState('');
@@ -63,6 +66,9 @@ export default function NewCallForm({
   // Cor escolhida no registro; sem escolha, vale a sugerida pelos sinais (a final sai na regulação)
   const [chosen, setChosen] = useState<CallPriority | null>(null);
   const [loading, setLoading] = useState(false);
+  // Campos que faltaram ao tentar abrir: o erro aparece junto do campo, não num aviso que some
+  const [errors, setErrors] = useState<{ address?: boolean; description?: boolean; priority?: boolean }>({});
+  const formRef = useRef<HTMLFormElement>(null);
   const toast = useToast();
 
   const suggested = suggestPriority(signals);
@@ -94,6 +100,14 @@ export default function NewCallForm({
 
   // Pino de prévia no mapa; ao sair do formulário, some junto com a escolha no mapa
   useEffect(() => onDraftChange?.(place?.location ?? null), [place]);
+
+  // Algo digitado ou marcado: a central mostra que há um chamado em preenchimento
+  const dirty = !!(phone || age || gender || place || addressText.trim() || reference || description || signals.length || chosen);
+  useEffect(() => onDirtyChange?.(dirty), [dirty]);
+
+  // Preencheu o que faltava: o erro some
+  useEffect(() => setErrors(current => (current.address ? { ...current, address: false } : current)), [place, addressText]);
+  useEffect(() => setErrors(current => (current.description ? { ...current, description: false } : current)), [description]);
   useEffect(() => () => {
     onDraftChange?.(null);
     onCancelPick?.();
@@ -125,17 +139,22 @@ export default function NewCallForm({
 
     if (phoneDigits && !phoneOk) {
       setPhoneBlurred(true);
-      toast('Telefone inválido. Use DDD + número, ex.: (15) 3232-1234 ou (15) 99999-9999.', 'error');
+      document.getElementById('call-phone')?.focus();
       return;
     }
-    if ((!place && !addressText.trim()) || !description.trim()) {
-      toast('Preencha o endereço e o que aconteceu.', 'error');
+    const missing = { address: !place && !addressText.trim(), description: !description.trim(), priority: !priority };
+    if (missing.address || missing.description || missing.priority) {
+      setErrors(missing);
+      // O cursor vai para o primeiro campo que falta
+      const first = missing.address
+        ? document.getElementById('call-address')
+        : missing.description
+          ? document.getElementById('call-description')
+          : formRef.current?.querySelector<HTMLElement>('[role="radio"]');
+      first?.focus();
       return;
     }
-    if (!priority) {
-      toast('Escolha a classificação de risco.', 'error');
-      return;
-    }
+    if (!priority) return;
 
     try {
       setLoading(true);
@@ -157,7 +176,7 @@ export default function NewCallForm({
       setPhone('');
       setPhoneBlurred(false);
       setAge('');
-      setGender('M');
+      setGender('');
       setPlace(null);
       setAddressText('');
       setAddressKey(key => key + 1);
@@ -176,13 +195,13 @@ export default function NewCallForm({
 
   return (
     <div className={styles.container}>
-      <h2 className={styles.title}>Novo Chamado</h2>
+      <h2 className={styles.title}>Novo chamado</h2>
 
       <p className={styles.intro}>
         Registre o chamado enquanto fala com quem ligou. No endereço, escolha uma sugestão (rua e número, local ou CEP) ou marque no mapa.
       </p>
 
-      <form onSubmit={handleSubmit} className={styles.form}>
+      <form ref={formRef} onSubmit={handleSubmit} className={styles.form} noValidate>
         <div>
           <label className={styles.label} htmlFor="call-phone">Telefone de quem ligou <span className={styles.optional}>(opcional)</span></label>
           <input
@@ -212,7 +231,10 @@ export default function NewCallForm({
             onChange={setPlace}
             onTextChange={setAddressText}
             actions={mapAction}
+            invalid={errors.address}
+            describedBy={errors.address ? 'call-address-error' : undefined}
           />
+          {errors.address && <p id="call-address-error" className={styles.fieldError}>Informe o endereço ou marque no mapa.</p>}
           {picking ? (
             <p className={styles.placeHint}>Clique no mapa para marcar o local do chamado.</p>
           ) : place?.approximate ? (
@@ -272,10 +294,13 @@ export default function NewCallForm({
             id="call-description"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="Descreva o que está acontecendo com o paciente..."
+            placeholder="Descreva o que está acontecendo com o paciente…"
             rows={4}
             className={styles.input}
+            aria-invalid={errors.description}
+            aria-describedby={errors.description ? 'call-description-error' : undefined}
           />
+          {errors.description && <p id="call-description-error" className={styles.fieldError}>Descreva o que aconteceu.</p>}
         </div>
 
         <div className={styles.row}>
@@ -296,9 +321,10 @@ export default function NewCallForm({
           <div>
             <label className={styles.label} htmlFor="call-gender">Sexo</label>
             <select id="call-gender" value={gender} onChange={(e) => setGender(e.target.value)} className={styles.input}>
+              <option value="">Não informado</option>
               <option value="M">Masculino</option>
               <option value="F">Feminino</option>
-              <option value="OUTRO">Outro / Não informado</option>
+              <option value="OUTRO">Outro</option>
             </select>
           </div>
         </div>
@@ -307,13 +333,17 @@ export default function NewCallForm({
           signals={signals}
           onToggleSignal={toggleSignal}
           value={priority}
-          onChange={setChosen}
+          onChange={color => {
+            setChosen(color);
+            setErrors(current => ({ ...current, priority: false }));
+          }}
           suggested={suggested}
-          footnote="Cor sugerida no registro — a final é definida na regulação."
+          footnote="Cor sugerida no registro; a final é definida na regulação."
         />
+        {errors.priority && !priority && <p className={styles.fieldError} role="alert">Escolha a cor da classificação de risco.</p>}
 
         <button type="submit" disabled={loading} className={styles.submit}>
-          {loading ? 'Criando chamado...' : 'Abrir Chamado'}
+          {loading ? 'Criando chamado…' : 'Abrir chamado'}
         </button>
       </form>
     </div>
