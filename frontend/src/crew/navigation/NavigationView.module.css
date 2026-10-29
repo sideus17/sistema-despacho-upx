@@ -222,9 +222,10 @@
   height: 40px;
   place-items: center;
   border-radius: 50%;
-  background: var(--alert-color);
-  color: white;
+  background: var(--effect-bg);
+  color: var(--effect-fg);
   font-size: 22px;
+  border: 2px var(--effect-line) var(--effect-edge);
 }
 
 .incidentAlertIcon :global(.icon) {

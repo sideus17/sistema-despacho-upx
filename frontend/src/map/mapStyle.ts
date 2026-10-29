@@ -43,7 +43,8 @@ interface Palette {
   oneWayOpacity: number;
 }
 
-// Inspirado no Waze: fundo claro e quente, ruas brancas largas, vias principais em amarelo/laranja
+// Inspirado no Waze: fundo claro e quente, ruas brancas largas; as vias principais se destacam pela
+// largura e pelo contorno, sem amarelo (amarelo é cor da classificação de risco)
 const DAY: Palette = {
   background: '#eeebe5',
   residential: 'rgba(0, 0, 0, 0)',
@@ -58,10 +59,10 @@ const DAY: Palette = {
   boundary: '#a9a49b',
   aeroway: '#e6e3dc',
   roads: {
-    minor: { fill: '#ffffff', casing: '#cfc8bb' },
-    secondary: { fill: '#fff3c4', casing: '#e2c77a' },
-    primary: { fill: '#ffe17a', casing: '#d9ab3a' },
-    motorway: { fill: '#ffc247', casing: '#d48a1c' }
+    minor: { fill: '#ffffff', casing: '#d3cdc2' },
+    secondary: { fill: '#ffffff', casing: '#bfb8ab' },
+    primary: { fill: '#fbfaf7', casing: '#a69e90' },
+    motorway: { fill: '#e4e0d8', casing: '#8f887b' }
   },
   label: '#2e3238',
   areaLabel: '#7d838c',
@@ -90,8 +91,8 @@ const NIGHT: Palette = {
   roads: {
     minor: { fill: '#3a4656', casing: '#161d27' },
     secondary: { fill: '#4b586b', casing: '#161d27' },
-    primary: { fill: '#8a7646', casing: '#2a2414' },
-    motorway: { fill: '#b0843e', casing: '#33240f' }
+    primary: { fill: '#5f6d82', casing: '#1a212b' },
+    motorway: { fill: '#7a889c', casing: '#1f2732' }
   },
   label: '#d5dce6',
   areaLabel: '#7f8a99',

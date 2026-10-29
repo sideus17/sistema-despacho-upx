@@ -10,7 +10,7 @@ describe('ocorrências no mapa', () => {
     const areas = incidentAreas([
       incident({ id: 'tt', source: IncidentSource.TOMTOM, radius: 25, geometry: TRECHO }),
       incident({ id: 'eq' })
-    ]);
+    ], 'day');
     expect(areas.features.map(feature => feature.geometry.type)).toEqual(['LineString', 'Polygon']);
     expect(areas.features[0].geometry).toEqual(TRECHO);
   });

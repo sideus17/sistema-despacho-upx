@@ -116,9 +116,11 @@
   display: inline-block;
   padding: 1px 8px;
   border-radius: 999px;
-  color: white;
+  color: var(--effect-fg);
   font-size: 12px;
   font-weight: 700;
+  border: 1.5px var(--effect-line) var(--effect-edge);
+  background: var(--effect-bg);
 }
 
 .capitalize::first-letter {
