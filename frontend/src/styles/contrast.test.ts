@@ -34,9 +34,10 @@ function contrast(a: string, b: string): number {
 }
 
 const TEXT_PAIRS: Array<[string, string[]]> = [
-  ['--color-text', ['--color-surface', '--color-surface-muted', '--color-surface-hover', '--color-background']],
-  ['--color-text-soft', ['--color-surface', '--color-surface-muted', '--color-surface-hover']],
-  ['--color-text-muted', ['--color-surface', '--color-surface-muted']],
+  // --alarm-surface: o corpo do alarme do despacho (abaixo da faixa da cor)
+  ['--color-text', ['--color-surface', '--color-surface-muted', '--color-surface-hover', '--color-background', '--alarm-surface']],
+  ['--color-text-soft', ['--color-surface', '--color-surface-muted', '--color-surface-hover', '--alarm-surface']],
+  ['--color-text-muted', ['--color-surface', '--color-surface-muted', '--alarm-surface']],
   ['--color-primary-text', ['--color-surface', '--color-surface-muted']],
   ['--color-on-primary', ['--color-primary', '--color-primary-hover']],
   ['--color-on-action', ['--color-action']],

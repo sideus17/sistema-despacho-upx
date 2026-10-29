@@ -29,7 +29,8 @@ export default function DispatchAlert({ call, onAck }: DispatchAlertProps) {
     };
   }, []);
 
-  // A tela inteira na cor do chamado: é informação clínica, a única que pode ocupar tudo
+  // A cor do chamado numa faixa no topo, como a pulseira em tamanho grande: a tela inteira na cor cansa a
+  // vista e, à noite, ofusca a cabine. O resto segue o tema
   const meta = PRIORITY_META[call.priority];
   const RiskIcon = meta.icon;
   return (
@@ -40,9 +41,16 @@ export default function DispatchAlert({ call, onAck }: DispatchAlertProps) {
       aria-labelledby="novo-despacho despacho-cor"
       style={riskVars(call.priority)}
     >
+      <header className={styles.band}>
+        <RiskIcon />
+        <p id="despacho-cor" className={styles.priority}>
+          <span className={styles.colorName}>{meta.name}</span>
+          <span className={styles.srOnly}> · </span>
+          <span className={styles.colorLabel}>{meta.label}</span>
+        </p>
+      </header>
       <div className={styles.content}>
         <h1 id="novo-despacho" className={styles.title}>Novo despacho</h1>
-        <p id="despacho-cor" className={styles.priority}><RiskIcon /> {meta.name} · {meta.label}</p>
         <p className={styles.address}>{call.address}</p>
         {call.reference && <p className={styles.detail}>Referência: {call.reference}</p>}
         {call.triage?.signals.length ? <p className={styles.detail}>Sinais: {signalsText(call.triage.signals)}</p> : null}
