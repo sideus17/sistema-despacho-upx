@@ -104,10 +104,10 @@
   flex-direction: column;
   gap: 4px;
   padding: 10px 14px;
-  border: 1px solid var(--tint-yellow-border);
+  border: 1px solid var(--tint-neutral-border);
   border-radius: 10px;
-  background: var(--tint-yellow-bg);
-  color: var(--tint-yellow-text);
+  background: var(--tint-neutral-bg);
+  color: var(--tint-neutral-text);
   font-size: 13px;
 }
 
@@ -133,10 +133,10 @@
   justify-content: space-between;
   gap: 8px 12px;
   padding: 10px 14px;
-  border: 1px solid var(--tint-red-border);
+  border: 1px solid var(--tint-error-border);
   border-radius: 10px;
-  background: var(--tint-red-bg-strong);
-  color: var(--tint-red-text);
+  background: var(--tint-error-bg-strong);
+  color: var(--tint-error-text);
   font-size: 14px;
 }
 

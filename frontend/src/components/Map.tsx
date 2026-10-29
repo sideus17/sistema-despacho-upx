@@ -21,11 +21,11 @@ import { MAP_BACKGROUND, ROUTE_COLORS } from '../map/mapStyle';
 import { useTheme } from '../theme/theme';
 import { RouteLayer } from '../map/RouteLayer';
 import { boundsOf, toLngLat } from '../map/geojson';
-import { AMBULANCE_COLOR, AmbulanceMarker, BaseMarker, CallMarker, HospitalMarker, IncidentMarker } from '../map/Markers';
+import { AmbulanceMarker, BaseMarker, CallMarker, HospitalMarker, IncidentMarker } from '../map/Markers';
 import { IncidentLayer } from '../map/IncidentLayer';
 import { TrafficLayer } from '../map/TrafficLayer';
 import { TRAFFIC_COLORS } from '../map/traffic';
-import { EFFECT_META, expiryLabel, incidentTypeLabel, sourceLabel } from '../map/incidents';
+import { EFFECT_META, effectVars, expiryLabel, incidentTypeLabel, sourceLabel } from '../map/incidents';
 import { CALL_STATUS_LABEL, PRIORITIES_BY_SEVERITY, PRIORITY_META, STAGE_META, callStage, elapsedLabel, timeline } from '../utils/calls';
 import { AMBULANCE_STATUS_LABEL } from '../utils/ambulances';
 import { HOSPITAL_KIND_LABEL } from '../utils/hospitals';
@@ -154,9 +154,7 @@ export default function Map({
             <p><strong>Tipo:</strong> {ambulance.type}</p>
             <p>
               <strong>Status:</strong>{' '}
-              <span style={{ color: AMBULANCE_COLOR[ambulance.status] }}>
-                {AMBULANCE_STATUS_LABEL[ambulance.status] ?? ambulance.status}
-              </span>
+              {AMBULANCE_STATUS_LABEL[ambulance.status] ?? ambulance.status}
             </p>
             <p className={styles.popupDriver}>
               <strong>Motorista:</strong>
@@ -254,7 +252,7 @@ export default function Map({
         <>
           <h3>{incidentTypeLabel(incident.type)}</h3>
           <p>
-            <span className={styles.effectPill} style={{ background: effect.color }}>{effect.label}</span> {effect.hint}
+            <span className={styles.effectPill} style={effectVars(incident.effect)}>{effect.label}</span> {effect.hint}
           </p>
           <p><strong>Fonte:</strong> {sourceLabel(incident)} · {getTimeAgo(incident.createdAt)}</p>
           <p className={styles.capitalize}>{expiryLabel(incident)}</p>
@@ -412,7 +410,7 @@ export default function Map({
             <li><span className={styles.legendIcon}><BaseMarker /></span> Base</li>
             {hospitals.length > 0 && <li><span className={styles.legendIcon}><HospitalMarker /></span> Hospital</li>}
             <li><span className={styles.legendIcon}><IncidentMarker type={IncidentType.VIA_BLOQUEADA} effect={IncidentEffect.BLOQUEIO} /></span> Bloqueio (rota desvia)</li>
-            <li><span className={styles.legendIcon}><IncidentMarker type={IncidentType.ALAGAMENTO} effect={IncidentEffect.RISCO} /></span> Risco na via</li>
+            <li><span className={styles.legendIcon}><IncidentMarker type={IncidentType.ALAGAMENTO} effect={IncidentEffect.RISCO} /></span> Atenção na via</li>
             <li>
               <span className={styles.legendIcon}>
                 <span className={styles.legendTraffic}>

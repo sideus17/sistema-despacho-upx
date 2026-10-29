@@ -15,19 +15,19 @@
 }
 
 .detour {
-  border-color: var(--tint-green-border);
-  background: var(--tint-green-bg);
-  color: var(--tint-green-text);
+  border-color: var(--tint-neutral-border);
+  background: var(--tint-neutral-bg);
+  color: var(--tint-neutral-text);
 }
 
 .warning {
-  border-color: var(--tint-yellow-border);
-  background: var(--tint-yellow-bg);
-  color: var(--tint-yellow-text);
+  border-color: var(--tint-neutral-border);
+  background: var(--tint-neutral-bg);
+  color: var(--tint-neutral-text);
 }
 
 .notice {
-  border-color: var(--tint-violet-border);
-  background: var(--tint-violet-bg);
-  color: var(--tint-violet-text);
+  border-color: var(--tint-neutral-border);
+  background: var(--tint-neutral-bg);
+  color: var(--tint-neutral-text);
 }

@@ -89,7 +89,7 @@
 }
 
 .error {
-  color: var(--tint-red-text);
+  color: var(--tint-error-text);
   font-size: 13px;
 }
 

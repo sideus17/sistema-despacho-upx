@@ -8,7 +8,7 @@
   overflow: hidden;
   padding: 14px 14px 18px;
   border-radius: 16px;
-  background: white;
+  background: var(--color-surface);
   color: var(--color-text);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
 }
@@ -27,8 +27,8 @@
   height: 44px;
   place-items: center;
   border-radius: 50%;
-  background: #f59e0b;
-  color: white;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
   font-size: 24px;
 }
 
@@ -62,8 +62,8 @@
   min-height: 72px;
   border: none;
   border-radius: 14px;
-  background: var(--color-surface-inverse);
-  color: white;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
   font-size: 20px;
   font-weight: 800;
   cursor: pointer;
@@ -80,7 +80,7 @@
   bottom: 0;
   height: 5px;
   width: 100%;
-  background: #f59e0b;
+  background: var(--color-text);
   transform-origin: left;
   animation: countdown linear forwards;
 }
@@ -94,11 +94,3 @@
   }
 }
 
-:global([data-theme='night']) .prompt {
-  background: #1f2937;
-  color: #e5e7eb;
-}
-
-:global([data-theme='night']) .source {
-  color: #9ca3af;
-}

@@ -34,7 +34,7 @@ export default defineConfig({
         display: 'standalone',
         // O motorista usa o celular em pé ou deitado no painel: as duas telas existem
         orientation: 'any',
-        theme_color: '#2563eb',
+        theme_color: '#111827',
         background_color: '#ffffff'
       },
       workbox: {

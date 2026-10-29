@@ -68,6 +68,8 @@
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .summary {
@@ -115,10 +117,10 @@
   justify-content: space-between;
   gap: 8px 12px;
   padding: 10px 14px;
-  border: 1px solid var(--tint-red-border);
+  border: 1px solid var(--tint-error-border);
   border-radius: 10px;
-  background: var(--tint-red-bg-strong);
-  color: var(--tint-red-text);
+  background: var(--tint-error-bg-strong);
+  color: var(--tint-error-text);
   font-size: 14px;
 }
 
@@ -190,7 +192,7 @@
 }
 
 .selectedRow {
-  background: var(--tint-blue-bg);
+  background: var(--tint-neutral-bg);
 }
 
 .number {
@@ -246,8 +248,8 @@
   display: inline-block;
   padding: 0 8px;
   border-radius: 999px;
-  background: var(--tint-violet-bg);
-  color: var(--tint-violet-text);
+  background: var(--tint-neutral-bg);
+  color: var(--tint-neutral-text);
   font-size: 11px;
   font-weight: 700;
   line-height: 1.6;

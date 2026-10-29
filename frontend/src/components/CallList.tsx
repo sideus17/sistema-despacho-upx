@@ -10,6 +10,7 @@ import {
   formatGender,
   formatWait,
   needsOutcome,
+  riskVars,
   queueOf,
   sortCallsByPriority,
   timeline,
@@ -23,7 +24,7 @@ import { PriorityLabel } from '../ui/PriorityLabel';
 import { OutcomeChoice } from '../ui/OutcomeChoice';
 import { signalsText } from '../utils/triage';
 import { formatPhone } from '../utils/documents';
-import { AmbulanceIcon, BellIcon, BellOffIcon, CallIcon, CheckCircleIcon, LocationIcon, PersonIcon, TimerIcon } from '../ui/icons';
+import { AmbulanceIcon, BellIcon, BellOffIcon, CallIcon, CheckCircleIcon, LocationIcon, PersonIcon, TimerIcon, WarningIcon } from '../ui/icons';
 import styles from './CallList.module.css';
 
 interface CallListProps {
@@ -145,10 +146,9 @@ export default function CallList({
                   aria-label={`Chamado ${meta ? `${meta.name} · ${meta.label}` : call.priority} em ${call.address}`}
                   className={[
                     styles.card,
-                    isActive ? styles.cardActive : '',
                     selectedCallId === call.id ? styles.cardSelected : ''
                   ].join(' ')}
-                  style={{ '--priority-color': meta?.color } as React.CSSProperties}
+                  style={riskVars(call.priority)}
                   onClick={() => onFocus(call)}
                   onKeyDown={(e) => {
                     if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
@@ -164,7 +164,7 @@ export default function CallList({
                     </span>
                     {stage && stageMeta ? (
                       // Em atendimento: etapa marcada pelo GPS da viatura e há quanto tempo
-                      <span className={`${styles.stage} ${styles[`stage_${stageMeta.tint}`]}`}>
+                      <span className={styles.stage}>
                         {stageMeta.label}{stage.stage === 'TRANSPORTANDO' && hospital ? ` → ${hospital.shortName}` : ''} · {elapsedLabel(stage.since, now)}
                       </span>
                     ) : (
@@ -185,7 +185,7 @@ export default function CallList({
                       {ack.seen
                         ? `Equipe ciente às ${formatClock(ack.at)}`
                         : ack.late
-                          ? 'Equipe ainda não confirmou: ligue para a viatura'
+                          ? <><WarningIcon /> Equipe ainda não confirmou: ligue para a viatura</>
                           : 'Aguardando a equipe confirmar'}
                     </p>
                   )}
@@ -257,7 +257,7 @@ export default function CallList({
                         ) : isConfirming ? (
                           <div className={styles.confirmRow}>
                             <button
-                              className={styles.success}
+                              className={styles.primary}
                               disabled={finishingId === call.id}
                               onClick={() => handleFinish(call)}
                             >
@@ -268,7 +268,7 @@ export default function CallList({
                             </button>
                           </div>
                         ) : (
-                          <button className={styles.secondary} onClick={() => setConfirmingFinishId(call.id)}>
+                          <button className={styles.ghost} onClick={() => setConfirmingFinishId(call.id)}>
                             Finalizar atendimento
                           </button>
                         )}

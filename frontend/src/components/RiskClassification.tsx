@@ -1,6 +1,6 @@
-import { CSSProperties, ReactNode } from 'react';
+import { ReactNode } from 'react';
 import { CallPriority } from '../types';
-import { PRIORITIES_BY_SEVERITY, PRIORITY_META } from '../utils/calls';
+import { PRIORITIES_BY_SEVERITY, PRIORITY_META, riskVars } from '../utils/calls';
 import { TRIAGE_SIGNALS } from '../utils/triage';
 import styles from './RiskClassification.module.css';
 
@@ -19,9 +19,6 @@ interface RiskClassificationProps {
 const SIGNAL_GROUPS = PRIORITIES_BY_SEVERITY
   .map(priority => ({ priority, signals: TRIAGE_SIGNALS.filter(signal => signal.priority === priority) }))
   .filter(group => group.signals.length > 0);
-
-const riskStyle = (priority: CallPriority) =>
-  ({ '--risk-color': PRIORITY_META[priority].color, '--risk-on-color': PRIORITY_META[priority].onColor }) as CSSProperties;
 
 // Classificação de risco em 4 cores: sinais de alerta, a cor que eles sugerem e a escolhida
 export default function RiskClassification({
@@ -53,7 +50,7 @@ export default function RiskClassification({
       )}
 
       {groups.map(group => (
-        <div key={group.priority} className={styles.signalGroup} style={riskStyle(group.priority)}>
+        <div key={group.priority} className={styles.signalGroup} style={riskVars(group.priority)}>
           <span className={styles.groupName}>{PRIORITY_META[group.priority].name}</span>
           <div className={styles.chips}>
             {group.signals.map(signal =>
@@ -89,7 +86,7 @@ export default function RiskClassification({
               role="radio"
               aria-checked={value === option}
               className={styles.color}
-              style={riskStyle(option)}
+              style={riskVars(option)}
               onClick={() => onChange(option)}
             >
               <strong>{meta.name}</strong>

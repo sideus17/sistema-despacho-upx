@@ -1,7 +1,7 @@
-import { CSSProperties, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { CallPriority, CallStatus, CloseReason, EmergencyCall, Hospital, RegulationDecision, RegulationRequest } from '../types';
 import { getErrorMessage, regulateCall } from '../services/api';
-import { CALL_STATUS_LABEL, CLOSE_REASON_LABEL, PRIORITY_META, formatGender, formatWait, queueOf, waitLevel, waitingSince } from '../utils/calls';
+import { CALL_STATUS_LABEL, CLOSE_REASON_LABEL, PRIORITY_META, formatGender, formatWait, queueOf, riskVars, waitLevel, waitingSince } from '../utils/calls';
 import { formatKm, hospitalsByDistance } from '../utils/hospitals';
 import { formatPhone } from '../utils/documents';
 import { useNow } from '../hooks/useNow';
@@ -53,7 +53,6 @@ function RegulationForm({ call, hospitals, onDone, onBack }: RegulationPanelProp
   const queue = queueOf(call);
   const changedElsewhere = call.status !== openedStatus;
   const regulated = openedStatus === CallStatus.PENDENTE;
-  const meta = PRIORITY_META[priority];
   const waited = now - Date.parse(waitingSince(call));
   const gender = formatGender(call.patientInfo.gender);
 
@@ -90,7 +89,7 @@ function RegulationForm({ call, hospitals, onDone, onBack }: RegulationPanelProp
       <button className={styles.back} onClick={onBack}><BackIcon /> Voltar aos chamados</button>
       <h2 ref={titleRef} tabIndex={-1} className={styles.title}>{regulated ? 'Reclassificar chamado' : 'Regulação'}</h2>
 
-      <section className={styles.summary} style={{ '--priority-color': meta.color } as CSSProperties}>
+      <section className={styles.summary} style={riskVars(priority)}>
         <div className={styles.summaryHeader}>
           <PriorityLabel priority={call.priority} />
           <span

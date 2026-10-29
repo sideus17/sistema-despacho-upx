@@ -2,12 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 import { DispatchRecommendation, Ambulance, AmbulanceStatus, EmergencyCall } from '../types';
 import { formatDistance, formatDuration, getTimeAgo } from '../services/api';
 import { trafficNote } from '../utils/routes';
-import { PRIORITY_META, waitingSince } from '../utils/calls';
+import { riskVars, waitingSince } from '../utils/calls';
 import { PriorityLabel } from '../ui/PriorityLabel';
 import { AmbulanceTypeIcon } from '../ui/AmbulanceTypeIcon';
 import RouteNotes from './RouteNotes';
 import { BackIcon, DistanceIcon, LocationIcon, StarIcon, TimerIcon } from '../ui/icons';
 import { Avatar } from '../ui/Avatar';
+import { Spinner } from '../ui/Spinner';
 import styles from './DispatchAnalysis.module.css';
 
 interface DispatchAnalysisProps {
@@ -55,7 +56,6 @@ export default function DispatchAnalysis({
     );
   }
 
-  const meta = PRIORITY_META[call.priority];
   // Espera pela viatura: desde a regulação (chamado de antes da regulação: desde a abertura)
   const timeAgo = getTimeAgo(waitingSince(call));
   const waiting = timeAgo === 'agora' ? 'aberto agora' : `aguardando ${timeAgo}`;
@@ -75,7 +75,7 @@ export default function DispatchAnalysis({
       <button className={styles.back} onClick={onBack}><BackIcon /> Voltar aos chamados</button>
       <h2 ref={titleRef} tabIndex={-1} className={styles.title}>Despacho</h2>
 
-      <section className={styles.callContext} style={{ '--priority-color': meta?.color } as React.CSSProperties}>
+      <section className={styles.callContext} style={riskVars(call.priority)}>
         <div className={styles.callContextHeader}>
           <span className={styles.priority}><PriorityLabel priority={call.priority} /></span>
           <span className={styles.waiting}>{waiting}</span>
@@ -87,7 +87,7 @@ export default function DispatchAnalysis({
 
       {loading && (
         <div className={styles.loading}>
-          <div className={styles.spinner} />
+          <Spinner className={styles.spinner} label="Analisando" />
           <p>Analisando opções de despacho…</p>
         </div>
       )}

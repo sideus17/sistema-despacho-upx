@@ -1,7 +1,7 @@
-import { CSSProperties, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Incident, IncidentSource, OfficialSourceStatus } from '../types';
 import { getOfficialStatus, getTimeAgo } from '../services/api';
-import { EFFECT_META, expiryLabel, incidentTypeLabel, sortIncidents, sourceLabel } from '../map/incidents';
+import { EFFECT_META, effectVars, expiryLabel, incidentTypeLabel, sortIncidents, sourceLabel } from '../map/incidents';
 import { IncidentIcon } from '../ui/IncidentIcon';
 import { CheckCircleIcon, LocationIcon, OfficialAlertIcon } from '../ui/icons';
 import styles from './Incidents.module.css';
@@ -59,7 +59,7 @@ function IncidentItem({ incident, onFocus }: { incident: Incident; onFocus: (inc
   const showRadius = incident.radius > 0 && incident.source !== IncidentSource.TOMTOM;
 
   return (
-    <li className={styles.item} style={{ '--effect-color': meta.color } as CSSProperties}>
+    <li className={styles.item} style={effectVars(incident.effect)}>
       <div className={styles.itemHeader}>
         <span className={styles.itemIcon}><IncidentIcon type={incident.type} /></span>
         <div className={styles.itemTitle}>

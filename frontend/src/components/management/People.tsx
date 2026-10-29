@@ -6,6 +6,7 @@ import { formatCount, formatMinutes, plural } from './format';
 import { useLoad } from './useLoad';
 import indicatorStyles from './Indicators.module.css';
 import chartStyles from './charts.module.css';
+import { Spinner } from '../../ui/Spinner';
 import styles from './People.module.css';
 
 // Por pessoa: o que cada atendente registrou, regulou e despachou, e os atendimentos de cada motorista
@@ -14,7 +15,7 @@ export default function People({ scope }: { scope: ManagementScope }) {
   const { data, error, loading, retry } = useLoad(signal => getPeople(scope, signal), JSON.stringify(scope));
 
   if (!data) {
-    return error ? <Failure message={error} onRetry={retry} /> : <div className="loading"><div className="spinner" /></div>;
+    return error ? <Failure message={error} onRetry={retry} /> : <div className="loading"><Spinner size={40} /></div>;
   }
 
   const empty = data.attendants.length === 0 && data.drivers.length === 0;

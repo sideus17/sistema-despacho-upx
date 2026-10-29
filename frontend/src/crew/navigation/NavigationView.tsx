@@ -25,6 +25,7 @@ import { CallMarker, HospitalMarker } from '../../map/Markers';
 import {
   DASHED_OUTLINE_FILTER,
   EFFECT_META,
+  effectVars,
   INCIDENT_FILL,
   INCIDENT_LINE,
   INCIDENT_LINE_LAYOUT,
@@ -223,7 +224,7 @@ export default function NavigationView({
         ...next,
         sources: {
           ...next.sources,
-          incidents: { type: 'geojson', data: incidentAreas(incidentsRef.current) },
+          incidents: { type: 'geojson', data: incidentAreas(incidentsRef.current, theme) },
           route: { type: 'geojson', data: lineFeature(routeLineRef.current) }
         },
         layers: [...next.layers, ...INCIDENT_LAYERS, ...routeLayers(theme)]
@@ -238,8 +239,8 @@ export default function NavigationView({
 
   // Ocorrências novas ou encerradas aparecem sem recarregar o estilo
   useEffect(() => {
-    (mapRef.current?.getSource('incidents') as GeoJSONSource | undefined)?.setData(incidentAreas(incidents));
-  }, [incidents]);
+    (mapRef.current?.getSource('incidents') as GeoJSONSource | undefined)?.setData(incidentAreas(incidents, theme));
+  }, [incidents, theme]);
 
   // A cada leitura: move o carro, apaga o trecho percorrido e gira o mapa na direção do movimento
   useEffect(() => {
@@ -427,7 +428,7 @@ export default function NavigationView({
         ) : alerts.alert ? (
           <div
             className={styles.incidentAlert}
-            style={{ '--alert-color': EFFECT_META[alerts.alert.incident.effect].color } as React.CSSProperties}
+            style={effectVars(alerts.alert.incident.effect)}
             role="status"
           >
             <span className={styles.incidentAlertIcon}><IncidentIcon type={alerts.alert.incident.type} /></span>

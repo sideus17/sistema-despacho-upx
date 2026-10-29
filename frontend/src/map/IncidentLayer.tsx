@@ -13,6 +13,7 @@ import {
   incidentAreas
 } from './incidents';
 import { IncidentMarker } from './Markers';
+import { useTheme } from '../theme/theme';
 
 interface IncidentLayerProps {
   incidents: Incident[];
@@ -23,7 +24,8 @@ interface IncidentLayerProps {
 
 // Áreas e marcadores das ocorrências; a mesma camada na central e no app da equipe
 export function IncidentLayer({ incidents, beforeId, onSelect }: IncidentLayerProps) {
-  const areas = useMemo(() => incidentAreas(incidents), [incidents]);
+  const { theme } = useTheme();
+  const areas = useMemo(() => incidentAreas(incidents, theme), [incidents, theme]);
 
   return (
     <>

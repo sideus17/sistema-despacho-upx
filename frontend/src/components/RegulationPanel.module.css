@@ -30,22 +30,22 @@
 
 .notice {
   padding: 12px 14px;
-  border: 1px solid var(--tint-yellow-border);
+  border: 1px solid var(--tint-neutral-border);
   border-radius: 10px;
-  background: var(--tint-yellow-bg);
-  color: var(--tint-yellow-text);
+  background: var(--tint-neutral-bg);
+  color: var(--tint-neutral-text);
   font-size: 14px;
   line-height: 1.5;
 }
 
-/* Resumo do chamado, com a borda na cor escolhida */
+/* Resumo do chamado, com a pulseira na cor escolhida */
 .summary {
   display: flex;
   flex-direction: column;
   gap: 4px;
   padding: 14px 16px;
   border: 1px solid var(--color-border);
-  border-left: 4px solid var(--priority-color);
+  border-left: var(--pulseira-width) solid var(--risk-edge);
   border-radius: var(--radius);
   background: var(--color-surface);
 }
@@ -95,7 +95,8 @@
 .patient a {
   color: var(--color-primary-text);
   font-weight: 600;
-  text-decoration: none;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .wait {
@@ -111,16 +112,18 @@
   font-weight: 700;
 }
 
+/* Espera longa: atenção em negrito com contorno; crítica invertida (sem as cores da classificação) */
 .wait_atencao {
-  border-color: var(--tint-yellow-border);
-  background: var(--tint-yellow-bg);
-  color: var(--tint-yellow-text);
+  border-color: var(--color-text-soft);
+  color: var(--color-text);
+  font-weight: 800;
 }
 
 .wait_critico {
-  border-color: var(--color-danger);
-  background: var(--color-danger);
-  color: white;
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font-weight: 800;
 }
 
 .field {
@@ -183,7 +186,7 @@
 
 .primary {
   background: var(--color-primary);
-  color: white;
+  color: var(--color-on-primary);
 }
 
 .secondary {
@@ -192,9 +195,11 @@
   color: var(--color-text);
 }
 
+/* Ação que encerra o chamado: contorno com texto de erro, sem fundo vermelho */
 .danger {
-  background: var(--color-danger);
-  color: white;
+  border: 1px solid currentColor;
+  background: var(--color-surface);
+  color: var(--color-danger-text);
 }
 
 .ghost {

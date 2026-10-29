@@ -209,7 +209,7 @@ http://localhost:5173
 ```
 
 **Você deve ver:**
-- ✅ Cabeçalho azul com título "SAMU - Sistema de Despacho Inteligente"
+- ✅ Cabeçalho escuro com o nome "SAMU Despacho"
 - ✅ Estatísticas no canto superior direito
 - ✅ Mapa de Sorocaba carregado
 - ✅ 4 marcadores de ambulâncias (🚑)

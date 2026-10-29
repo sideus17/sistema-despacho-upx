@@ -34,19 +34,10 @@
   font-weight: 700;
 }
 
-.spinner {
-  width: 40px;
-  height: 40px;
-  border: 4px solid var(--color-border);
-  border-top-color: var(--color-primary);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
 .offline {
   padding: 8px 16px;
-  background: var(--tint-red-bg-strong);
-  color: var(--tint-red-text);
+  background: var(--tint-error-bg-strong);
+  color: var(--tint-error-text);
   font-size: 13px;
   font-weight: 600;
   text-align: center;
@@ -59,7 +50,7 @@
   align-items: center;
   gap: 12px;
   padding: calc(env(safe-area-inset-top) + 12px) 16px 12px;
-  background: linear-gradient(135deg, var(--color-header-from) 0%, var(--color-header-to) 100%);
+  background: var(--color-header);
   color: white;
 }
 
@@ -75,12 +66,14 @@
   opacity: 0.85;
 }
 
-/* Status */
+/* Status da viatura pela forma, como no mapa: livre com contorno, em atendimento preenchida,
+   indisponível com contorno tracejado */
 .pill {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 3px 10px;
+  padding: 2px 9px;
+  border: 1.5px solid transparent;
   border-radius: 999px;
   font-size: 12px;
   font-weight: 700;
@@ -95,19 +88,42 @@
 }
 
 .pill_DISPONIVEL {
-  background: var(--tint-green-bg-strong);
-  color: var(--tint-green-text);
+  background: var(--color-surface);
+  color: var(--color-text);
+  border-color: var(--color-primary);
 }
 
 .pill_EM_ATENDIMENTO {
-  background: var(--tint-orange-bg-strong);
-  color: var(--tint-orange-text);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  border-color: var(--color-primary);
 }
 
 .pill_INDISPONIVEL {
-  background: var(--color-border);
+  background: var(--color-surface-hover);
   color: var(--color-text-soft);
+  border: 1.5px dashed var(--color-text-muted);
 }
+
+/* No topo escuro, o mesmo código em claro: contorno, preenchida e tracejado */
+.header .pill_DISPONIVEL {
+  border-color: white;
+  background: transparent;
+  color: white;
+}
+
+.header .pill_EM_ATENDIMENTO {
+  border-color: white;
+  background: white;
+  color: #111827;
+}
+
+.header .pill_INDISPONIVEL {
+  border-color: rgba(255, 255, 255, 0.7);
+  background: transparent;
+  color: white;
+}
+
 
 /* Escolha da viatura */
 .picker {
@@ -176,14 +192,13 @@
 
 .callCard {
   padding: 16px;
-  border-left: 6px solid var(--priority-color);
+  border-left: var(--pulseira-width) solid var(--risk-edge);
   border-radius: var(--radius);
   background: var(--color-surface);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 .priority {
-  color: var(--priority-color);
   font-size: 14px;
   font-weight: 800;
   text-transform: uppercase;
@@ -237,17 +252,13 @@
 .stage {
   align-self: flex-start;
   padding: 3px 10px;
-  border: 1px solid transparent;
+  border: 1px solid var(--tint-neutral-border);
   border-radius: 999px;
+  background: var(--tint-neutral-bg);
+  color: var(--tint-neutral-text);
   font-size: 14px;
   font-weight: 800;
 }
-
-.stage_blue { border-color: var(--tint-blue-border); background: var(--tint-blue-bg); color: var(--tint-blue-text); }
-.stage_sky { border-color: var(--tint-sky-border); background: var(--tint-sky-bg); color: var(--tint-sky-text); }
-.stage_orange { border-color: var(--tint-orange-border); background: var(--tint-orange-bg); color: var(--tint-orange-text); }
-.stage_violet { border-color: var(--tint-violet-border); background: var(--tint-violet-bg); color: var(--tint-violet-text); }
-.stage_green { border-color: var(--tint-green-border); background: var(--tint-green-bg); color: var(--tint-green-text); }
 
 .timeline {
   color: var(--color-text-muted);
@@ -266,10 +277,10 @@
 .hospitalButton {
   min-height: var(--touch-target);
   padding: 0 16px;
-  border: 1px solid #1d4ed8;
+  border: 1px solid var(--color-primary);
   border-radius: 999px;
-  background: var(--tint-blue-bg);
-  color: var(--tint-blue-text);
+  background: var(--color-surface);
+  color: var(--color-text);
   font: inherit;
   font-size: 14px;
   font-weight: 800;
@@ -298,8 +309,8 @@
   padding: 0 16px;
   border: none;
   border-radius: 999px;
-  background: #ea580c;
-  color: white;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
   font-size: 15px;
   font-weight: 800;
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
@@ -350,16 +361,16 @@
 .routeChoice em {
   padding: 2px 8px;
   border-radius: 999px;
-  background: var(--tint-green-bg);
-  color: var(--tint-green-text);
+  background: var(--tint-neutral-bg);
+  color: var(--tint-neutral-text);
   font-size: 12px;
   font-style: normal;
   font-weight: 700;
 }
 
 .routeChoiceSelected {
-  border-color: #1d8cf8;
-  box-shadow: inset 4px 0 0 #1d8cf8;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 1px var(--color-primary);
 }
 
 .idle {
@@ -388,8 +399,8 @@
   padding: 0 16px;
   border: none;
   border-radius: 12px;
-  background: var(--color-surface-inverse);
-  color: white;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
   font-size: 16px;
   font-weight: 700;
   cursor: pointer;
@@ -397,9 +408,10 @@
 
 .pushBlocked {
   margin-top: 12px;
-  color: var(--color-warning-text);
+  color: var(--color-text);
   font-size: 14px;
   line-height: 1.4;
+  font-weight: 700;
 }
 
 /* Barra de ações fixa na zona do polegar */
@@ -439,7 +451,7 @@
 .navigate {
   flex: 1;
   background: var(--color-primary);
-  color: white;
+  color: var(--color-on-primary);
   white-space: nowrap;
 }
 
@@ -451,8 +463,8 @@
 /* O Waze divide a linha com a navegação: compacto, pode quebrar em duas linhas */
 .mapsLink {
   padding: 0 10px;
-  background: var(--tint-sky-bg-strong);
-  color: var(--tint-sky-text);
+  background: var(--tint-neutral-bg-strong);
+  color: var(--tint-neutral-text);
   font-size: 14px;
   line-height: 1.15;
   text-align: center;
@@ -477,8 +489,8 @@
 .finish,
 .finishConfirm {
   width: 100%;
-  background: var(--color-success);
-  color: white;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
 }
 
 .finishConfirm {
@@ -506,8 +518,8 @@
   align-items: center;
   gap: 10px;
   padding: 10px 12px 10px 16px;
-  background: var(--tint-blue-bg);
-  color: var(--tint-blue-text);
+  background: var(--tint-neutral-bg);
+  color: var(--tint-neutral-text);
   font-size: 13px;
   line-height: 1.4;
 }
@@ -522,7 +534,7 @@
   border: none;
   border-radius: 8px;
   background: var(--color-primary);
-  color: white;
+  color: var(--color-on-primary);
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
@@ -565,7 +577,7 @@
 .typeChipActive {
   border-color: var(--color-primary);
   background: var(--color-primary);
-  color: white;
+  color: var(--color-on-primary);
 }
 
 .pickerItem:disabled {

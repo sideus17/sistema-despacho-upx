@@ -50,15 +50,16 @@ textarea.input {
   padding: 12px;
   border: none;
   border-radius: 8px;
-  background-color: var(--color-danger);
-  color: white;
+  background-color: var(--color-primary);
+  color: var(--color-on-primary);
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
 }
 
 .submit:disabled {
-  background-color: #9ca3af;
+  background-color: var(--color-border-strong);
+  color: var(--color-text-muted);
   cursor: not-allowed;
 }
 
@@ -88,11 +89,11 @@ textarea.input {
 
 .placeHint svg {
   flex-shrink: 0;
-  color: var(--color-danger);
+  color: var(--color-text);
 }
 
 .placeApproximate {
-  color: var(--tint-yellow-text);
+  color: var(--tint-neutral-text);
   font-weight: 600;
 }
 
@@ -107,25 +108,25 @@ textarea.input {
 
 .fieldError {
   margin: 6px 0 0;
-  color: var(--color-danger);
+  color: var(--color-danger-text);
   font-size: 12px;
   font-weight: 600;
 }
 
 .input[aria-invalid='true'] {
-  border-color: var(--color-danger);
+  border-color: var(--color-danger-text);
 }
 
-/* Possível chamado repetido: aviso amarelo com cada chamado parecido */
+/* Possível chamado repetido: aviso com cada chamado parecido */
 .repeat {
   display: flex;
   flex-direction: column;
   gap: 8px;
   padding: 10px 12px;
-  border: 1px solid var(--tint-yellow-border);
+  border: 1px solid var(--tint-neutral-border);
   border-radius: 10px;
-  background: var(--tint-yellow-bg);
-  color: var(--tint-yellow-text);
+  background: var(--tint-neutral-bg);
+  color: var(--tint-neutral-text);
   font-size: 13px;
 }
 

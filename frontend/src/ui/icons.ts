@@ -16,6 +16,7 @@ export { default as PersonIcon } from '~icons/material-symbols/person-rounded';
 export { default as CallIcon } from '~icons/material-symbols/call-rounded';
 export { default as AddIcon } from '~icons/material-symbols/add-rounded';
 export { default as WarningIcon } from '~icons/material-symbols/warning-rounded';
+export { default as ErrorIcon } from '~icons/material-symbols/error-rounded';
 export { default as BackIcon } from '~icons/material-symbols/arrow-back-rounded';
 export { default as CloseIcon } from '~icons/material-symbols/close-rounded';
 

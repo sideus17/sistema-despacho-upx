@@ -38,6 +38,7 @@ import {
 } from './services/api';
 import { AddIcon, AmbulanceIcon, BackIcon, CallIcon, ManagementIcon, WarningIcon } from './ui/icons';
 import { AccountMenu } from './components/AccountMenu';
+import { Spinner } from './ui/Spinner';
 
 // O mapa (MapLibre) é o maior pacote do app: carrega à parte, sem atrasar a primeira tela
 const Map = lazy(() => import('./components/Map'));
@@ -350,7 +351,7 @@ function App() {
       )}
 
       {view === 'gestao' && (
-        <Suspense fallback={<div className="loading"><div className="spinner" /></div>}>
+        <Suspense fallback={<div className="loading"><Spinner size={40} /></div>}>
           <ManagementPage ambulances={ambulances} hospitals={hospitals} bases={bases} />
         </Suspense>
       )}

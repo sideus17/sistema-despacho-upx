@@ -13,9 +13,11 @@ export const TRAFFIC_REFRESH_MS = 2 * 60_000;
 
 // traffic_level = velocidade atual ÷ velocidade livre; a via livre não é desenhada
 const FREE_FLOW = 0.75;
+// Rampa magenta, fora das 4 cores da classificação: de dia, do lento claro ao parado escuro; à noite,
+// menos saturada e com o parado mais claro (o que aparece sobre o mapa escuro)
 export const TRAFFIC_COLORS: Record<MapTheme, { slow: string; heavy: string; stopped: string }> = {
-  day: { slow: '#f5b800', heavy: '#f97316', stopped: '#b91c1c' },
-  night: { slow: '#facc15', heavy: '#fb923c', stopped: '#ef4444' }
+  day: { slow: '#e879f9', heavy: '#c026d3', stopped: '#86198f' },
+  night: { slow: '#a77fb3', heavy: '#c86bd6', stopped: '#eeb0f7' }
 };
 
 export function trafficSource(version: number): VectorSourceSpecification {
