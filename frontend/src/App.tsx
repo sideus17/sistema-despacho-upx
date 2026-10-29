@@ -263,6 +263,9 @@ function App() {
         const current = cards.indexOf(document.activeElement as HTMLElement);
         const next = current === -1 ? 0 : Math.min(cards.length - 1, Math.max(0, current + (key === 'j' ? 1 : -1)));
         cards[next].focus();
+        // E seleciona: o mapa vai até o chamado, como no clique
+        const call = calls.find(item => item.id === cards[next].closest<HTMLElement>('[data-call-id]')?.dataset.callId);
+        if (call) handleFocusCall(call);
         return;
       }
       if (key === 'r' || key === 'd') {
@@ -276,12 +279,15 @@ function App() {
         } else if (queue === 'despacho') {
           event.preventDefault();
           handleAnalyze(call);
+        } else {
+          // Ainda sem cor final: não há o que despachar
+          toast('Regule primeiro (R)', 'info');
         }
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [view, activeTab, calls]);
+  }, [view, activeTab, calls, recommendation]);
 
   // Rota da opção selecionada: o servidor já traz a das livres; calcula aqui só se faltar (motor fora do ar)
   const handleSelectRoute = async (index: number) => {
@@ -445,9 +451,11 @@ function App() {
               return (
                 <button
                   key={tab}
+                  id={`aba-${tab}`}
                   type="button"
                   role="tab"
                   aria-selected={selected}
+                  aria-controls="painel-central"
                   {...(tab === 'new-call' && { title: 'Novo chamado (N)', 'aria-keyshortcuts': 'N' })}
                   className={`tab ${selected ? 'active' : ''}`}
                   onClick={() => setActiveTab(tab)}
@@ -460,7 +468,12 @@ function App() {
           </div>
 
           {/* Tab Content */}
-          <div className="tab-content">
+          <div
+            className="tab-content"
+            id="painel-central"
+            role="tabpanel"
+            aria-labelledby={`aba-${['regulation', 'analysis'].includes(activeTab) ? 'calls' : activeTab}`}
+          >
             {activeTab === 'calls' && (
               <CallList
                 calls={calls}

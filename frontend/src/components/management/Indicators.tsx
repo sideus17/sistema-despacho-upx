@@ -64,7 +64,14 @@ export default function Indicators({ scope, ambulances, hospitals }: {
           {!scope.demo && <span>Ligue "Incluir demonstração" para ver o histórico de exemplo.</span>}
         </div>
       ) : (
-        <IndicatorView data={data} ambulances={ambulances} hospitals={hospitals} />
+        <>
+          {scope.demo && (
+            <div className={styles.notice} role="note">
+              <p>Com dados de demonstração: os números incluem o histórico de exemplo. Desligue "Incluir demonstração" para ver só os reais.</p>
+            </div>
+          )}
+          <IndicatorView data={data} ambulances={ambulances} hospitals={hospitals} />
+        </>
       )}
     </div>
   );

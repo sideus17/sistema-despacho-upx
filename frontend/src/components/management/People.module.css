@@ -10,6 +10,12 @@
   white-space: nowrap;
 }
 
+/* Fora da curva: peso e seta (a cor fica para as 4 da classificação) */
+.slow {
+  color: var(--color-text) !important;
+  font-weight: var(--weight-bold);
+}
+
 .name {
   display: inline-flex;
   align-items: center;
@@ -22,7 +28,7 @@
   border-radius: 999px;
   background: var(--tint-neutral-bg);
   color: var(--tint-neutral-text);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   line-height: 1.6;
 }

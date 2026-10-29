@@ -185,7 +185,7 @@ describe('filas da central', () => {
 
   it('"Todos" separa regulação, despacho e em atendimento, nessa ordem', () => {
     renderQueues([active({ id: 'ativo' }), opened('despacho', 6, { status: CallStatus.PENDENTE }), opened('novo', 1)]);
-    const titles = screen.getAllByRole('heading', { level: 3 }).map(heading => heading.textContent);
+    const titles = screen.getAllByRole('heading', { level: 2 }).map(heading => heading.textContent);
     expect(titles).toEqual(['Aguardando regulação 1', 'Aguardando despacho 1', 'Em atendimento 1']);
     expect(screen.getByRole('button', { name: 'Regulação 1' })).toBeInTheDocument();
   });

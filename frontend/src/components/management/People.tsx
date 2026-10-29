@@ -57,7 +57,41 @@ function Name({ name, demo }: { name: string; demo: boolean }) {
 // Mediana, com "—" quando ninguém tem os dois horários
 const median = (stats: { median: number | null; n: number }) => (stats.n > 0 ? formatMinutes(stats.median) : '—');
 
+type Stats = { median: number | null; n: number };
+
+// Tempo bem acima do resto da equipe: 50% acima da mediana do grupo (com pelo menos 3 pessoas para comparar)
+const SLOW_FACTOR = 1.5;
+
+function slowLimit(all: Stats[]): number | null {
+  const values = all.filter(stats => stats.n > 0 && stats.median !== null).map(stats => stats.median as number).sort((a, b) => a - b);
+  if (values.length < 3) return null;
+  const middle = Math.floor(values.length / 2);
+  const groupMedian = values.length % 2 ? values[middle] : (values[middle - 1] + values[middle]) / 2;
+  return groupMedian * SLOW_FACTOR;
+}
+
+const isSlow = (stats: Stats, limit: number | null) => limit !== null && stats.n > 0 && stats.median !== null && stats.median > limit;
+
+function TimeCell({ stats, limit }: { stats: Stats; limit: number | null }) {
+  const slow = isSlow(stats, limit);
+  return (
+    <td className={slow ? styles.slow : undefined} title={slow ? 'Bem acima do resto da equipe' : undefined}>
+      {slow && '↑ '}{median(stats)}
+    </td>
+  );
+}
+
+const SLOW_NOTE = '↑ tempo 50% acima da mediana da equipe';
+
 function PeopleView({ data }: { data: PeopleIndicators }) {
+  const limits = {
+    regulation: slowLimit(data.attendants.map(person => person.regulation)),
+    dispatch: slowLimit(data.attendants.map(person => person.dispatch)),
+    departure: slowLimit(data.drivers.map(person => person.departure)),
+    arrival: slowLimit(data.drivers.map(person => person.arrival))
+  };
+  const slowAttendant = data.attendants.some(person => isSlow(person.regulation, limits.regulation) || isSlow(person.dispatch, limits.dispatch));
+  const slowDriver = data.drivers.some(person => isSlow(person.departure, limits.departure) || isSlow(person.arrival, limits.arrival));
   return (
     <div className={indicatorStyles.grid}>
       <ChartCard wide title="Atendentes" subtitle="Registro, regulação e despacho; tempos pela mediana">
@@ -84,13 +118,14 @@ function PeopleView({ data }: { data: PeopleIndicators }) {
                   <td>{formatCount(person.dispatched)}</td>
                   <td>{formatCount(person.closedWithoutDispatch)}</td>
                   <td>{formatCount(person.reclassified)}</td>
-                  <td>{median(person.regulation)}</td>
-                  <td>{median(person.dispatch)}</td>
+                  <TimeCell stats={person.regulation} limit={limits.regulation} />
+                  <TimeCell stats={person.dispatch} limit={limits.dispatch} />
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+        {slowAttendant && <p className={indicatorStyles.muted}>{SLOW_NOTE}</p>}
       </ChartCard>
 
       <ChartCard wide title="Motoristas" subtitle="Atendimentos e tempos depois do despacho (mediana)">
@@ -112,14 +147,15 @@ function PeopleView({ data }: { data: PeopleIndicators }) {
                   <tr key={person.id}>
                     <th scope="row"><Name name={person.name} demo={person.demo} /></th>
                     <td>{formatCount(person.attended)}</td>
-                    <td>{median(person.departure)}</td>
-                    <td>{median(person.arrival)}</td>
+                    <TimeCell stats={person.departure} limit={limits.departure} />
+                    <TimeCell stats={person.arrival} limit={limits.arrival} />
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         )}
+        {slowDriver && <p className={indicatorStyles.muted}>{SLOW_NOTE}</p>}
       </ChartCard>
     </div>
   );

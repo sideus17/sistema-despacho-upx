@@ -305,7 +305,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  min-height: 48px;
+  min-height: 52px;
   padding: 0 16px;
   border: 1px solid var(--color-action-border);
   border-radius: 999px;
@@ -669,4 +669,10 @@
   color: var(--color-text-soft);
   font-size: 14px;
   font-weight: 600;
+}
+
+/* Zoom da prévia no tamanho do polegar (o padrão do MapLibre tem 29 px) */
+.mapWrap :global(.maplibregl-ctrl-group button) {
+  width: 44px;
+  height: 44px;
 }

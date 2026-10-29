@@ -12,6 +12,7 @@ import RouteNotes from './RouteNotes';
 import { BackIcon, DistanceIcon, LocationIcon, StarIcon, TimerIcon } from '../ui/icons';
 import { Avatar } from '../ui/Avatar';
 import { Spinner } from '../ui/Spinner';
+import { pressCtrlEnterAction } from '../ui/ctrlEnter';
 import styles from './DispatchAnalysis.module.css';
 
 interface DispatchAnalysisProps {
@@ -85,7 +86,7 @@ export default function DispatchAnalysis({
   };
 
   return (
-    <div className={styles.container}>
+    <div className={styles.container} onKeyDown={pressCtrlEnterAction}>
       <button className={styles.back} onClick={onBack}><BackIcon /> Voltar aos chamados</button>
       <h2 ref={titleRef} tabIndex={-1} className={styles.title}>Despacho</h2>
 
@@ -199,6 +200,7 @@ export default function DispatchAnalysis({
                           <button
                             className={styles.execute}
                             disabled={executing}
+                            data-ctrl-enter
                             onClick={() => handleConfirm(rec.ambulanceId)}
                           >
                             {executing ? 'Despachando…' : `Confirmar ${ambulance.code}`}
@@ -208,7 +210,7 @@ export default function DispatchAnalysis({
                           </button>
                         </div>
                       ) : (
-                        <button className={styles.execute} onClick={() => setConfirmingId(rec.ambulanceId)}>
+                        <button className={styles.execute} data-ctrl-enter aria-keyshortcuts="Control+Enter" onClick={() => setConfirmingId(rec.ambulanceId)}>
                           Despachar {ambulance.code}
                         </button>
                       )}
