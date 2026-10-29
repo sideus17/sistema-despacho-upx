@@ -28,5 +28,5 @@
   height: max(8px, calc(var(--avatar-size) * 0.26));
   border: 2px solid white;
   border-radius: 50%;
-  background: var(--color-danger);
+  background: var(--color-text);
 }

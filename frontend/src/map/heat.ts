@@ -1,6 +1,7 @@
 import type { CircleLayerSpecification, ExpressionSpecification, FilterSpecification, HeatmapLayerSpecification } from 'maplibre-gl';
 import type { FeatureCollection, Point } from 'geojson';
 import { CallPriority, HeatPoint } from '../types';
+import { PRIORITIES_BY_SEVERITY, PRIORITY_META } from '../utils/calls';
 import type { MapTheme } from './mapStyle';
 
 // Mapa de calor dos chamados (gestão): a densidade num tom só; de perto, cada chamado com a sua cor
@@ -18,11 +19,10 @@ export const HEAT_RAMP: Record<MapTheme, string[]> = {
   night: ['rgba(91, 33, 182, 0)', '#5b21b6', '#7c3aed', '#a78bfa', '#ede9fe']
 };
 
-// As cores dos gráficos (o MapLibre não lê as variáveis do CSS)
-export const POINT_COLORS: Record<MapTheme, Record<CallPriority, string>> = {
-  day: { EMERGENCIA: '#dc2626', URGENTE: '#ca8a04', PRIORITARIO: '#16a34a', NAO_URGENTE: '#2563eb' },
-  night: { EMERGENCIA: '#ef4444', URGENTE: '#eab308', PRIORITARIO: '#22c55e', NAO_URGENTE: '#3b82f6' }
-};
+// A cor da pulseira de cada classificação, como nos gráficos (o MapLibre não lê as variáveis do CSS)
+const pointColors = (theme: MapTheme) =>
+  Object.fromEntries(PRIORITIES_BY_SEVERITY.map(priority => [priority, PRIORITY_META[priority].edge[theme]])) as Record<CallPriority, string>;
+export const POINT_COLORS: Record<MapTheme, Record<CallPriority, string>> = { day: pointColors('day'), night: pointColors('night') };
 
 // Anel da cor do fundo em volta de cada ponto, para os vizinhos não se misturarem
 const RING: Record<MapTheme, string> = { day: '#ffffff', night: '#1f2937' };

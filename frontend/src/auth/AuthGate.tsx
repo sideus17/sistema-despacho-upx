@@ -12,6 +12,7 @@ import { AuthLayout } from './AuthUI';
 import LoginScreen from './LoginScreen';
 import SignupScreen from './SignupScreen';
 import { MfaEnroll, MfaVerify } from './Mfa';
+import { Spinner } from '../ui/Spinner';
 import styles from './auth.module.css';
 
 type Stage = 'loading' | 'login' | 'signup' | 'mfa-enroll' | 'mfa-verify' | 'unavailable' | 'ready';
@@ -172,7 +173,7 @@ export default function AuthGate() {
   if (stage === 'loading') {
     return (
       <AuthLayout>
-        <div className={styles.spinner} />
+        <Spinner className={styles.spinner} />
       </AuthLayout>
     );
   }

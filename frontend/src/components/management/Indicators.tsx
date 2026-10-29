@@ -13,6 +13,7 @@ import {
   plural
 } from './format';
 import { useLoad } from './useLoad';
+import { Spinner } from '../../ui/Spinner';
 import styles from './Indicators.module.css';
 
 // Etapas do atendimento em ordem (o tempo-resposta soma as da abertura à chegada e tem cartão próprio).
@@ -51,7 +52,7 @@ export default function Indicators({ scope, ambulances, hospitals }: {
   const { data, error, loading, retry } = useLoad(signal => getIndicators(scope, signal), JSON.stringify(scope));
 
   if (!data) {
-    return error ? <Failure message={error} onRetry={retry} /> : <div className="loading"><div className="spinner" /></div>;
+    return error ? <Failure message={error} onRetry={retry} /> : <div className="loading"><Spinner size={40} /></div>;
   }
 
   return (

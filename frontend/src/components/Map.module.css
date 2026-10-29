@@ -126,8 +126,8 @@
 }
 
 .popup .popupWarning {
-  color: var(--color-warning-text);
-  font-weight: 600;
+  color: var(--color-text);
+  font-weight: 800;
 }
 
 /* Embaixo, acima dos créditos: em cima ficam o zoom e a legenda */
@@ -142,8 +142,8 @@
   max-width: calc(100% - 48px);
   padding: 8px 14px;
   border-radius: 999px;
-  background: #1e3a8a;
-  color: white;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
   font-size: 13px;
   font-weight: 600;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
@@ -162,20 +162,20 @@
   padding: 4px 10px;
   border: none;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.18);
+  background: rgba(128, 128, 128, 0.3);
   color: inherit;
   font: inherit;
   cursor: pointer;
 }
 
 .pickHintAction button:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: rgba(128, 128, 128, 0.45);
 }
 
 /* Local do chamado que está sendo aberto */
 .draftPin {
   display: block;
-  color: var(--color-danger);
+  color: var(--color-primary);
   font-size: 38px;
   line-height: 0;
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));

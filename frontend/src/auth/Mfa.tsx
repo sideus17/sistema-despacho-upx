@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { AuthLayout, CodeInput } from './AuthUI';
 import styles from './auth.module.css';
 import { authErrorMessage } from './authErrors';
+import { Spinner } from '../ui/Spinner';
 
 const INVALID_CODE = 'Código inválido. Confira se o horário do celular está automático e tente de novo.';
 
@@ -82,7 +83,7 @@ export function MfaEnroll({ onCancel }: { onCancel: () => void }) {
               </div>
             </div>
           ) : (
-            !error && <div className={styles.spinner} />
+            !error && <Spinner className={styles.spinner} />
           )}
         </li>
         <li>Digite o código de 6 dígitos que aparece no app.</li>

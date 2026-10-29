@@ -19,7 +19,7 @@ import {
 } from '../services/api';
 import { usePolling } from '../hooks/usePolling';
 import { useToast } from '../components/Toast';
-import { PRIORITY_META, STAGE_META, callStage, elapsedLabel, formatGender, needsOutcome, timeline } from '../utils/calls';
+import { STAGE_META, callStage, elapsedLabel, formatGender, needsOutcome, riskVars, timeline } from '../utils/calls';
 import { useNow } from '../hooks/useNow';
 import { OutcomeChoice } from '../ui/OutcomeChoice';
 import { AMBULANCE_STATUS_LABEL } from '../utils/ambulances';
@@ -44,6 +44,7 @@ import { useShiftLocation } from './useShiftLocation';
 import { wazeUrl } from './navigation/mapsLink';
 import { callDestination } from './destination';
 import HospitalSheet from './HospitalSheet';
+import { Spinner } from '../ui/Spinner';
 import styles from './CrewApp.module.css';
 
 // Os mapas (MapLibre) são baixados à parte: a navegação só quando começa
@@ -371,7 +372,7 @@ export default function CrewApp() {
             </>
           ) : (
             <>
-              <div className={styles.spinner} />
+              <Spinner size={40} label="Conectando" />
               <p className={styles.muted}>Conectando ao servidor…</p>
             </>
           )}
@@ -466,12 +467,11 @@ export default function CrewApp() {
     />
   );
 
-  const meta = activeCall ? PRIORITY_META[activeCall.priority] : undefined;
   const gender = activeCall ? formatGender(activeCall.patientInfo.gender) : null;
 
   if (navigating && destination && chosenRoute) {
     return (
-      <Suspense fallback={<div className={styles.shell}><div className={styles.centered}><div className={styles.spinner} /></div></div>}>
+      <Suspense fallback={<div className={styles.shell}><div className={styles.centered}><Spinner size={40} /></div></div>}>
         <NavigationView
           ambulance={ambulance}
           destination={destination}
@@ -506,11 +506,11 @@ export default function CrewApp() {
   let mapView: React.ReactNode;
   let actionBar: React.ReactNode;
 
-  if (activeCall && meta && destination) {
+  if (activeCall && destination) {
     const hospital = hospitals.find(item => item.id === activeCall.hospitalId);
     const steps = timeline(activeCall);
     info = (
-      <section className={styles.callCard} style={{ '--priority-color': meta.color } as React.CSSProperties}>
+      <section className={styles.callCard} style={riskVars(activeCall.priority)}>
         <p className={styles.priority}><PriorityLabel priority={activeCall.priority} /></p>
         <h1 className={styles.address}>{activeCall.address}</h1>
         {activeCall.reference && <p className={styles.reference}>Referência: {activeCall.reference}</p>}
@@ -525,7 +525,7 @@ export default function CrewApp() {
         {/* Etapa marcada sozinha pelo GPS: a equipe só confere */}
         <div className={styles.progress} onClick={event => event.stopPropagation()}>
           {stage && (
-            <p className={`${styles.stage} ${styles[`stage_${STAGE_META[stage.stage].tint}`]}`}>
+            <p className={styles.stage}>
               {STAGE_META[stage.stage].label} · {elapsedLabel(stage.since, now)}
             </p>
           )}

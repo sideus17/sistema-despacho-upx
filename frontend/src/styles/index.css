@@ -1,12 +1,12 @@
-/* Design tokens */
+/* Design tokens
+   Cor forte e preenchida só para as 4 cores da classificação de risco (--risk-*, que vêm de PRIORITY_META:
+   ver theme/riskTokens.ts). O resto é tinta (grafite) e superfície: estado se mostra por texto, ícone, peso e forma. */
 :root {
-  --color-primary: #3b82f6;
-  --color-primary-dark: #2563eb;
-  --color-primary-text: #2563eb; /* azul em texto e ícones, legível sobre a superfície */
-  --color-success: #16a34a;
-  --color-danger: #dc2626;
-  --color-warning: #f59e0b;
-  --color-warning-text: #b45309;
+  --color-primary: #111827; /* tinta: botão principal, seleção e foco */
+  --color-primary-hover: #374151;
+  --color-on-primary: #ffffff;
+  --color-primary-text: #111827;
+  --color-danger-text: #991b1b; /* só texto e ícone de erro, nunca fundo */
   --color-text: #1f2937;
   --color-text-soft: #374151;
   --color-text-muted: #6b7280;
@@ -18,54 +18,35 @@
   --color-surface-inverse: #1f2937;
   --color-background: #f3f4f6;
   --color-map-loading: #e5e7eb;
-  --color-header-from: #3b82f6;
-  --color-header-to: #2563eb;
+  --color-header: #111827;
 
-  /* Avisos coloridos: fundo, borda e texto */
-  --tint-blue-bg: #eff6ff;
-  --tint-blue-border: #bfdbfe;
-  --tint-blue-text: #1e40af;
-  --tint-sky-bg: #f0f9ff;
-  --tint-sky-bg-strong: #e0f2fe;
-  --tint-sky-border: #bae6fd;
-  --tint-sky-text: #0c4a6e;
-  --tint-green-bg: #f0fdf4;
-  --tint-green-bg-strong: #dcfce7;
-  --tint-green-border: #86efac;
-  --tint-green-text: #166534;
-  --tint-yellow-bg: #fefce8;
-  --tint-yellow-border: #fde047;
-  --tint-yellow-text: #713f12;
-  --tint-orange-bg: #fff7ed;
-  --tint-orange-bg-strong: #ffedd5;
-  --tint-orange-border: #fed7aa;
-  --tint-orange-text: #c2410c;
-  --tint-red-bg: #fef2f2;
-  --tint-red-bg-strong: #fee2e2;
-  --tint-red-border: #fecaca;
-  --tint-red-text: #991b1b;
-  --tint-violet-bg: #f5f3ff;
-  --tint-violet-border: #c4b5fd;
-  --tint-violet-text: #4c1d95;
+  /* Caixas de aviso: neutra (informação, estado, atenção) e de erro */
+  --tint-neutral-bg: #f3f4f6;
+  --tint-neutral-bg-strong: #e5e7eb;
+  --tint-neutral-border: #d1d5db;
+  --tint-neutral-text: #111827;
+  --tint-error-bg: #fef2f2;
+  --tint-error-bg-strong: #fee2e2;
+  --tint-error-border: #fecaca;
+  --tint-error-text: var(--color-danger-text);
 
-  /* Gráficos da gestão: o acento (violeta) não se confunde com as 4 cores da classificação; o amarelo
-     é um tom mais escuro que o do selo, para o traço aparecer sobre o branco */
+  /* Gráficos da gestão: o acento violeta não se confunde com as 4 cores da classificação */
   --chart-accent: #7c3aed;
   --chart-accent-soft: rgba(124, 58, 237, 0.12);
-  --chart-red: #dc2626;
-  --chart-yellow: #ca8a04;
-  --chart-green: #16a34a;
-  --chart-blue: #2563eb;
 
   --radius: 10px;
   --touch-target: 44px;
+  --pulseira-width: 6px; /* faixa da classificação na lateral do cartão, igual em todo lugar */
   --color-focus: var(--color-primary); /* anel de foco do teclado */
 }
 
-/* Escuro: cinzas da navegação noturna; cores com significado (prioridade, status) não mudam */
+/* Escuro: cinzas da navegação noturna; a tinta vira o cinza claro */
 :root[data-theme='night'] {
-  --color-primary-text: #60a5fa;
-  --color-warning-text: #fbbf24;
+  --color-primary: #e5e7eb;
+  --color-primary-hover: #f9fafb;
+  --color-on-primary: #111827;
+  --color-primary-text: #e5e7eb;
+  --color-danger-text: #fca5a5;
   --color-text: #e5e7eb;
   --color-text-soft: #d1d5db;
   --color-text-muted: #9ca3af;
@@ -77,41 +58,18 @@
   --color-surface-inverse: #374151;
   --color-background: #0b1120;
   --color-map-loading: #1c2531;
-  --color-header-from: #1e3a8a;
-  --color-header-to: #172554;
+  --color-header: #0b1120;
 
-  --tint-blue-bg: #172554;
-  --tint-blue-border: #1e40af;
-  --tint-blue-text: #bfdbfe;
-  --tint-sky-bg: #082f49;
-  --tint-sky-bg-strong: #0c4a6e;
-  --tint-sky-border: #075985;
-  --tint-sky-text: #bae6fd;
-  --tint-green-bg: #052e16;
-  --tint-green-bg-strong: #14532d;
-  --tint-green-border: #166534;
-  --tint-green-text: #86efac;
-  --tint-yellow-bg: #422006;
-  --tint-yellow-border: #854d0e;
-  --tint-yellow-text: #fde68a;
-  --tint-orange-bg: #431407;
-  --tint-orange-bg-strong: #7c2d12;
-  --tint-orange-border: #9a3412;
-  --tint-orange-text: #fdba74;
-  --tint-red-bg: #450a0a;
-  --tint-red-bg-strong: #450a0a;
-  --tint-red-border: #7f1d1d;
-  --tint-red-text: #fecaca;
-  --tint-violet-bg: #2e1065;
-  --tint-violet-border: #5b21b6;
-  --tint-violet-text: #ddd6fe;
+  --tint-neutral-bg: #111827;
+  --tint-neutral-bg-strong: #374151;
+  --tint-neutral-border: #4b5563;
+  --tint-neutral-text: #e5e7eb;
+  --tint-error-bg: #450a0a;
+  --tint-error-bg-strong: #450a0a;
+  --tint-error-border: #7f1d1d;
 
   --chart-accent: #a78bfa;
   --chart-accent-soft: rgba(167, 139, 250, 0.16);
-  --chart-red: #ef4444;
-  --chart-yellow: #eab308;
-  --chart-green: #22c55e;
-  --chart-blue: #3b82f6;
 }
 
 /* Reset and Base Styles */
@@ -155,10 +113,10 @@ body {
 /* Header: barra fina com o nome e a conta */
 .header {
   flex-shrink: 0;
-  background: linear-gradient(135deg, var(--color-header-from) 0%, var(--color-header-to) 100%);
+  background: var(--color-header);
   color: white;
   padding: 0 8px 0 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   z-index: 100;
 }
 
@@ -237,8 +195,8 @@ body {
   place-items: center;
   padding: 0 6px;
   border-radius: 999px;
-  background: var(--color-danger);
-  color: white;
+  background: white;
+  color: #111827;
   font-size: 12px;
   font-weight: 800;
 }
@@ -277,13 +235,13 @@ body {
 }
 
 .connection-banner.connecting {
-  background-color: var(--tint-blue-bg);
-  color: var(--tint-blue-text);
+  background-color: var(--tint-neutral-bg-strong);
+  color: var(--tint-neutral-text);
 }
 
 .connection-banner.error {
-  background-color: var(--tint-red-bg-strong);
-  color: var(--tint-red-text);
+  background-color: var(--tint-error-bg-strong);
+  color: var(--tint-error-text);
 }
 
 .connection-banner button {
@@ -363,7 +321,7 @@ body {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--color-warning-text);
+  background: var(--color-text);
 }
 
 .tab .icon {
@@ -404,13 +362,6 @@ body {
 
 .tab-content::-webkit-scrollbar-thumb:hover {
   background: var(--color-text-muted);
-}
-
-/* Animations */
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
 }
 
 /* Popups do MapLibre (prefixo .maplibregl-map: o CSS do MapLibre carrega depois deste) */
@@ -517,21 +468,12 @@ body {
   padding: 40px;
 }
 
-.spinner {
-  width: 40px;
-  height: 40px;
-  border: 4px solid var(--color-border);
-  border-top-color: var(--color-primary);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
 /* Error State */
 .error {
   padding: 20px;
-  background-color: var(--tint-red-bg-strong);
-  border: 1px solid var(--tint-red-border);
+  background-color: var(--tint-error-bg-strong);
+  border: 1px solid var(--tint-error-border);
   border-radius: 8px;
-  color: var(--tint-red-text);
+  color: var(--tint-error-text);
   text-align: center;
 }

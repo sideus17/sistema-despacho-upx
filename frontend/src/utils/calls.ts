@@ -1,14 +1,37 @@
+import type { CSSProperties } from 'react';
 import { CallOutcome, CallPriority, CallStatus, CloseReason, EmergencyCall } from '../types';
 import { EmergencyIcon, IconComponent, InfoIcon, WarningIcon } from '../ui/icons';
 
-// Classificação de risco em 4 cores (Regulação Médica das Urgências, Ministério da Saúde).
-// `color` pinta o selo, o pino e a borda; `onColor` é o texto sobre ela (o amarelo pede texto escuro).
-export const PRIORITY_META: Record<CallPriority, { name: string; label: string; color: string; onColor: string; icon: IconComponent; order: number }> = {
-  [CallPriority.EMERGENCIA]: { name: 'Vermelho', label: 'Emergência', color: '#dc2626', onColor: '#ffffff', icon: EmergencyIcon, order: 0 },
-  [CallPriority.URGENTE]: { name: 'Amarelo', label: 'Urgência', color: '#eab308', onColor: '#422006', icon: WarningIcon, order: 1 },
-  [CallPriority.PRIORITARIO]: { name: 'Verde', label: 'Pouco urgente', color: '#16a34a', onColor: '#ffffff', icon: InfoIcon, order: 2 },
-  [CallPriority.NAO_URGENTE]: { name: 'Azul', label: 'Não urgente', color: '#2563eb', onColor: '#ffffff', icon: InfoIcon, order: 3 }
+// Classificação de risco em 4 cores (Regulação Médica das Urgências, Ministério da Saúde): a única fonte
+// das cores fortes do sistema. `color` pinta o selo e o pino; `onColor` é o texto sobre ela (o amarelo pede
+// texto escuro); `edge` é a pulseira, a borda e o gráfico, com 3:1 sobre a superfície de cada tema.
+export type RiskKey = 'red' | 'yellow' | 'green' | 'blue';
+export const PRIORITY_META: Record<CallPriority, {
+  key: RiskKey;
+  name: string;
+  label: string;
+  color: string;
+  onColor: string;
+  edge: { day: string; night: string };
+  icon: IconComponent;
+  order: number;
+}> = {
+  [CallPriority.EMERGENCIA]: { key: 'red', name: 'Vermelho', label: 'Emergência', color: '#dc2626', onColor: '#ffffff', edge: { day: '#dc2626', night: '#ef4444' }, icon: EmergencyIcon, order: 0 },
+  [CallPriority.URGENTE]: { key: 'yellow', name: 'Amarelo', label: 'Urgência', color: '#eab308', onColor: '#422006', edge: { day: '#a87c00', night: '#eab308' }, icon: WarningIcon, order: 1 },
+  [CallPriority.PRIORITARIO]: { key: 'green', name: 'Verde', label: 'Pouco urgente', color: '#15803d', onColor: '#ffffff', edge: { day: '#15803d', night: '#22c55e' }, icon: InfoIcon, order: 2 },
+  [CallPriority.NAO_URGENTE]: { key: 'blue', name: 'Azul', label: 'Não urgente', color: '#2563eb', onColor: '#ffffff', edge: { day: '#2563eb', night: '#3b82f6' }, icon: InfoIcon, order: 3 }
 };
+
+// Variáveis do CSS da cor de um chamado (--risk, --risk-on e --risk-edge), para a pulseira e os selos.
+// Elas apontam para --risk-<cor>-*, que theme/riskTokens.ts cria a partir de PRIORITY_META.
+export function riskVars(priority: CallPriority): CSSProperties {
+  const key = PRIORITY_META[priority]?.key ?? 'red';
+  return {
+    '--risk': `var(--risk-${key})`,
+    '--risk-on': `var(--risk-${key}-on)`,
+    '--risk-edge': `var(--risk-${key}-edge)`
+  } as CSSProperties;
+}
 
 export const CALL_STATUS_LABEL: Record<CallStatus, string> = {
   [CallStatus.AGUARDANDO_REGULACAO]: 'Aguardando regulação',
@@ -41,14 +64,14 @@ export const needsOutcome = (call: EmergencyCall) => !call.times?.atHospital;
 // Etapa do atendimento, pelos horários (o GPS da viatura marca; ninguém precisa tocar em nada)
 export type CallStage = 'DESPACHADA' | 'A_CAMINHO' | 'NO_LOCAL' | 'SAIU_DO_LOCAL' | 'TRANSPORTANDO' | 'NO_HOSPITAL' | 'FINALIZADA';
 
-export const STAGE_META: Record<CallStage, { label: string; tint: string }> = {
-  DESPACHADA: { label: 'Despachada', tint: 'blue' },
-  A_CAMINHO: { label: 'A caminho', tint: 'sky' },
-  NO_LOCAL: { label: 'No local', tint: 'orange' },
-  SAIU_DO_LOCAL: { label: 'Saiu do local', tint: 'violet' },
-  TRANSPORTANDO: { label: 'Transportando', tint: 'violet' },
-  NO_HOSPITAL: { label: 'No hospital', tint: 'green' },
-  FINALIZADA: { label: 'Finalizada', tint: 'green' }
+export const STAGE_META: Record<CallStage, { label: string }> = {
+  DESPACHADA: { label: 'Despachada' },
+  A_CAMINHO: { label: 'A caminho' },
+  NO_LOCAL: { label: 'No local' },
+  SAIU_DO_LOCAL: { label: 'Saiu do local' },
+  TRANSPORTANDO: { label: 'Transportando' },
+  NO_HOSPITAL: { label: 'No hospital' },
+  FINALIZADA: { label: 'Finalizada' }
 };
 
 // Etapa atual e desde quando (null: chamado ainda não despachado)

@@ -4,7 +4,7 @@
   position: fixed;
   inset: 0;
   z-index: 1500;
-  background: #e5e7eb;
+  background: var(--color-map-loading);
 }
 
 .map {
@@ -28,7 +28,7 @@
   gap: 8px;
 }
 
-/* Faixa de instrução */
+/* Faixa de instrução: escura nos dois temas, como nos apps de navegação */
 .banner {
   display: flex;
   align-items: center;
@@ -36,13 +36,13 @@
   min-height: 72px;
   padding: 12px 16px;
   border-radius: 16px;
-  background: #166534;
+  background: var(--color-header);
   color: white;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
 }
 
 .bannerWarning {
-  background: #b45309;
+  background: #374151;
 }
 
 .icon {
@@ -69,11 +69,12 @@
 .notice {
   padding: 10px 14px;
   border-radius: 10px;
-  background: #fef3c7;
-  color: #92400e;
+  background: var(--color-surface);
+  color: var(--color-text);
   font-size: 14px;
   font-weight: 600;
   text-align: center;
+  border: 1px solid var(--color-border);
 }
 
 .recenter {
@@ -84,8 +85,8 @@
   padding: 0 16px;
   border: none;
   border-radius: 999px;
-  background: white;
-  color: var(--color-primary);
+  background: var(--color-surface);
+  color: var(--color-text);
   font-size: 15px;
   font-weight: 700;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
@@ -103,8 +104,9 @@
   gap: 12px;
   padding: 10px 16px calc(env(safe-area-inset-bottom) + 14px);
   border-radius: 18px 18px 0 0;
-  background: white;
+  background: var(--color-surface);
   box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.15);
+  color: var(--color-text);
 }
 
 .summary {
@@ -114,7 +116,7 @@
 }
 
 .summary strong {
-  color: #166534;
+  color: var(--color-text);
   font-size: 26px;
   font-weight: 800;
 }
@@ -144,15 +146,16 @@
 .iconButton {
   min-width: 52px;
   border: 1px solid var(--color-border);
-  background: white;
+  background: var(--color-surface);
   font-size: 20px;
+  color: var(--color-text);
 }
 
 .mapsButton {
   flex: 1;
   padding: 0 12px;
-  background: #e0f2fe;
-  color: #075985;
+  background: var(--tint-neutral-bg-strong);
+  color: var(--tint-neutral-text);
   font-size: 15px;
   text-decoration: none;
   text-align: center;
@@ -160,9 +163,9 @@
 
 .exitButton {
   padding: 0 18px;
-  border: none;
-  background: #fee2e2;
-  color: #991b1b;
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface);
+  color: var(--color-text);
   font-size: 15px;
 }
 
@@ -171,8 +174,8 @@
   min-height: 56px;
   border: none;
   border-radius: 12px;
-  background: var(--color-success);
-  color: white;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
   font-size: 17px;
   font-weight: 800;
   cursor: pointer;
@@ -182,57 +185,9 @@
   opacity: 0.6;
 }
 
-/* Noite: faixa e painel escuros para não ofuscar o motorista */
-.screen[data-theme='night'] {
-  background: #1c2531;
-}
-
-.screen[data-theme='night'] .banner {
-  background: #14532d;
-}
-
-.screen[data-theme='night'] .bannerWarning {
-  background: #92400e;
-}
-
-.screen[data-theme='night'] .notice {
-  background: #422006;
-  color: #fde68a;
-}
-
-.screen[data-theme='night'] .recenter {
-  background: #1f2937;
-  color: #93c5fd;
-}
-
+/* Noite: sombra mais forte, para o painel se destacar do mapa escuro */
 .screen[data-theme='night'] .panel {
-  background: #1f2937;
   box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.5);
-  color: #e5e7eb;
-}
-
-.screen[data-theme='night'] .summary strong {
-  color: #4ade80;
-}
-
-.screen[data-theme='night'] .summary span {
-  color: #9ca3af;
-}
-
-.screen[data-theme='night'] .iconButton {
-  border-color: #374151;
-  background: #111827;
-  color: #e5e7eb;
-}
-
-.screen[data-theme='night'] .mapsButton {
-  background: #0c4a6e;
-  color: #e0f2fe;
-}
-
-.screen[data-theme='night'] .exitButton {
-  background: #450a0a;
-  color: #fecaca;
 }
 
 /* Marcadores */
@@ -248,16 +203,16 @@
   height: 100%;
 }
 
-/* Aviso de ocorrência à frente, logo abaixo da instrução */
+/* Aviso de ocorrência à frente, logo abaixo da instrução (o efeito aparece no ícone) */
 .incidentAlert {
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 10px 14px;
-  border-left: 6px solid var(--alert-color);
   border-radius: 12px;
-  background: white;
+  background: var(--color-surface);
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  color: var(--color-text);
 }
 
 .incidentAlertIcon {
@@ -304,21 +259,12 @@
   padding: 0 18px;
   border: none;
   border-radius: 999px;
-  background: #ea580c;
-  color: white;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
   font-size: 16px;
   font-weight: 800;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   cursor: pointer;
-}
-
-.screen[data-theme='night'] .incidentAlert {
-  background: #1f2937;
-  color: #e5e7eb;
-}
-
-.screen[data-theme='night'] .incidentAlert span {
-  color: #9ca3af;
 }
 
 /* Limite da via e velocímetro: canto inferior esquerdo, acima do painel */
@@ -332,7 +278,7 @@
   pointer-events: none;
 }
 
-/* Placa de regulamentação: círculo branco com borda vermelha */
+/* Placa de regulamentação: círculo branco com borda vermelha (a placa de verdade, não a cor da classificação) */
 .speedLimit {
   display: grid;
   width: 48px;
@@ -355,8 +301,8 @@
   width: 60px;
   height: 60px;
   border-radius: 999px;
-  background: white;
-  color: #111827;
+  background: var(--color-surface);
+  color: var(--color-text);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   line-height: 1;
 }
@@ -367,27 +313,21 @@
 }
 
 .speedometer small {
-  color: #6b7280;
+  color: var(--color-text-muted);
   font-size: 11px;
   font-weight: 700;
 }
 
+/* Acima do limite: invertido e com contorno grosso */
 .speedometer.speeding {
-  background: #dc2626;
-  color: white;
+  outline: 3px solid var(--color-primary);
+  outline-offset: 2px;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
 }
 
 .speedometer.speeding small {
-  color: #fee2e2;
-}
-
-.screen[data-theme='night'] .speedometer:not(.speeding) {
-  background: #1f2937;
-  color: #e5e7eb;
-}
-
-.screen[data-theme='night'] .speedometer:not(.speeding) small {
-  color: #9ca3af;
+  color: inherit;
 }
 
 /* Recolhido: só a alça e o resumo (chegada, minutos e distância) */

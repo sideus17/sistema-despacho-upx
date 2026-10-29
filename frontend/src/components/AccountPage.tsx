@@ -8,6 +8,7 @@ import { useFocusTrap } from '../ui/useFocusTrap';
 import { ThemePicker } from '../theme/ThemePicker';
 import { formatCpf, formatPhone, isValidCellphone, isValidCpf, maskCpf, onlyDigits } from '../utils/documents';
 import { useToast } from './Toast';
+import { Spinner } from '../ui/Spinner';
 import styles from './AccountPage.module.css';
 
 export const ROLE_LABEL: Record<UserRole, string> = {
@@ -194,7 +195,7 @@ export function AccountPage({ onClose }: { onClose: () => void }) {
           {loadError ? (
             <p className={styles.error} role="alert">{loadError}</p>
           ) : !form ? (
-            <div className={styles.spinner} aria-label="Carregando" />
+            <Spinner className={styles.spinner} />
           ) : (
             <>
               {missing.length > 0 && (

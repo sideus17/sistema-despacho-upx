@@ -87,8 +87,8 @@
 }
 
 .demo {
-  background: var(--tint-violet-bg);
-  color: var(--tint-violet-text);
+  background: var(--tint-neutral-bg);
+  color: var(--tint-neutral-text);
 }
 
 .facts {

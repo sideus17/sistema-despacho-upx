@@ -16,7 +16,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(NOON);
   document.documentElement.removeAttribute('data-theme');
-  document.head.innerHTML = '<meta name="theme-color" content="#2563eb">';
+  document.head.innerHTML = '<meta name="theme-color" content="#111827">';
 });
 
 describe('tema do sistema', () => {
@@ -40,7 +40,7 @@ describe('tema do sistema', () => {
     });
     expect(document.documentElement.dataset.theme).toBe('night');
     expect(document.documentElement.style.colorScheme).toBe('dark');
-    expect(document.querySelector('meta[name="theme-color"]')?.getAttribute('content')).toBe('#172554');
+    expect(document.querySelector('meta[name="theme-color"]')?.getAttribute('content')).toBe('#0b1120');
   });
 
   it('mantém a escolha antiga, de quando só o mapa tinha tema', async () => {

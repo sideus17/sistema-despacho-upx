@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { EmergencyCall } from '../types';
-import { PRIORITY_META } from '../utils/calls';
+import { riskVars } from '../utils/calls';
 import { signalsText } from '../utils/triage';
 import { playAlert } from '../utils/alertSound';
 import { PriorityLabel } from '../ui/PriorityLabel';
@@ -30,14 +30,13 @@ export default function DispatchAlert({ call, onAck }: DispatchAlertProps) {
     };
   }, []);
 
-  const meta = PRIORITY_META[call.priority];
   return (
     <div
       className={styles.screen}
       role="alertdialog"
       aria-modal="true"
       aria-labelledby="novo-despacho"
-      style={{ '--priority-color': meta?.color } as React.CSSProperties}
+      style={riskVars(call.priority)}
     >
       <div className={styles.content}>
         <h1 id="novo-despacho" className={styles.title}>Novo despacho</h1>

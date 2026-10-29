@@ -42,7 +42,7 @@
 .chipActive {
   border-color: var(--color-primary);
   background: var(--color-primary);
-  color: white;
+  color: var(--color-on-primary);
 }
 
 .chipCount {
@@ -55,7 +55,7 @@
 }
 
 .chipActive .chipCount {
-  background: rgba(255, 255, 255, 0.25);
+  background: rgba(128, 128, 128, 0.35);
 }
 
 .empty {
@@ -75,17 +75,12 @@
 .card {
   padding: 14px 16px;
   border: 1px solid var(--color-border);
-  border-left: 4px solid var(--priority-color);
+  border-left: var(--pulseira-width) solid var(--risk-edge);
   border-radius: var(--radius);
   background: var(--color-surface);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   cursor: pointer;
   transition: box-shadow 0.15s, border-color 0.15s;
-}
-
-.card:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
 }
 
 @media (hover: hover) {
@@ -94,14 +89,10 @@
   }
 }
 
-.cardActive {
-  background: var(--tint-orange-bg);
-}
-
 .cardSelected {
   border-color: var(--color-primary);
-  border-left-color: var(--priority-color);
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+  border-left-color: var(--risk-edge);
+  box-shadow: 0 0 0 1px var(--color-primary);
 }
 
 /* A etapa longa ("Transportando → Santa Casa · há 3 min") desce para a linha de baixo */
@@ -115,11 +106,7 @@
 }
 
 .priority {
-  color: var(--priority-color);
   font-size: 13px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
 }
 
 .address {
@@ -173,8 +160,6 @@
 }
 
 .primary,
-.secondary,
-.success,
 .ghost {
   flex: 1;
   min-height: var(--touch-target);
@@ -189,18 +174,7 @@
 
 .primary {
   background: var(--color-primary);
-  color: white;
-}
-
-.secondary {
-  background: var(--tint-green-bg);
-  color: var(--tint-green-text);
-  border: 1px solid var(--tint-green-border);
-}
-
-.success {
-  background: var(--color-success);
-  color: white;
+  color: var(--color-on-primary);
 }
 
 .ghost {
@@ -209,29 +183,24 @@
   border: 1px solid var(--color-border);
 }
 
-.primary:disabled,
-.success:disabled {
+.primary:disabled {
   opacity: 0.6;
   cursor: wait;
 }
 
 @media (hover: hover) {
   .primary:hover {
-    background: var(--color-primary-dark);
-  }
-
-  .secondary:hover {
-    background: var(--tint-green-bg-strong);
+    background: var(--color-primary-hover);
   }
 }
 
 .ambulanceBadge {
   align-self: flex-start;
   padding: 4px 10px;
-  border: 1px solid var(--tint-orange-border);
+  border: 1px solid var(--tint-neutral-border);
   border-radius: 6px;
-  background: var(--tint-orange-bg-strong);
-  color: var(--tint-orange-text);
+  background: var(--tint-neutral-bg);
+  color: var(--tint-neutral-text);
   font-size: 12px;
   font-weight: 700;
 }
@@ -255,9 +224,9 @@
 }
 
 .alertsOn {
-  border-color: var(--tint-blue-border);
-  background: var(--tint-blue-bg);
-  color: var(--tint-blue-text);
+  border-color: var(--color-primary);
+  color: var(--color-text);
+  font-weight: 700;
 }
 
 /* Cronômetro de espera do chamado pendente */
@@ -274,16 +243,18 @@
   white-space: nowrap;
 }
 
+/* Espera longa: atenção em negrito com contorno; crítica invertida (sem as cores da classificação) */
 .wait_atencao {
-  border: 1px solid var(--tint-yellow-border);
-  background: var(--tint-yellow-bg);
-  color: var(--tint-yellow-text);
+  border: 1px solid var(--color-text-soft);
+  color: var(--color-text);
+  font-weight: 800;
 }
 
 .wait_critico {
-  border: 1px solid var(--tint-red-border);
-  background: var(--tint-red-bg-strong);
-  color: var(--tint-red-text);
+  border: 1px solid var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font-weight: 800;
 }
 
 /* Etapa do atendimento (marcada pelo GPS da viatura) */
@@ -295,24 +266,20 @@
 }
 
 .crewAckLate {
-  color: var(--color-warning-text);
-  font-weight: 700;
+  color: var(--color-text);
+  font-weight: 800;
 }
 
 .stage {
   padding: 2px 8px;
-  border: 1px solid transparent;
+  border: 1px solid var(--tint-neutral-border);
   border-radius: 999px;
+  background: var(--tint-neutral-bg);
+  color: var(--tint-neutral-text);
   font-size: 12px;
   font-weight: 700;
   white-space: nowrap;
 }
-
-.stage_blue { border-color: var(--tint-blue-border); background: var(--tint-blue-bg); color: var(--tint-blue-text); }
-.stage_sky { border-color: var(--tint-sky-border); background: var(--tint-sky-bg); color: var(--tint-sky-text); }
-.stage_orange { border-color: var(--tint-orange-border); background: var(--tint-orange-bg); color: var(--tint-orange-text); }
-.stage_violet { border-color: var(--tint-violet-border); background: var(--tint-violet-bg); color: var(--tint-violet-text); }
-.stage_green { border-color: var(--tint-green-border); background: var(--tint-green-bg); color: var(--tint-green-text); }
 
 .progress {
   display: flex;

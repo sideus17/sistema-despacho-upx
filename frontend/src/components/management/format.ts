@@ -1,4 +1,5 @@
 import { AttendanceStage, CallPriority } from '../../types';
+import { PRIORITIES_BY_SEVERITY, PRIORITY_META } from '../../utils/calls';
 
 // Números e períodos da tela de gestão
 
@@ -50,13 +51,10 @@ export const STAGE_LABEL: Record<AttendanceStage, { label: string; hint: string 
   total: { label: 'Total', hint: 'da abertura ao fim' }
 };
 
-// Cores dos gráficos por classificação (tokens do tema: o amarelo do gráfico é mais escuro no claro)
-export const PRIORITY_CHART_COLOR: Record<CallPriority, string> = {
-  [CallPriority.EMERGENCIA]: 'var(--chart-red)',
-  [CallPriority.URGENTE]: 'var(--chart-yellow)',
-  [CallPriority.PRIORITARIO]: 'var(--chart-green)',
-  [CallPriority.NAO_URGENTE]: 'var(--chart-blue)'
-};
+// Cores dos gráficos por classificação: a da pulseira (PRIORITY_META), que muda com o tema
+export const PRIORITY_CHART_COLOR = Object.fromEntries(
+  PRIORITIES_BY_SEVERITY.map(priority => [priority, `var(--risk-${PRIORITY_META[priority].key}-edge)`])
+) as Record<CallPriority, string>;
 
 export type PeriodKey = 'hoje' | '7d' | '30d' | '90d';
 

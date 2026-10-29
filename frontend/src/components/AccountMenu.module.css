@@ -127,7 +127,7 @@
 
 @media (hover: hover) {
   .manage:hover {
-    background: var(--tint-blue-bg);
+    background: var(--tint-neutral-bg);
   }
 }
 
@@ -189,12 +189,12 @@
 
 .itemAlert {
   margin-bottom: 8px;
-  background: var(--tint-yellow-bg);
-  color: var(--tint-yellow-text);
+  background: var(--tint-neutral-bg);
+  color: var(--tint-neutral-text);
 }
 
-.itemAlert :global(.icon) {
-  color: var(--color-warning-text);
+.itemAlert {
+  font-weight: 700;
 }
 
 .item:disabled {
@@ -204,7 +204,7 @@
 
 .blocked {
   padding: 2px 14px 4px;
-  color: var(--color-warning-text);
+  color: var(--color-text);
   font-size: 12px;
   font-weight: 600;
 }
@@ -212,10 +212,10 @@
 /* Confirmação de fim de turno */
 .confirm {
   padding: 10px 12px;
-  border: 1px solid var(--tint-red-border);
+  border: 1px solid var(--tint-error-border);
   border-radius: 12px;
-  background: var(--tint-red-bg);
-  color: var(--tint-red-text);
+  background: var(--tint-error-bg);
+  color: var(--tint-error-text);
   font-weight: 600;
 }
 
@@ -235,10 +235,11 @@
   cursor: pointer;
 }
 
+/* Encerrar turno: contorno com texto de erro, sem fundo vermelho */
 .danger {
-  border: none;
-  background: var(--color-danger);
-  color: white;
+  border: 1px solid currentColor;
+  background: var(--color-surface);
+  color: var(--color-danger-text);
 }
 
 .secondary {

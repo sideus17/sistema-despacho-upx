@@ -8,7 +8,7 @@
   justify-content: space-between;
   gap: 24px;
   padding: calc(env(safe-area-inset-top) + 32px) 20px calc(env(safe-area-inset-bottom) + 20px);
-  border-left: 10px solid var(--priority-color);
+  border-left: var(--pulseira-width) solid var(--risk-edge);
   background: var(--color-surface);
   color: var(--color-text);
 }
@@ -46,8 +46,8 @@
   min-height: 72px;
   border: none;
   border-radius: 14px;
-  background: var(--color-surface-inverse);
-  color: white;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
   font-size: 24px;
   font-weight: 800;
   cursor: pointer;

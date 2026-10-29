@@ -24,10 +24,10 @@
 .base {
   width: 32px;
   height: 32px;
-  border: 2px solid var(--color-danger);
+  border: 2px solid var(--color-primary);
   border-radius: 9px;
-  background: white;
-  color: var(--color-danger);
+  background: var(--color-surface);
+  color: var(--color-primary);
 }
 
 .base svg {

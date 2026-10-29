@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react';
 import { isNight } from '../map/sun';
 import { AutoThemeIcon, DayIcon, IconComponent, NightIcon } from '../ui/icons';
+import { installRiskTokens } from './riskTokens';
 
 export type Theme = 'day' | 'night';
 export type ThemePreference = 'auto' | Theme;
@@ -15,8 +16,8 @@ const STORAGE_KEY = 'samu:tema';
 const LEGACY_KEY = 'samu:tema-mapa'; // quando só o mapa tinha tema
 const SOROCABA = { lat: -23.5015, lng: -47.4526 };
 const CHECK_INTERVAL_MS = 5 * 60 * 1000;
-// Cor da barra do navegador no celular, igual ao topo do app
-const BROWSER_BAR: Record<Theme, string> = { day: '#2563eb', night: '#172554' };
+// Cor da barra do navegador no celular, igual ao topo do app (--color-header)
+const BROWSER_BAR: Record<Theme, string> = { day: '#111827', night: '#0b1120' };
 
 const isPreference = (value: unknown): value is ThemePreference => value === 'auto' || value === 'day' || value === 'night';
 
@@ -86,6 +87,7 @@ function applyToDocument() {
 
 // Chamado uma vez, antes do primeiro desenho, para a tela não piscar clara à noite
 export function startDocumentTheme() {
+  installRiskTokens();
   applyToDocument();
   subscribe(applyToDocument);
 

@@ -15,10 +15,10 @@
 
 .warning {
   padding: 8px 10px;
-  border: 1px solid var(--tint-yellow-border);
+  border: 1px solid var(--tint-neutral-border);
   border-radius: 8px;
-  background: var(--tint-yellow-bg);
-  color: var(--tint-yellow-text);
+  background: var(--tint-neutral-bg);
+  color: var(--tint-neutral-text);
   font-size: 13px;
   font-weight: 600;
 }
@@ -42,7 +42,7 @@
   flex-direction: column;
   gap: 6px;
   padding-left: 10px;
-  border-left: 4px solid var(--risk-color);
+  border-left: var(--pulseira-width) solid var(--risk-edge);
 }
 
 .groupName {
@@ -73,9 +73,9 @@
 
 .chip[aria-pressed='true'],
 .chipMarked {
-  border-color: var(--risk-color);
-  background: var(--risk-color);
-  color: var(--risk-on-color);
+  border-color: var(--risk-edge);
+  background: var(--risk);
+  color: var(--risk-on);
   font-weight: 700;
 }
 
@@ -97,7 +97,7 @@
   gap: 2px;
   min-height: var(--touch-target);
   padding: 6px 4px;
-  border: 2px solid var(--risk-color);
+  border: 2px solid var(--risk-edge);
   border-radius: 8px;
   background: var(--color-surface);
   color: var(--color-text);
@@ -110,9 +110,9 @@
 }
 
 .color[aria-checked='true'] {
-  background: var(--risk-color);
-  color: var(--risk-on-color);
-  box-shadow: 0 0 0 2px var(--color-surface), 0 0 0 4px var(--risk-color);
+  background: var(--risk);
+  color: var(--risk-on);
+  box-shadow: 0 0 0 2px var(--color-surface), 0 0 0 4px var(--risk-edge);
 }
 
 @media (max-width: 380px) {
