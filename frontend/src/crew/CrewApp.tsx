@@ -42,7 +42,7 @@ import { formatNavDistance } from './navigation/instructions';
 import { PickerEntry, pickerOrder } from './shift';
 import { useShiftLocation } from './useShiftLocation';
 import { wazeUrl } from './navigation/mapsLink';
-import { callDestination } from './destination';
+import { callDestination, crewPhase } from './destination';
 import HospitalSheet from './HospitalSheet';
 import { Spinner } from '../ui/Spinner';
 import styles from './CrewApp.module.css';
@@ -218,6 +218,9 @@ export default function CrewApp() {
   const destination = useMemo(() => (activeCall ? callDestination(activeCall, hospitals) : undefined), [activeCall, hospitals]);
   const destinationKey = destination ? `${destination.kind}:${destination.id}` : '';
   const stage = activeCall ? callStage(activeCall) : null;
+  const phase = activeCall ? crewPhase(activeCall, hospitals) : null;
+  // No local sem hospital o destino seria o próprio local, e no hospital já se chegou: não há rota a seguir
+  const needsRoute = phase === 'a_caminho' || phase === 'levando_ao_hospital';
   const now = useNow(30_000, !!activeCall);
 
   // O celular é o GPS da viatura durante o turno (na navegação quem manda é ela; na simulação, a viatura anda sozinha).
@@ -280,6 +283,10 @@ export default function CrewApp() {
   // Rota da viatura até o destino atual (na navegação, quem recalcula é ela)
   useEffect(() => {
     if (!destination || !ambulance || navigating) return;
+    if (!needsRoute) {
+      setRoute(null);
+      return;
+    }
 
     let cancelled = false;
     calculateRoute(ambulance.location, destination.location, { alternatives: true })
@@ -291,7 +298,7 @@ export default function CrewApp() {
       .catch(() => { /* sem rota: o mapa mostra só os dois pontos */ });
 
     return () => { cancelled = true; };
-  }, [destinationKey, ambulance?.id, incidentsKey, navigating]);
+  }, [destinationKey, ambulance?.id, incidentsKey, navigating, needsRoute]);
 
   const handleStartShift = async (target: Ambulance) => {
     setBusy(true);
@@ -528,7 +535,9 @@ export default function CrewApp() {
     const hospital = hospitals.find(item => item.id === activeCall.hospitalId);
     const steps = timeline(activeCall);
     // Já no local e sem hospital: escolher o hospital é o próximo passo, e o botão vai para a barra do polegar
-    const needsHospital = !!activeCall.times?.onScene && !hospital && !activeCall.times?.atHospital && hospitals.length > 0;
+    const needsHospital = phase === 'no_local_sem_hospital' && hospitals.length > 0;
+    // Finalizar só é o principal quando não resta caminho: no hospital, ou no local sem hospital para escolher
+    const finishIsMain = phase === 'no_hospital' || (phase === 'no_local_sem_hospital' && hospitals.length === 0);
     info = (
       <section className={styles.callCard} style={riskVars(activeCall.priority)}>
         <p className={styles.priority}><PriorityLabel priority={activeCall.priority} /></p>
@@ -596,7 +605,7 @@ export default function CrewApp() {
             <HospitalIcon /> Escolher hospital
           </button>
         )}
-        {routeChoices.length > 1 && (
+        {needsRoute && routeChoices.length > 1 && (
           // Como no Waze: escolhe o caminho antes de sair, logo acima de "Iniciar navegação" (no mapa, a escolhida fica azul)
           <div className={styles.routeChoices} role="radiogroup" aria-label="Escolha a rota">
             {routeChoices.map((option, index) => {
@@ -616,18 +625,20 @@ export default function CrewApp() {
             })}
           </div>
         )}
-        <div className={styles.navRow}>
-          <button
-            className={styles.navigate}
-            disabled={!chosenRoute}
-            onClick={() => setNavigating(true)}
-          >
-            {chosenRoute ? <><NavigateIcon /> Iniciar navegação</> : 'Calculando rota…'}
-          </button>
-          <a className={styles.mapsLink} href={wazeUrl(destination.location)} target="_blank" rel="noopener noreferrer">
-            Waze
-          </a>
-        </div>
+        {needsRoute && (
+          <div className={styles.navRow}>
+            <button
+              className={styles.navigate}
+              disabled={!chosenRoute}
+              onClick={() => setNavigating(true)}
+            >
+              {chosenRoute ? <><NavigateIcon /> Iniciar navegação</> : 'Calculando rota…'}
+            </button>
+            <a className={styles.mapsLink} href={wazeUrl(destination.location)} target="_blank" rel="noopener noreferrer">
+              Waze
+            </a>
+          </div>
+        )}
 
         {confirmingFinish && needsOutcome(activeCall) ? (
           <OutcomeChoice busy={busy} onChoose={handleFinish} onCancel={() => setConfirmingFinish(false)} large={!landscape} />
@@ -642,9 +653,10 @@ export default function CrewApp() {
           </div>
         ) : (
           // Antes de chegar ao local, finalizar fica pequeno (um toque errado no caminho encerraria o
-          // atendimento); continua possível, porque o GPS pode não marcar a chegada
+          // atendimento); continua possível, porque o GPS pode não marcar a chegada. Depois, só é o
+          // principal quando não resta caminho; enquanto há hospital a escolher ou a seguir, fica secundário
           <button
-            className={activeCall.times?.onScene ? styles.finish : styles.finishEarly}
+            className={phase === 'a_caminho' ? styles.finishEarly : finishIsMain ? styles.finish : styles.secondaryButton}
             onClick={() => setConfirmingFinish(true)}
           >
             <CheckCircleIcon /> Finalizar atendimento
