@@ -128,6 +128,17 @@ body {
   font-family: inherit;
 }
 
+/* Dica dos campos no cinza da legenda (o cinza do navegador some no escuro) */
+::placeholder {
+  color: var(--color-text-muted);
+  opacity: 1;
+}
+
+/* Sem palavra sozinha na última linha (descrição, linha do tempo) */
+:where(p, li) {
+  text-wrap: pretty;
+}
+
 /* Toque, seleção e troca de estado com uma transição curta (cada tela pode refinar) */
 :where(button, a, select, input, textarea) {
   transition:

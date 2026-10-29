@@ -79,9 +79,10 @@
   color: var(--color-text-soft);
 }
 
+/* Fora de serviço: apagado pelo fundo cinza, mas com o texto legível */
 .pill_SEM_MOTORISTA {
   background: var(--color-border);
-  color: var(--color-text-muted);
+  color: var(--color-text-soft);
 }
 
 .driverRow {
