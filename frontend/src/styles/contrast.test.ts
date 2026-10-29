@@ -60,7 +60,9 @@ describe('contraste das cores', () => {
       expect(contrast(color(theme, '--color-focus'), color(theme, '--color-surface'))).toBeGreaterThanOrEqual(3);
       // À noite o botão cheio da equipe é grafite: o contorno é o que o separa da superfície
       if (theme === 'night') {
-        expect(contrast(color(theme, '--color-action-border'), color(theme, '--color-surface'))).toBeGreaterThanOrEqual(3);
+        for (const background of ['--color-surface', '--color-background']) {
+          expect(contrast(color(theme, '--color-action-border'), color(theme, background)), `contorno sobre ${background}`).toBeGreaterThanOrEqual(3);
+        }
       }
     });
 

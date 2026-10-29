@@ -78,10 +78,11 @@
   --color-background: #0b1120;
   --color-map-loading: #1c2531;
   --color-header: #0b1120;
-  /* Na cabine escura, o botão cheio é grafite com contorno, não uma placa clara */
-  --color-action: #374151;
+  /* Na cabine escura, o botão cheio é grafite com contorno claro de 2 px, não uma placa clara;
+     os secundários ficam só no contorno, para o principal ser achado de relance */
+  --color-action: #4b5563;
   --color-on-action: #f9fafb;
-  --color-action-border: #6b7280;
+  --color-action-border: #9ca3af;
 
   --tint-neutral-bg: #111827;
   --tint-neutral-bg-strong: #374151;
