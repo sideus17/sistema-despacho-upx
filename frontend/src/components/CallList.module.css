@@ -287,6 +287,18 @@
 }
 
 /* Etapa do atendimento (marcada pelo GPS da viatura) */
+/* Confirmação da equipe no despacho */
+.crewAck {
+  margin-top: 4px;
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.crewAckLate {
+  color: var(--color-warning-text);
+  font-weight: 700;
+}
+
 .stage {
   padding: 2px 8px;
   border: 1px solid transparent;

@@ -4,6 +4,7 @@ import {
   PRIORITY_META,
   STAGE_META,
   callStage,
+  crewAck,
   elapsedLabel,
   formatClock,
   formatGender,
@@ -132,6 +133,7 @@ export default function CallList({
               const gender = formatGender(call.patientInfo.gender);
               const isConfirming = confirmingFinishId === call.id;
               const stage = isActive ? callStage(call) : null;
+              const ack = isActive ? crewAck(call, now) : null;
               const stageMeta = stage ? STAGE_META[stage.stage] : null;
               const hospital = hospitals.find(item => item.id === call.hospitalId);
 
@@ -178,6 +180,15 @@ export default function CallList({
                   </header>
 
                   <p className={styles.address}><LocationIcon /> {call.address}</p>
+                  {ack && (
+                    <p className={`${styles.crewAck} ${!ack.seen && ack.late ? styles.crewAckLate : ''}`}>
+                      {ack.seen
+                        ? `Equipe ciente às ${formatClock(ack.at)}`
+                        : ack.late
+                          ? 'Equipe ainda não confirmou: ligue para a viatura'
+                          : 'Aguardando a equipe confirmar'}
+                    </p>
+                  )}
                   {call.reference && <p className={styles.reference}>Referência: {call.reference}</p>}
                   <p className={styles.description}>{call.description}</p>
                   {call.triage?.signals.length ? <p className={styles.signals}>Sinais: {signalsText(call.triage.signals)}</p> : null}

@@ -67,12 +67,24 @@ export function callStage(call: EmergencyCall): { stage: CallStage; since: strin
 // Linha do tempo: só as etapas que aconteceram, na ordem
 const TIMELINE: Array<[keyof NonNullable<EmergencyCall['times']>, string]> = [
   ['dispatched', 'Despacho'],
+  ['crewSeen', 'Ciente'],
   ['enRoute', 'Saída'],
   ['onScene', 'Local'],
   ['leftScene', 'Saída do local'],
   ['atHospital', 'Hospital'],
   ['finished', 'Fim']
 ];
+
+// Confirmação da equipe ("Ciente" no app): sem ela depois de 1 min, a central deve ligar para a viatura
+export const CREW_ACK_WAIT_MS = 60_000;
+
+export type CrewAck = { seen: true; at: string } | { seen: false; late: boolean };
+
+export function crewAck(call: EmergencyCall, now: number): CrewAck | null {
+  if (call.status !== CallStatus.EM_ATENDIMENTO || !call.times?.dispatched) return null;
+  if (call.times.crewSeen) return { seen: true, at: call.times.crewSeen };
+  return { seen: false, late: now - Date.parse(call.times.dispatched) >= CREW_ACK_WAIT_MS };
+}
 
 export const formatClock = (iso: string) => new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 

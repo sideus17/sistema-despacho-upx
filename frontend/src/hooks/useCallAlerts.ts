@@ -49,11 +49,20 @@ export function useCallAlertsEnabled(): boolean {
 function notify(title: string, body: string, tag: string) {
   // A notificação do sistema só faz sentido com a central em outra aba ou janela
   if (!document.hidden || !('Notification' in window) || Notification.permission !== 'granted') return;
-  try {
-    new Notification(title, { body, tag });
-  } catch {
-    // Alguns navegadores só aceitam notificação pelo service worker: fica o aviso na tela
-  }
+  const options: NotificationOptions = { body, tag, lang: 'pt-BR', icon: '/pwa-192x192.png' };
+  const direct = () => {
+    try {
+      new Notification(title, options);
+    } catch {
+      // Sem service worker e sem notificação direta: fica o aviso na tela
+    }
+  };
+  // Pelo service worker quando ele existe (alguns navegadores só aceitam assim)
+  if (!('serviceWorker' in navigator)) return direct();
+  navigator.serviceWorker
+    .getRegistration()
+    .then(registration => (registration ? registration.showNotification(title, options) : direct()))
+    .catch(direct);
 }
 
 const describe = (call: EmergencyCall) => `${PRIORITY_META[call.priority]?.name ?? call.priority} · ${call.address}`;
@@ -83,9 +92,13 @@ export function useCallAlerts(calls: EmergencyCall[], ownKeys: { current: Set<st
   const waiting = calls.filter(call => queueOf(call) !== null);
   const [tick, setTick] = useState(0);
 
-  // O primeiro toque ou tecla na página libera o som (exigência dos navegadores)
+  // O primeiro toque ou tecla na página libera o som (exigência dos navegadores) e, com os alertas
+  // ligados, pede a permissão de notificação para avisar com a aba em segundo plano
   useEffect(() => {
-    const unlock = () => unlockAlertSound();
+    const unlock = () => {
+      unlockAlertSound();
+      if (enabled && 'Notification' in window && Notification.permission === 'default') Notification.requestPermission().catch(() => {});
+    };
     window.addEventListener('pointerdown', unlock, { once: true });
     window.addEventListener('keydown', unlock, { once: true });
     return () => {
