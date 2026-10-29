@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CallPriority, CallStatus, EmergencyCall } from '../types';
-import { callStage, elapsedLabel, formatGender, formatWait, queueOf, sortCallsByPriority, timeline, waitLevel, waitingSince } from './calls';
+import { CREW_ACK_WAIT_MS, callStage, crewAck, elapsedLabel, formatGender, formatWait, queueOf, sortCallsByPriority, timeline, waitLevel, waitingSince } from './calls';
 
 const call = (id: string, priority: CallPriority, timestamp: string): EmergencyCall => ({
   id,
@@ -28,6 +28,17 @@ describe('fila de chamados', () => {
     const calls = [call('b', CallPriority.URGENTE, '2026-10-15T10:00:00Z'), call('a', CallPriority.EMERGENCIA, '2026-10-15T10:00:00Z')];
     sortCallsByPriority(calls);
     expect(calls.map(c => c.id)).toEqual(['b', 'a']);
+  });
+
+  it('confirmação da equipe: ciente, aguardando ou atrasada depois de 1 min', () => {
+    const dispatched = '2026-10-28T21:40:00Z';
+    const active = { ...call('a', CallPriority.URGENTE, '2026-10-28T21:38:00Z'), status: CallStatus.EM_ATENDIMENTO, times: { dispatched } };
+    const at = (offset: number) => Date.parse(dispatched) + offset;
+    expect(crewAck(active, at(30_000))).toEqual({ seen: false, late: false });
+    expect(crewAck(active, at(CREW_ACK_WAIT_MS))).toEqual({ seen: false, late: true });
+    expect(crewAck({ ...active, times: { dispatched, crewSeen: '2026-10-28T21:40:20Z' } }, at(CREW_ACK_WAIT_MS * 5)))
+      .toEqual({ seen: true, at: '2026-10-28T21:40:20Z' });
+    expect(crewAck(call('fila', CallPriority.URGENTE, dispatched), at(CREW_ACK_WAIT_MS * 5))).toBeNull();
   });
 
   it('sexo do paciente por extenso', () => {

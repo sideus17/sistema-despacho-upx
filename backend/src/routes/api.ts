@@ -32,6 +32,8 @@ import {
 import { parseRegulation, regulationChange } from '../services/regulation';
 import { actorOf, buildEvent } from '../services/callEvents';
 import { listCallEvents, recordCallEvent } from '../services/callEventsService';
+import { dispatchMessage, parseSubscription } from '../services/push';
+import { deleteSubscription, pushPublicKey, saveSubscription, sendToUser } from '../services/pushService';
 import { invalidateProfile, requireAuth, requireRole } from '../middleware/auth';
 import { duplicateMessage, parseCpf, parsePhone, profileUpdate, ProfileError, toMe } from '../services/profile';
 import {
@@ -543,6 +545,39 @@ router.post('/calls/:id/regulate', requireRole(UserRole.OPERADOR), async (req: R
   }
 });
 
+// A equipe viu o despacho ("Ciente" no app): a central para de esperar a confirmação
+router.post('/calls/:id/seen', requireRole(UserRole.MOTORISTA), async (req: Request, res: Response) => {
+  try {
+    const { data: own } = await supabase.from('ambulances').select('id').eq('driver_id', req.user!.id).maybeSingle();
+    if (!own) return fail(res, 404, 'Você não está em turno.');
+
+    const { data: updated, error } = await supabase
+      .from('calls')
+      .update({ crew_seen_at: new Date().toISOString() })
+      .eq('id', req.params.id)
+      .eq('ambulance_id', own.id)
+      .eq('status', CallStatus.EM_ATENDIMENTO)
+      .is('crew_seen_at', null)
+      .select('crew_seen_at');
+    if (error) throw new Error(error.message);
+
+    // O horário que fica é o do banco (o mesmo formato da resposta de um toque repetido)
+    if (updated && updated.length > 0) {
+      await recordCallEvent(buildEvent(req.params.id, CallEventAction.CIENTE, actorOf(req.user!), { ambulanceId: own.id }));
+      return res.json({ success: true, data: { seenAt: updated[0].crew_seen_at }, timestamp: new Date().toISOString() });
+    }
+
+    // Já confirmado antes (outro aparelho ou toque repetido): responde com o horário que ficou
+    const { data: call } = await supabase.from('calls').select('ambulance_id, status, crew_seen_at').eq('id', req.params.id).maybeSingle();
+    if (!call || call.ambulance_id !== own.id) return fail(res, 403, 'Este chamado não é da sua viatura.');
+    if (!call.crew_seen_at) return fail(res, 409, 'Este chamado não está em atendimento.');
+    res.json({ success: true, data: { seenAt: call.crew_seen_at }, timestamp: new Date().toISOString() });
+  } catch (error) {
+    console.error('Falha ao registrar o ciente da equipe:', error);
+    fail(res, 500, 'Não foi possível registrar o ciente.');
+  }
+});
+
 // Auditoria do chamado: quem fez cada ação, quando e o que mudou
 router.get('/calls/:id/events', requireRole(UserRole.OPERADOR), async (req: Request, res: Response) => {
   try {
@@ -550,6 +585,39 @@ router.get('/calls/:id/events', requireRole(UserRole.OPERADOR), async (req: Requ
   } catch (error) {
     console.error('Falha ao ler a auditoria do chamado:', error);
     fail(res, 500, 'Não foi possível carregar o registro do chamado.');
+  }
+});
+
+// ============================================
+// AVISOS DE DESPACHO (Web Push)
+// ============================================
+
+// Chave pública para o navegador se inscrever; null quando o push está desligado no servidor
+router.get('/push/key', (req: Request, res: Response) => {
+  res.json({ success: true, data: { publicKey: pushPublicKey() }, timestamp: new Date().toISOString() });
+});
+
+router.post('/push/subscribe', requireRole(UserRole.MOTORISTA), async (req: Request, res: Response) => {
+  const subscription = parseSubscription(req.body);
+  if (!subscription) return fail(res, 400, 'Inscrição de aviso inválida.');
+  try {
+    await saveSubscription(req.user!.id, subscription);
+    res.status(201).json({ success: true, data: { endpoint: subscription.endpoint }, timestamp: new Date().toISOString() });
+  } catch (error) {
+    console.error('Falha ao gravar a inscrição de aviso:', error);
+    fail(res, 500, 'Não foi possível ativar os avisos.');
+  }
+});
+
+router.delete('/push/subscribe', requireRole(UserRole.MOTORISTA), async (req: Request, res: Response) => {
+  const endpoint: unknown = req.body?.endpoint;
+  if (typeof endpoint !== 'string' || !endpoint) return fail(res, 400, 'Inscrição de aviso inválida.');
+  try {
+    await deleteSubscription(req.user!.id, endpoint);
+    res.json({ success: true, data: { endpoint }, timestamp: new Date().toISOString() });
+  } catch (error) {
+    console.error('Falha ao apagar a inscrição de aviso:', error);
+    fail(res, 500, 'Não foi possível desativar os avisos.');
   }
 });
 
@@ -735,6 +803,9 @@ router.post('/dispatch/execute', requireRole(UserRole.OPERADOR), async (req: Req
       driverId: ambData.driver_id,
       driverName: driver?.full_name ?? null
     }));
+
+    // Aviso no celular do motorista, mesmo com o app fechado (sem esperar: o despacho já está gravado)
+    if (ambData.driver_id) void sendToUser(ambData.driver_id, dispatchMessage({ id: callId, priority: callData.priority, address: callData.address }));
 
     // Calcula a rota com as coordenadas que vieram do banco
     const route = await calculateRoute(

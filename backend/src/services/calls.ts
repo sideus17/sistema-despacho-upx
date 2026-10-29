@@ -104,6 +104,7 @@ export interface CallRow {
   driver_id?: string | null;
   close_reason?: CloseReason | null;
   close_note?: string | null;
+  crew_seen_at?: string | null; // "Ciente" da equipe (migração 009)
 }
 
 // Só os horários que já aconteceram
@@ -111,6 +112,7 @@ function timesOf(row: CallRow): CallTimes | undefined {
   const times: CallTimes = {
     regulated: row.regulated_at ?? undefined,
     dispatched: row.dispatched_at ?? undefined,
+    crewSeen: row.crew_seen_at ?? undefined,
     enRoute: row.en_route_at ?? undefined,
     onScene: row.on_scene_at ?? undefined,
     leftScene: row.left_scene_at ?? undefined,

@@ -10,6 +10,7 @@ import {
   finishDispatch,
   startShift,
   endShift,
+  markCallSeen,
   updateAmbulanceStatus,
   getErrorMessage,
   getTimeAgo,
@@ -27,6 +28,9 @@ import { PriorityLabel } from '../ui/PriorityLabel';
 import { signalsText } from '../utils/triage';
 import { AmbulanceTypeIcon } from '../ui/AmbulanceTypeIcon';
 import { BellIcon, CheckCircleIcon, DistanceIcon, NavigateIcon, ReportIcon, TimerIcon } from '../ui/icons';
+import { useWakeLock } from '../ui/useWakeLock';
+import DispatchAlert from './DispatchAlert';
+import { useDispatchPush } from './useDispatchPush';
 import RouteNotes from '../components/RouteNotes';
 import ReportSheet from './incidents/ReportSheet';
 import { clearReports, flushReports, pendingReports } from './incidents/reportQueue';
@@ -141,14 +145,14 @@ export default function CrewApp() {
   const chosenRoute = routeChoices[routeIndex] ?? route;
   const [confirmingFinish, setConfirmingFinish] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [isNewDispatch, setIsNewDispatch] = useState(false);
+  // Despacho que a equipe já confirmou neste aparelho (o servidor grava; a próxima leitura traz)
+  const [ackedCallId, setAckedCallId] = useState<string | null>(null);
   const [navigating, setNavigating] = useState(false);
   // Escolha da viatura: onde o celular está e o nome das bases
   const [here, setHere] = useState<Coordinates | null>(null);
   const [bases, setBases] = useState<Base[]>([]);
   // Celular deitado: informações e botões numa coluna à esquerda, mapa à direita na altura toda
   const landscape = useMediaQuery(LANDSCAPE_PHONE);
-  const lastCallId = useRef<string | null | undefined>(undefined);
   const incidentsRef = useRef(incidents);
   incidentsRef.current = incidents;
   const toast = useToast();
@@ -231,25 +235,19 @@ export default function CrewApp() {
     return () => { cancelled = true; };
   }, [choosing]);
 
-  // Trocou de viatura: o chamado que ela já tiver não conta como "novo despacho"
-  useEffect(() => {
-    lastCallId.current = undefined;
-  }, [ambulance?.id]);
+  // Tela acesa durante o turno: com ela apagada o app para de consultar o servidor
+  useWakeLock(!!ambulance);
+  const push = useDispatchPush(!!ambulance);
 
-  // Avisa (vibração + destaque) quando chega um chamado diferente do último visto
-  useEffect(() => {
-    if (!ambulance) return;
-    const currentId = activeCall?.id ?? null;
-
-    if (lastCallId.current !== undefined && currentId && currentId !== lastCallId.current) {
-      setIsNewDispatch(true);
-      navigator.vibrate?.([300, 150, 300, 150, 300]);
-      toast('Novo despacho recebido', 'info');
-    }
-    if (!currentId) setIsNewDispatch(false);
-
-    lastCallId.current = currentId;
-  }, [activeCall?.id, ambulance, toast]);
+  // Despacho que ninguém da equipe confirmou ainda: alarme em tela cheia (também depois de recarregar)
+  const needsAck = !!activeCall && !activeCall.times?.crewSeen && ackedCallId !== activeCall.id;
+  const handleAck = () => {
+    if (!activeCall) return;
+    setAckedCallId(activeCall.id);
+    markCallSeen(activeCall.id)
+      .then(() => loadData())
+      .catch(() => toast('Sem conexão: a central ainda não sabe que você viu o despacho.', 'error'));
+  };
 
   // Chamado, viatura ou destino novos (chegou ao local e há hospital): começa do zero
   useEffect(() => {
@@ -317,6 +315,7 @@ export default function CrewApp() {
   const handleSignOut = async () => {
     saveSnapshot(null);
     clearReports();
+    await push.disable();
     await signOut();
   };
 
@@ -511,12 +510,7 @@ export default function CrewApp() {
     const hospital = hospitals.find(item => item.id === activeCall.hospitalId);
     const steps = timeline(activeCall);
     info = (
-      <section
-        className={`${styles.callCard} ${isNewDispatch ? styles.callCardNew : ''}`}
-        style={{ '--priority-color': meta.color } as React.CSSProperties}
-        onClick={() => setIsNewDispatch(false)}
-      >
-        {isNewDispatch && <p className={styles.newBadge}><BellIcon /> Novo despacho</p>}
+      <section className={styles.callCard} style={{ '--priority-color': meta.color } as React.CSSProperties}>
         <p className={styles.priority}><PriorityLabel priority={activeCall.priority} /></p>
         <h1 className={styles.address}>{activeCall.address}</h1>
         {activeCall.reference && <p className={styles.reference}>Referência: {activeCall.reference}</p>}
@@ -604,10 +598,7 @@ export default function CrewApp() {
           <button
             className={styles.navigate}
             disabled={!chosenRoute}
-            onClick={() => {
-              setIsNewDispatch(false);
-              setNavigating(true);
-            }}
+            onClick={() => setNavigating(true)}
           >
             {chosenRoute ? <><NavigateIcon /> Iniciar navegação</> : 'Calculando rota…'}
           </button>
@@ -640,7 +631,19 @@ export default function CrewApp() {
         {ambulance.status === AmbulanceStatus.DISPONIVEL ? (
           <>
             <p className={styles.idleTitle}>Aguardando chamado</p>
-            <p className={styles.muted}>Você será avisado assim que a central despachar esta viatura.</p>
+            <p className={styles.muted}>
+              {push.state === 'on'
+                ? 'Deixe o app aberto e o celular no carregador. O despacho toca mesmo com a tela apagada.'
+                : 'Deixe o app aberto e o celular no carregador: o despacho toca e vibra nesta tela.'}
+            </p>
+            {push.state === 'ask' && (
+              <button className={styles.pushButton} onClick={() => push.enable().catch(() => toast('Não foi possível ativar os avisos.', 'error'))}>
+                <BellIcon /> Ativar avisos de despacho
+              </button>
+            )}
+            {push.state === 'blocked' && (
+              <p className={styles.pushBlocked}>Os avisos estão bloqueados. Libere as notificações deste site nas configurações do navegador.</p>
+            )}
           </>
         ) : (
           <>
@@ -689,6 +692,7 @@ export default function CrewApp() {
         {mapView}
         {reportSheet}
         {hospitalSheet}
+        {needsAck && activeCall && <DispatchAlert call={activeCall} onAck={handleAck} />}
       </div>
     );
   }
@@ -707,6 +711,7 @@ export default function CrewApp() {
         {details}
       </main>
       {actionBar}
+      {needsAck && activeCall && <DispatchAlert call={activeCall} onAck={handleAck} />}
     </div>
   );
 }

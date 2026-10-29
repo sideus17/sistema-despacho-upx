@@ -31,6 +31,7 @@ const GPS_STEPS: Array<[keyof CallTimes, string]> = [
 const ACTION_STEPS: Array<[keyof CallTimes, CallEventAction, string]> = [
   ['regulated', CallEventAction.REGULACAO, 'Regulação'],
   ['dispatched', CallEventAction.DESPACHO, 'Despacho'],
+  ['crewSeen', CallEventAction.CIENTE, 'Equipe ciente'],
   ['finished', CallEventAction.FINALIZACAO, 'Fim do atendimento']
 ];
 
@@ -74,6 +75,8 @@ function describe(event: CallEvent, hospitals: Hospital[]): { label: string; det
       return { label: 'Hospital de destino', detail: changes.hospitalId ? hospitalName(changes.hospitalId[1]) : undefined };
     case CallEventAction.FINALIZACAO:
       return { label: 'Fim do atendimento', detail: data.outcome ? OUTCOME_LABEL[data.outcome] : undefined };
+    case CallEventAction.CIENTE:
+      return { label: 'Equipe ciente' };
   }
 }
 

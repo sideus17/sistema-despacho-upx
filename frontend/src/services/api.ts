@@ -389,6 +389,26 @@ export async function finishDispatch(callId: string, outcome?: CallOutcome): Pro
   return response.data.data;
 }
 
+// A equipe viu o despacho ("Ciente" no app)
+export async function markCallSeen(callId: string): Promise<string> {
+  const response = await api.post<ApiResponse<{ seenAt: string }>>(`/calls/${callId}/seen`);
+  return response.data.data!.seenAt;
+}
+
+// Aviso do despacho (Web Push): chave pública do servidor, ou null se ele estiver sem push
+export async function getPushKey(): Promise<string | null> {
+  const response = await api.get<ApiResponse<{ publicKey: string | null }>>('/push/key');
+  return response.data.data?.publicKey ?? null;
+}
+
+export async function subscribePush(subscription: PushSubscriptionJSON): Promise<void> {
+  await api.post('/push/subscribe', subscription);
+}
+
+export async function unsubscribePush(endpoint: string): Promise<void> {
+  await api.delete('/push/subscribe', { data: { endpoint } });
+}
+
 export async function getHospitals(): Promise<Hospital[]> {
   const response = await api.get<ApiResponse<Hospital[]>>('/hospitals');
   return response.data.data || [];

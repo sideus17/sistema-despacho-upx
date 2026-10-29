@@ -93,7 +93,7 @@ async function main() {
 
   // RLS ligado e sem políticas: a anon key não lê nada
   const anon = createClient(API_URL, ANON_KEY, { auth: { persistSession: false } });
-  for (const table of ['bases', 'ambulances', 'calls', 'call_events', 'incidents', 'incident_votes', 'profiles', 'hospitals']) {
+  for (const table of ['bases', 'ambulances', 'calls', 'call_events', 'incidents', 'incident_votes', 'profiles', 'hospitals', 'push_subscriptions']) {
     const { data, error } = await anon.from(table).select('*').limit(1);
     if (error) throw error;
     check(data.length === 0, `${table}: anon key não lê (RLS)`);
@@ -181,8 +181,25 @@ async function checkCallFlow(admin: SupabaseClient<any, 'public', any>, operator
 
     const shift = await post('/shifts/start', driverToken, { ambulanceId: 'amb-1' });
     check(shift.status === 200, 'motorista assume a USA-01');
+
+    // Aviso do despacho: o celular se inscreve e sai (a inscrição de teste não recebe nada)
+    const endpoint = 'https://push.exemplo.invalid/ci';
+    const subscribed = await post('/push/subscribe', driverToken, { endpoint, keys: { p256dh: 'chave-ci', auth: 'auth-ci' } });
+    const { count: saved } = await admin.from('push_subscriptions').select('*', { count: 'exact', head: true }).eq('endpoint', endpoint);
+    check(subscribed.status === 201 && saved === 1, `o celular se inscreve para o aviso de despacho (${subscribed.status} ${subscribed.body.error ?? ''})`);
+    check((await post('/push/subscribe', operatorToken, { endpoint, keys: { p256dh: 'x', auth: 'y' } })).status === 403, 'só a equipe se inscreve');
+    const removed = await backend('/push/subscribe', { method: 'DELETE', token: driverToken, body: JSON.stringify({ endpoint }) });
+    const { count: left } = await admin.from('push_subscriptions').select('*', { count: 'exact', head: true }).eq('endpoint', endpoint);
+    check(removed.status === 200 && left === 0, 'a inscrição sai ao desativar');
+
     const dispatched = await post('/dispatch/execute', operatorToken, { callId, ambulanceId: 'amb-1' });
     check(dispatched.status === 200, `despacho da USA-01 (${dispatched.status} ${dispatched.body.error ?? ''})`);
+    const seen = await post(`/calls/${callId}/seen`, driverToken, {});
+    const seenAgain = await post(`/calls/${callId}/seen`, driverToken, {});
+    check(
+      seen.status === 200 && seenAgain.status === 200 && seenAgain.body.data.seenAt === seen.body.data.seenAt,
+      `a equipe marca "Ciente" uma vez só (${seen.status} ${seen.body.error ?? ''})`
+    );
     const finished = await post('/dispatch/finish', driverToken, { callId, outcome: 'ATENDIDO_NO_LOCAL' });
     check(finished.status === 200, 'motorista finaliza o atendimento');
 
@@ -201,6 +218,7 @@ async function checkCallFlow(admin: SupabaseClient<any, 'public', any>, operator
         'ABERTURA:Operador de Teste',
         'REGULACAO:Operador de Teste',
         'DESPACHO:Operador de Teste',
+        'CIENTE:Motorista de Teste',
         'FINALIZACAO:Motorista de Teste'
       ]),
       `auditoria com quem fez cada passo (${actions.join(', ')})`

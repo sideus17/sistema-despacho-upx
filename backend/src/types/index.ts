@@ -51,7 +51,8 @@ export enum CallEventAction {
   REGULACAO = 'REGULACAO',
   DESPACHO = 'DESPACHO',
   HOSPITAL = 'HOSPITAL',
-  FINALIZACAO = 'FINALIZACAO'
+  FINALIZACAO = 'FINALIZACAO',
+  CIENTE = 'CIENTE' // a equipe viu o despacho (migração 009)
 }
 
 // Como o atendimento terminou (com chegada ao hospital, é sempre TRANSPORTADO)
@@ -157,6 +158,7 @@ export interface EmergencyCall {
 export interface CallTimes {
   regulated?: string; // primeira regulação
   dispatched?: string;
+  crewSeen?: string; // a equipe tocou "Ciente" no despacho
   enRoute?: string; // viatura saiu
   onScene?: string; // chegou ao local
   leftScene?: string; // saiu do local (transportando, se há hospital)

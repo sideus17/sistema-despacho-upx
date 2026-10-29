@@ -102,7 +102,7 @@ function App() {
   }, []);
 
   // Atualiza a cada 10 s, como o app da equipe: chamado novo aparece (e alerta) logo; se falhar, tenta de novo em 10 s
-  usePolling(loadData, 10000, 10000);
+  usePolling(loadData, 10000, 10000, { whileHidden: true });
 
   // Chamados abertos ou regulados nesta tela não disparam os alertas de chegada na fila
   const ownQueueKeys = useRef(new Set<string>());
