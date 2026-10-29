@@ -58,7 +58,7 @@ describe('indicadores', () => {
     render(<Indicators scope={SCOPE} ambulances={AMBULANCES} hospitals={HOSPITALS} />);
     expect(await screen.findByText('USB-02')).toBeInTheDocument();
     expect(screen.getByText('Santa Casa')).toBeInTheDocument();
-    expect(screen.getByRole('note')).toHaveTextContent('8 atendimentos finalizados não têm a chegada');
+    expect(screen.getAllByRole('note').map(note => note.textContent).join(' ')).toContain('8 atendimentos finalizados não têm a chegada');
   });
 
   it('cada gráfico tem a versão em tabela', async () => {

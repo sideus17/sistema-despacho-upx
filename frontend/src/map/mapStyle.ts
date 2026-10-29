@@ -25,7 +25,6 @@ interface Palette {
   park: string;
   wood: string;
   water: string;
-  hospitalArea: string;
   otherArea: string;
   building: string;
   buildingOutline: string;
@@ -38,7 +37,6 @@ interface Palette {
   roadLabel: string;
   waterLabel: string;
   halo: string;
-  poiHealth: string;
   poiSafety: string;
   oneWayOpacity: number;
 }
@@ -51,7 +49,6 @@ const DAY: Palette = {
   park: '#cdebbd',
   wood: 'rgba(186, 224, 165, 0.6)',
   water: '#a6d3f2',
-  hospitalArea: '#fbe1e1',
   otherArea: '#ebe8d9',
   building: '#e4dfd5',
   buildingOutline: '#d6cfc2',
@@ -69,7 +66,6 @@ const DAY: Palette = {
   roadLabel: '#3a3f47',
   waterLabel: '#3f6ea8',
   halo: '#ffffff',
-  poiHealth: '#d32f2f',
   poiSafety: '#37474f',
   oneWayOpacity: 0.8
 };
@@ -81,7 +77,6 @@ const NIGHT: Palette = {
   park: '#1f3529',
   wood: 'rgba(31, 58, 44, 0.6)',
   water: '#13304b',
-  hospitalArea: '#3b2531',
   otherArea: '#222c38',
   building: '#27313f',
   buildingOutline: '#303c4c',
@@ -99,7 +94,6 @@ const NIGHT: Palette = {
   roadLabel: '#c3ccd8',
   waterLabel: '#7fa8d6',
   halo: '#1c2531',
-  poiHealth: '#ff8a80',
   poiSafety: '#b0bec5',
   oneWayOpacity: 0.4
 };
@@ -118,8 +112,9 @@ const HIDDEN = /^(natural_earth|road_area_pattern|building-3d|poi_r7|poi_r20|poi
 // Nomes em português quando o OpenStreetMap tiver, senão o nome local
 const NAME = ['coalesce', ['get', 'name:pt'], ['get', 'name']];
 
-// Só o que importa para o atendimento continua no mapa
-const EMERGENCY_POI_CLASSES = ['hospital', 'doctors', 'police', 'fire_station'];
+// Só o que importa para o atendimento continua no mapa. Hospitais e clínicas do mapa base saem: a camada de
+// hospitais da central (a placa "H") é a única linguagem de hospital, e nada de vermelho perto dos pinos
+const EMERGENCY_POI_CLASSES = ['police', 'fire_station'];
 
 type Layer = {
   id: string;
@@ -176,7 +171,7 @@ function restyle(layer: Layer, p: Palette): Layer | null {
         'symbol-sort-key': ['get', 'rank']
       },
       paint: {
-        'text-color': ['match', ['get', 'class'], ['hospital', 'doctors'], p.poiHealth, p.poiSafety],
+        'text-color': p.poiSafety,
         'text-halo-color': p.halo,
         'text-halo-width': 1.5
       }
@@ -192,7 +187,6 @@ function restyle(layer: Layer, p: Palette): Layer | null {
   else if (id === 'landcover_wood') fill(p.wood);
   else if (id === 'water') fill(p.water);
   else if (id.startsWith('waterway_') && layer.type === 'line') line(p.water);
-  else if (id === 'landuse_hospital') fill(p.hospitalArea);
   else if (/^landuse_|^landcover_(sand|ice|wetland)$/.test(id)) fill(p.otherArea);
   else if (id === 'aeroway_fill') fill(p.aeroway);
   else if (id.startsWith('aeroway_')) line(p.aeroway);

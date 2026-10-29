@@ -1,6 +1,6 @@
 import { AmbulanceStatus, CallPriority, Hospital, IncidentEffect, IncidentType } from '../types';
 import { PRIORITY_META } from '../utils/calls';
-import { AmbulanceMarkerIcon, HospitalIcon } from '../ui/icons';
+import { AmbulanceMarkerIcon, HospitalIcon, LocationOffIcon } from '../ui/icons';
 import { IncidentIcon } from '../ui/IncidentIcon';
 import { effectVars } from './incidents';
 import styles from './Markers.module.css';
@@ -13,11 +13,13 @@ const AMBULANCE_CLASS: Record<AmbulanceStatus, string> = {
   [AmbulanceStatus.INDISPONIVEL]: styles.ambulanceUnavailable
 };
 
-export function AmbulanceMarker({ status, hasDriver = true }: { status: AmbulanceStatus; hasDriver?: boolean }) {
+// stale: GPS sem atualizar; um selo de canto, sem mudar a forma do estado
+export function AmbulanceMarker({ status, hasDriver = true, stale = false }: { status: AmbulanceStatus; hasDriver?: boolean; stale?: boolean }) {
   const shape = hasDriver ? AMBULANCE_CLASS[status] ?? styles.ambulanceOff : styles.ambulanceOff;
   return (
     <div className={`${styles.ambulance} ${shape}`}>
       <AmbulanceMarkerIcon />
+      {stale && <span className={styles.staleBadge}><LocationOffIcon /></span>}
     </div>
   );
 }

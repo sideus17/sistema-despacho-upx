@@ -124,6 +124,8 @@ export default function NavigationView({
   const sim = useSimulatedGeolocation(route.geometry, simulate);
   const fix = simulate ? sim.fix : real.fix;
   const nav = useNavigation(route, destination.location, fix);
+  // Sem GPS (erro de permissão ou de sinal), a chegada não vale: a faixa mostra só o pedido de localização
+  const arrived = nav.arrived && (simulate || !real.error);
   const arrivalText = destination.kind === 'hospital' ? 'Você chegou ao hospital' : 'Você chegou ao local';
 
   // Limites de velocidade da rota atual (início e cada recálculo); sem resposta, a placa não aparece
@@ -146,7 +148,7 @@ export default function NavigationView({
   const landscape = useMediaQuery(LANDSCAPE_PHONE);
   const [panelCollapsed, setPanelCollapsed] = usePanelCollapsed(landscape);
   // Ao chegar, o painel abre sozinho para o "Sair da navegação" (finalizar é no card do chamado)
-  const collapsed = panelCollapsed && !nav.arrived;
+  const collapsed = panelCollapsed && !arrived;
   const landscapeRef = useRef(landscape);
   landscapeRef.current = landscape;
   const mapRef = useRef<MapLibreMap | null>(null);
@@ -339,7 +341,7 @@ export default function NavigationView({
     remaining: nav.remaining,
     position: fix?.position ?? null,
     meId: me.id,
-    active: !!fix && !nav.arrived && !rerouting,
+    active: !!fix && !arrived && !rerouting,
     speak: speakQueued
   });
 
@@ -350,8 +352,8 @@ export default function NavigationView({
 
   // Bloqueio novo no caminho que falta
   useEffect(() => {
-    if (alerts.blockedAhead && !nav.arrived) reroute('Via bloqueada à frente. Recalculando rota', BLOCK_REROUTE_INTERVAL_MS);
-  }, [alerts.blockedAhead, nav.arrived, reroute]);
+    if (alerts.blockedAhead && !arrived) reroute('Via bloqueada à frente. Recalculando rota', BLOCK_REROUTE_INTERVAL_MS);
+  }, [alerts.blockedAhead, arrived, reroute]);
 
   const { prompt, closePrompt } = alerts;
   const answerPrompt = useCallback((answer: 'SIM' | 'NAO' | null) => {
@@ -376,7 +378,7 @@ export default function NavigationView({
       speak(text);
     };
 
-    if (nav.arrived) {
+    if (arrived) {
       once('arrived', arrivalText);
       return;
     }
@@ -392,7 +394,7 @@ export default function NavigationView({
 
     if (meters <= 50) once(`${nav.stepIndex}:near`, maneuverText(step));
     else if (meters <= 300) once(`${nav.stepIndex}:far`, spokenInstruction(step, meters));
-  }, [nav.stepIndex, nav.distanceToManeuver, nav.arrived, nav.offRoute, rerouting, step, speak]);
+  }, [nav.stepIndex, nav.distanceToManeuver, arrived, nav.offRoute, rerouting, step, speak]);
 
   // A tela fica acesa pelo turno (useWakeLock no CrewApp); ao sair, a voz para
   useEffect(() => () => window.speechSynthesis?.cancel(), []);
@@ -444,7 +446,7 @@ export default function NavigationView({
         <header className={`${styles.banner} ${rerouting ? styles.bannerWarning : ''}`} aria-live="polite">
           {rerouting ? (
             <p className={styles.bannerText}>Recalculando rota…</p>
-          ) : nav.arrived ? (
+          ) : arrived ? (
             <>
               <span className={styles.icon}><ArrivalIcon /></span>
               <p className={styles.bannerText}>{arrivalText}</p>
@@ -490,12 +492,12 @@ export default function NavigationView({
 
       {alerts.prompt && <StillTherePrompt incident={alerts.prompt} onAnswer={answerPrompt} />}
 
-      {!nav.arrived && !alerts.prompt && (
+      {!arrived && !alerts.prompt && (
         <button className={styles.report} onClick={() => setReporting(true)}><ReportIcon /> Reportar</button>
       )}
 
       {/* Placa do limite da via e velocímetro, como no Waze (só informa: em atendimento a viatura pode passar do limite) */}
-      {!nav.arrived && (speedLimit !== null || speedKmh !== null) && (
+      {!arrived && (speedLimit !== null || speedKmh !== null) && (
         <div className={styles.speed}>
           {speedLimit !== null && (
             <span className={styles.speedLimit} role="img" aria-label={`Limite da via: ${speedLimit} km/h`}>{speedLimit}</span>
@@ -527,7 +529,7 @@ export default function NavigationView({
       )}
 
       <footer ref={panelRef} className={`${styles.panel} ${collapsed ? styles.collapsed : ''}`}>
-        {!nav.arrived && <PanelHandle collapsed={collapsed} onChange={setPanelCollapsed} label="painel da navegação" />}
+        {!arrived && <PanelHandle collapsed={collapsed} onChange={setPanelCollapsed} label="painel da navegação" />}
         {/* Para onde vai: o motorista confere o endereço e a referência na chegada, sem sair da navegação */}
         <p className={styles.destination} style={riskVars(priority)}>
           {destination.kind === 'hospital' ? <HospitalIcon /> : <LocationIcon />}
@@ -536,7 +538,7 @@ export default function NavigationView({
             {destination.kind === 'chamado' && reference && <small> · {reference}</small>}
           </span>
         </p>
-        {nav.arrived ? (
+        {arrived ? (
           <button className={styles.finish} onClick={onExit}>
             Sair da navegação
           </button>

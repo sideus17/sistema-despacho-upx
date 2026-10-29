@@ -9,6 +9,7 @@
 }
 
 .ambulance {
+  position: relative;
   width: 32px;
   height: 32px;
   border: 3px solid transparent;
@@ -44,6 +45,26 @@
 .ambulance svg {
   width: 22px;
   height: 22px;
+}
+
+/* GPS sem atualizar: selo de canto em tinta (a forma continua dizendo o estado) */
+.staleBadge {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--color-surface);
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+.ambulance .staleBadge svg {
+  width: 12px;
+  height: 12px;
 }
 
 .base {

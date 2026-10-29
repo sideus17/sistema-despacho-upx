@@ -77,7 +77,7 @@ describe('regulação do chamado', () => {
     const { onDone } = renderPanel();
     await user.click(color('Vermelho'));
     await user.selectOptions(screen.getByRole('combobox', { name: /Hospital de destino/ }), 'hosp-perto');
-    await user.click(screen.getByRole('button', { name: 'Enviar viatura' }));
+    await user.click(screen.getByRole('button', { name: 'Seguir para o despacho' }));
 
     expect(regulateCall).toHaveBeenCalledWith('call-1', {
       decision: RegulationDecision.DESPACHAR,
@@ -114,7 +114,7 @@ describe('regulação do chamado', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Amarelo · Urgência sem viatura. Encerrar mesmo assim?');
 
     await user.click(screen.getByRole('button', { name: 'Enviar viatura' }));
-    expect(screen.getByRole('button', { name: 'Enviar viatura' })).toHaveFocus();
+    expect(screen.getByRole('button', { name: 'Seguir para o despacho' })).toHaveFocus();
     expect(regulateCall).not.toHaveBeenCalled();
 
     await user.click(screen.getByRole('button', { name: 'Orientação por telefone' }));
@@ -157,7 +157,7 @@ describe('regulação do chamado', () => {
     const { rerender } = renderPanel();
     rerender(<RegulationPanel call={{ ...CALL, status: CallStatus.EM_ATENDIMENTO }} hospitals={HOSPITALS} onDone={vi.fn()} onBack={vi.fn()} />);
     expect(screen.getByText(/Este chamado mudou enquanto você regulava/)).toHaveTextContent('agora está em atendimento');
-    expect(screen.queryByRole('button', { name: 'Enviar viatura' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Seguir para o despacho' })).not.toBeInTheDocument();
   });
 
   it('chamado que saiu das filas', () => {
@@ -169,9 +169,17 @@ describe('regulação do chamado', () => {
     const user = userEvent.setup();
     vi.mocked(regulateCall).mockRejectedValue({ response: { data: { error: 'O chamado mudou enquanto você regulava.' } } });
     const { onDone } = renderPanel();
-    await user.click(screen.getByRole('button', { name: 'Enviar viatura' }));
+    await user.click(screen.getByRole('button', { name: 'Seguir para o despacho' }));
     expect(await screen.findByText('O chamado mudou enquanto você regulava.')).toBeInTheDocument();
     expect(onDone).not.toHaveBeenCalled();
-    expect(screen.getByRole('button', { name: 'Enviar viatura' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Seguir para o despacho' })).toBeEnabled();
+  });
+
+  it('Ctrl+Enter aciona o principal do passo aberto', async () => {
+    const user = userEvent.setup();
+    renderPanel();
+    await user.click(color('Azul'));
+    await user.keyboard('{Control>}{Enter}{/Control}');
+    expect(regulateCall).toHaveBeenCalledWith('call-1', expect.objectContaining({ decision: RegulationDecision.DESPACHAR, priority: CallPriority.NAO_URGENTE }));
   });
 });

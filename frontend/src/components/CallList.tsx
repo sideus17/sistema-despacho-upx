@@ -152,7 +152,7 @@ export default function CallList({
         <p className={styles.empty}><CheckCircleIcon /> {EMPTY[filter]}</p>
       ) : visibleSections.map(section => (
         <section key={section.key} className={styles.section} aria-label={section.title}>
-          {filter === 'all' && <h3 className={styles.sectionTitle}>{section.title} <span>{section.calls.length}</span></h3>}
+          {filter === 'all' && <h2 className={styles.sectionTitle}>{section.title} <span>{section.calls.length}</span></h2>}
           <div className={styles.list}>
             {section.calls.map(call => {
               const meta = PRIORITY_META[call.priority];

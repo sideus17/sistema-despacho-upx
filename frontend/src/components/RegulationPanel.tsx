@@ -7,6 +7,7 @@ import { formatPhone } from '../utils/documents';
 import { useNow } from '../hooks/useNow';
 import { PriorityLabel } from '../ui/PriorityLabel';
 import { BackIcon, CallIcon, LocationIcon, PersonIcon } from '../ui/icons';
+import { pressCtrlEnterAction } from '../ui/ctrlEnter';
 import { WaitPill } from '../ui/WaitPill';
 import RiskClassification from './RiskClassification';
 import { useToast } from './Toast';
@@ -106,7 +107,7 @@ function RegulationForm({ call, hospitals, onDone, onBack }: RegulationPanelProp
   const cancelReady = !!reason && (reason !== CloseReason.OUTRO || !!note.trim());
 
   return (
-    <div className={styles.container}>
+    <div className={styles.container} onKeyDown={pressCtrlEnterAction}>
       <button className={styles.back} onClick={onBack}><BackIcon /> Voltar aos chamados</button>
       <h2 ref={titleRef} tabIndex={-1} className={styles.title}>{regulated ? 'Reclassificar chamado' : 'Regulação'}</h2>
 
@@ -158,8 +159,15 @@ function RegulationForm({ call, hospitals, onDone, onBack }: RegulationPanelProp
           </label>
 
           <div className={styles.actions}>
-            <button ref={mainActionRef} className={styles.primary} disabled={busy} onClick={() => submit(RegulationDecision.DESPACHAR)}>
-              {busy ? 'Salvando…' : regulated ? 'Salvar regulação' : 'Enviar viatura'}
+            <button
+              ref={mainActionRef}
+              className={styles.primary}
+              disabled={busy}
+              data-ctrl-enter
+              aria-keyshortcuts="Control+Enter"
+              onClick={() => submit(RegulationDecision.DESPACHAR)}
+            >
+              {busy ? 'Salvando…' : regulated ? 'Salvar regulação' : 'Seguir para o despacho'}
             </button>
             <div className={styles.secondaryRow}>
               <button className={styles.secondary} disabled={busy} onClick={() => setMode('orientacao')}>Orientação por telefone</button>
@@ -210,6 +218,7 @@ function RegulationForm({ call, hospitals, onDone, onBack }: RegulationPanelProp
                 <button
                   className={styles.primary}
                   disabled={busy || !note.trim()}
+                  data-ctrl-enter
                   onClick={() => (severe ? setConfirmingClose(true) : submit(RegulationDecision.ORIENTACAO))}
                 >
                   {busy ? 'Salvando…' : 'Encerrar com orientação'}
@@ -237,7 +246,7 @@ function RegulationForm({ call, hospitals, onDone, onBack }: RegulationPanelProp
             <textarea rows={2} maxLength={MAX_NOTE} value={note} onChange={(e) => setNote(e.target.value)} />
           </label>
           <div className={styles.secondaryRow}>
-            <button className={styles.danger} disabled={busy || !cancelReady} onClick={() => submit(RegulationDecision.CANCELAR)}>
+            <button className={styles.danger} disabled={busy || !cancelReady} data-ctrl-enter onClick={() => submit(RegulationDecision.CANCELAR)}>
               {busy ? 'Cancelando…' : 'Cancelar chamado'}
             </button>
             <button className={styles.ghost} disabled={busy} onClick={() => setMode('main')}>Voltar</button>

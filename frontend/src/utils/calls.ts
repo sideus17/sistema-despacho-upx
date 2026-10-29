@@ -178,6 +178,12 @@ export function formatWait(ms: number): string {
   return hours > 0 ? `${hours} h ${pad(minutes)} min` : `${minutes}:${pad(seconds)}`;
 }
 
+// Espera numa frase, sem os segundos: "4 min", "12 h 28 min"
+export function formatWaitShort(ms: number): string {
+  const { hours, minutes } = splitWait(ms);
+  return hours > 0 ? formatWait(ms) : `${minutes} min`;
+}
+
 // A mesma espera por extenso, para o leitor de tela: "4 min 7 s", "10 h 45 min"
 export function waitSpoken(ms: number): string {
   const { hours, minutes, seconds } = splitWait(ms);
@@ -191,15 +197,17 @@ function splitWait(ms: number) {
   return { hours: Math.floor(total / 3600), minutes: Math.floor((total % 3600) / 60), seconds: total % 60 };
 }
 
-// Resumo da espera longa no topo da fila, calculado a cada segundo (some sozinho quando a espera acaba):
-// "2 chamados aguardando regulação há 3 min ou mais"
+// Resumo da espera longa no topo da fila, calculado a cada segundo (some sozinho quando a espera acaba).
+// Diz a pior espera de verdade, não o limite: "Vermelho aguardando regulação há 12 h 28 min · e mais 1 acima de 3 min"
 export function lateSummary(calls: EmergencyCall[], now: number): string[] {
   return (['regulacao', 'despacho'] as Queue[]).flatMap(queue => {
-    const count = calls.filter(
-      call => queueOf(call) === queue && now - Date.parse(waitingSince(call)) >= QUEUE_WAIT[queue].critical
-    ).length;
-    if (count === 0) return [];
+    const late = calls
+      .filter(call => queueOf(call) === queue && now - Date.parse(waitingSince(call)) >= QUEUE_WAIT[queue].critical)
+      .sort((a, b) => Date.parse(waitingSince(a)) - Date.parse(waitingSince(b)));
+    if (late.length === 0) return [];
+    const [worst] = late;
     const label = queue === 'regulacao' ? 'aguardando regulação' : 'aguardando despacho';
-    return [`${count} ${count === 1 ? 'chamado' : 'chamados'} ${label} há ${QUEUE_WAIT[queue].critical / 60_000} min ou mais`];
+    const others = late.length > 1 ? ` · e mais ${late.length - 1} acima de ${QUEUE_WAIT[queue].critical / 60_000} min` : '';
+    return [`${PRIORITY_META[worst.priority].name} ${label} há ${formatWaitShort(now - Date.parse(waitingSince(worst)))}${others}`];
   });
 }
