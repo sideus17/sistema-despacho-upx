@@ -1,5 +1,7 @@
 import { useEffect } from 'react';
-import { EmergencyCall } from '../types';
+import { Coordinates, EmergencyCall, RouteInfo } from '../types';
+import { formatDistance, formatDuration } from '../services/api';
+import { distance } from './navigation/geo';
 import { PRIORITY_META, riskVars } from '../utils/calls';
 import { signalsText } from '../utils/triage';
 import { playAlert } from '../utils/alertSound';
@@ -12,10 +14,20 @@ const VIBRATION = [400, 200, 400, 200, 400];
 interface DispatchAlertProps {
   call: EmergencyCall;
   onAck: () => void;
+  // Rota da prévia (calculada enquanto o alarme toca) e a posição da viatura, para a distância até o local
+  route?: RouteInfo | null;
+  from?: Coordinates;
+}
+
+// "2,3 km · 6 min" pela rota; sem ela, a distância em linha reta
+function distanceLine(call: EmergencyCall, route?: RouteInfo | null, from?: Coordinates): string | null {
+  if (route) return `${formatDistance(route.distance)} · ${formatDuration(route.duration)}`;
+  if (from) return `~${formatDistance(distance(from, call.location))} em linha reta`;
+  return null;
 }
 
 // Despacho novo em tela cheia, como uma ligação recebida: toca e vibra até o "Ciente"
-export default function DispatchAlert({ call, onAck }: DispatchAlertProps) {
+export default function DispatchAlert({ call, onAck, route, from }: DispatchAlertProps) {
   useEffect(() => {
     const ring = () => {
       playAlert('despacho');
@@ -52,6 +64,8 @@ export default function DispatchAlert({ call, onAck }: DispatchAlertProps) {
       <div className={styles.content}>
         <h1 id="novo-despacho" className={styles.title}>Novo despacho</h1>
         <p className={styles.address}>{call.address}</p>
+        {distanceLine(call, route, from) && <p className={styles.distance}>{distanceLine(call, route, from)}</p>}
+        {call.description && <p className={styles.description}>{call.description}</p>}
         {call.reference && <p className={styles.detail}>Referência: {call.reference}</p>}
         {call.triage?.signals.length ? <p className={styles.detail}>Sinais: {signalsText(call.triage.signals)}</p> : null}
       </div>

@@ -1,4 +1,4 @@
-import { Queue, formatWait, waitLevel, waitSpoken } from '../utils/calls';
+import { QUEUE_WAIT, Queue, formatWait, formatWaitShort, waitLevel, waitSpoken } from '../utils/calls';
 import { AlarmIcon, TimerIcon } from './icons';
 import styles from './WaitPill.module.css';
 
@@ -11,10 +11,12 @@ export function WaitPill({ waited, queue }: { waited: number; queue: Queue }) {
   return (
     <span
       className={`${styles.wait} ${styles[`wait_${level}`]}`}
+      role="img"
       title={regulation ? 'Esperando a regulação' : 'Esperando a viatura'}
-      aria-label={`${regulation ? 'Aguardando regulação' : 'Aguardando despacho'} há ${waitSpoken(waited)}`}
+      aria-label={`${regulation ? 'Aguardando regulação' : 'Aguardando despacho'} há ${waitSpoken(waited)}${level === 'critico' ? `, acima da meta de ${formatWaitShort(QUEUE_WAIT[queue].critical)}` : ''}`}
     >
       <Icon /> {formatWait(waited)}
+      {level === 'critico' && <span className={styles.target}>· meta {formatWaitShort(QUEUE_WAIT[queue].critical)}</span>}
     </span>
   );
 }

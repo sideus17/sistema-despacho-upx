@@ -747,7 +747,7 @@ export default function CrewApp() {
         {mapView}
         {reportSheet}
         {hospitalSheet}
-        {needsAck && activeCall && <DispatchAlert call={activeCall} onAck={handleAck} />}
+        {needsAck && activeCall && <DispatchAlert call={activeCall} onAck={handleAck} route={chosenRoute} from={ambulance.location} />}
       </div>
     );
   }
@@ -766,7 +766,7 @@ export default function CrewApp() {
         {details}
       </main>
       {actionBar}
-      {needsAck && activeCall && <DispatchAlert call={activeCall} onAck={handleAck} />}
+      {needsAck && activeCall && <DispatchAlert call={activeCall} onAck={handleAck} route={chosenRoute} from={ambulance.location} />}
     </div>
   );
 }

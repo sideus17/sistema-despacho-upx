@@ -60,6 +60,11 @@ function RegulationForm({ call, hospitals, onDone, onBack }: RegulationPanelProp
   const [confirmingClose, setConfirmingClose] = useState(false);
   const severe = priority === CallPriority.EMERGENCIA || priority === CallPriority.URGENTE;
   useEffect(() => setConfirmingClose(false), [priority, mode]);
+  // Na confirmação, o foco vai para a saída segura (o clique tirava o botão e o foco caía no body)
+  const safeChoiceRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (confirmingClose) safeChoiceRef.current?.focus();
+  }, [confirmingClose]);
   // "Enviar viatura" na confirmação volta ao passo principal com o foco no botão de enviar
   const mainActionRef = useRef<HTMLButtonElement>(null);
   const focusMainAction = useRef(false);
@@ -196,11 +201,9 @@ function RegulationForm({ call, hospitals, onDone, onBack }: RegulationPanelProp
                 <strong>{PRIORITY_META[priority].name} · {PRIORITY_META[priority].label} sem viatura.</strong> Encerrar mesmo assim?
               </p>
               <div className={styles.secondaryRow}>
-                <button className={styles.danger} disabled={busy} onClick={() => submit(RegulationDecision.ORIENTACAO)}>
-                  {busy ? 'Salvando…' : 'Sim, encerrar sem viatura'}
-                </button>
                 <button
-                  className={styles.secondary}
+                  ref={safeChoiceRef}
+                  className={styles.primary}
                   disabled={busy}
                   onClick={() => {
                     focusMainAction.current = true;
@@ -208,6 +211,9 @@ function RegulationForm({ call, hospitals, onDone, onBack }: RegulationPanelProp
                   }}
                 >
                   Enviar viatura
+                </button>
+                <button className={styles.danger} disabled={busy} onClick={() => submit(RegulationDecision.ORIENTACAO)}>
+                  {busy ? 'Salvando…' : 'Sim, encerrar sem viatura'}
                 </button>
               </div>
             </div>

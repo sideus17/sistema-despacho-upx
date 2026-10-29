@@ -1,6 +1,7 @@
 .container {
   position: fixed;
-  top: calc(env(safe-area-inset-top) + 12px);
+  /* Abaixo do cabeçalho (56 px), que é da mesma tinta do aviso */
+  top: calc(env(safe-area-inset-top) + 68px);
   left: 50%;
   transform: translateX(-50%);
   z-index: 2000;
@@ -57,6 +58,7 @@
 /* Sucesso e informação em tinta, com ícone; erro na superfície, com ícone e texto de erro */
 .success,
 .info {
+  border: 1px solid rgba(255, 255, 255, 0.24);
   background-color: var(--color-primary);
   color: var(--color-on-primary);
 }

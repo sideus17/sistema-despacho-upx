@@ -103,8 +103,8 @@ describe('cronômetro de espera', () => {
       { ...opened('d', '2026-10-15T09:50:00Z'), status: CallStatus.PENDENTE, times: { regulated: '2026-10-15T10:04:00Z' } }
     ];
     expect(lateSummary(calls, now)).toEqual([
-      'Amarelo aguardando regulação há 10 min · e mais 1 acima de 3 min',
-      'Amarelo aguardando despacho há 6 min'
+      { text: 'Amarelo aguardando regulação há 10 min · e mais 1 acima de 3 min', callId: 'a' },
+      { text: 'Amarelo aguardando despacho há 6 min', callId: 'd' }
     ]);
     expect(lateSummary([opened('c', '2026-10-15T10:08:00Z')], now)).toEqual([]);
   });

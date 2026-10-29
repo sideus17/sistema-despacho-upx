@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { Ambulance, CallOutcome, CallPriority, CallStatus, EmergencyCall, Hospital } from '../types';
@@ -24,6 +24,30 @@ function renderList(call: EmergencyCall) {
   render(<CallList calls={[call]} ambulances={AMBULANCES} onFocus={vi.fn()} onRegulate={vi.fn()} onDispatch={vi.fn()} onFinish={onFinish} />);
   return onFinish;
 }
+
+describe('resumo da espera longa no topo da fila', () => {
+  const waiting = (): EmergencyCall => ({ ...active(), id: 'call-velho', status: CallStatus.AGUARDANDO_REGULACAO, ambulance_id: undefined, timestamp: new Date(Date.now() - 10 * 60_000).toISOString() });
+
+  it('com o cartão do pior chamado à vista, o resumo sai (não repete o cartão); fora da tela, volta; a pílula diz a meta', () => {
+    let report: (visible: boolean) => void = () => {};
+    class FakeObserver {
+      constructor(callback: IntersectionObserverCallback) {
+        report = visible => callback([{ isIntersecting: visible, target: document.querySelector('[data-call-id="call-velho"]')! } as unknown as IntersectionObserverEntry], this as unknown as IntersectionObserver);
+      }
+      observe() {}
+      disconnect() {}
+    }
+    vi.stubGlobal('IntersectionObserver', FakeObserver);
+    render(<CallList calls={[waiting()]} ambulances={AMBULANCES} onFocus={vi.fn()} onRegulate={vi.fn()} onDispatch={vi.fn()} onFinish={vi.fn()} />);
+    expect(screen.getByRole('img', { name: /acima da meta de 3 min/ })).toHaveTextContent('· meta 3 min');
+
+    act(() => report(false));
+    expect(screen.getByRole('status')).toHaveTextContent('Amarelo aguardando regulação há 10 min');
+    act(() => report(true));
+    expect(screen.queryByText(/aguardando regulação há 10 min/)).not.toBeInTheDocument();
+    vi.unstubAllGlobals();
+  });
+});
 
 describe('GPS da viatura no cartão', () => {
   it('com o GPS parado, a etapa avisa que pode estar velha', () => {
