@@ -174,6 +174,21 @@ describe('telefone de quem ligou', () => {
     expect(screen.queryByText('Descreva o que aconteceu.')).not.toBeInTheDocument();
   });
 
+  it('Ctrl+Enter abre o chamado de dentro da descrição; as setas trocam a cor', async () => {
+    const user = userEvent.setup();
+    renderWithAuth(<NewCallForm onCallCreated={vi.fn()} />);
+    await user.click(color('Amarelo'));
+    await user.keyboard('{ArrowRight}');
+    expect(color('Verde')).toHaveAttribute('aria-checked', 'true');
+    expect(color('Verde')).toHaveFocus();
+    // Só a cor escolhida entra no Tab
+    expect(color('Amarelo')).toHaveAttribute('tabindex', '-1');
+
+    await user.type(screen.getByLabelText('O que aconteceu'), 'queda{Control>}{Enter}{/Control}');
+    expect(screen.getByText('Informe o endereço ou marque no mapa.')).toBeInTheDocument();
+    expect(createCall).not.toHaveBeenCalled();
+  });
+
   it('sexo começa em "Não informado" e vai em branco', async () => {
     const user = userEvent.setup();
     renderWithAuth(<NewCallForm onCallCreated={vi.fn()} />);

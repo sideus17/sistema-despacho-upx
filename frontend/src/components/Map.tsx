@@ -16,6 +16,7 @@ import {
   Coordinates
 } from '../types';
 import { useMapStyle } from '../map/useMapStyle';
+import { MAP_LOCALE } from '../map/locale';
 import { DATA_ATTRIBUTION } from '../map/attribution';
 import { MAP_BACKGROUND, ROUTE_COLORS } from '../map/mapStyle';
 import { useTheme } from '../theme/theme';
@@ -276,6 +277,7 @@ export default function Map({
       {mapStyle ? (
         <MapGL
           ref={mapRef}
+          locale={MAP_LOCALE}
           initialViewState={INITIAL_VIEW}
           mapStyle={mapStyle}
           style={{ width: '100%', height: '100%' }}

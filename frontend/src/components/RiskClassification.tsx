@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { KeyboardEvent, ReactNode, useRef } from 'react';
 import { CallPriority } from '../types';
 import { PRIORITIES_BY_SEVERITY, PRIORITY_META, riskVars } from '../utils/calls';
 import { TRIAGE_SIGNALS } from '../utils/triage';
@@ -31,6 +31,18 @@ export default function RiskClassification({
   footnote
 }: RiskClassificationProps) {
   const editable = !!onToggleSignal;
+  // Grupo de rádio: só a cor escolhida (ou a primeira) entra no Tab; as setas trocam a escolha
+  const colorRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const tabbable = Math.max(0, value ? PRIORITIES_BY_SEVERITY.indexOf(value) : 0);
+  const moveColor = (event: KeyboardEvent, index: number) => {
+    const count = PRIORITIES_BY_SEVERITY.length;
+    const steps: Record<string, number> = { ArrowRight: index + 1, ArrowDown: index + 1, ArrowLeft: index - 1, ArrowUp: index - 1, Home: 0, End: count - 1 };
+    if (!(event.key in steps)) return;
+    event.preventDefault();
+    const next = (steps[event.key] + count) % count;
+    onChange(PRIORITIES_BY_SEVERITY[next]);
+    colorRefs.current[next]?.focus();
+  };
   const groups = editable
     ? SIGNAL_GROUPS
     : SIGNAL_GROUPS.map(group => ({ ...group, signals: group.signals.filter(signal => signals.includes(signal.code)) })).filter(
@@ -82,14 +94,17 @@ export default function RiskClassification({
       )}
 
       <div className={styles.colors} role="radiogroup" aria-label={legend}>
-        {PRIORITIES_BY_SEVERITY.map(option => {
+        {PRIORITIES_BY_SEVERITY.map((option, index) => {
           const meta = PRIORITY_META[option];
           return (
             <button
               key={option}
+              ref={element => { colorRefs.current[index] = element; }}
               type="button"
               role="radio"
               aria-checked={value === option}
+              tabIndex={index === tabbable ? 0 : -1}
+              onKeyDown={event => moveColor(event, index)}
               className={styles.color}
               style={riskVars(option)}
               onClick={() => onChange(option)}

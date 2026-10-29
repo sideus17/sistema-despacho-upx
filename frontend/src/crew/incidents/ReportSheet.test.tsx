@@ -12,6 +12,16 @@ vi.mock('./reportQueue', () => ({ submitReport: vi.fn() }));
 const POSITION = { lat: -23.5015, lng: -47.4526 };
 
 describe('folha de relato da equipe', () => {
+  it('folha modal: o foco entra nela e o Esc fecha', async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    renderWithAuth(<ReportSheet getPosition={async () => POSITION} onClose={onClose} />);
+    expect(screen.getByRole('dialog', { name: 'Relatar ocorrência' })).toHaveAttribute('aria-modal', 'true');
+    expect(screen.getByRole('dialog', { name: 'Relatar ocorrência' })).toContainElement(document.activeElement as HTMLElement);
+    await user.keyboard('{Escape}');
+    expect(onClose).toHaveBeenCalled();
+  });
+
   it('oferece os 9 tipos, inclusive os novos do modelo Waze', () => {
     renderWithAuth(<ReportSheet getPosition={async () => POSITION} onClose={vi.fn()} />);
     const names = screen.getAllByRole('button').map(button => button.textContent);

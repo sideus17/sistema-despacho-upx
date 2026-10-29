@@ -1,7 +1,8 @@
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { getStats } from './services/api';
+import { getPendingCalls, getStats } from './services/api';
+import { CallPriority, CallStatus, EmergencyCall } from './types';
 import { renderWithAuth } from './test/renderWithAuth';
 import App from './App';
 
@@ -53,5 +54,37 @@ describe('operação e gestão', () => {
     await user.click(screen.getByRole('tab', { name: /Novo/ }));
     expect(screen.getByLabelText('O que aconteceu')).toHaveValue('Dor no peito há 20 minutos');
     expect(screen.getByRole('tab', { name: /Novo/ })).toHaveAttribute('aria-selected', 'true');
+  });
+});
+
+describe('atalhos da central', () => {
+  const waiting: EmergencyCall = {
+    id: 'call-1',
+    priority: CallPriority.EMERGENCIA,
+    status: CallStatus.AGUARDANDO_REGULACAO,
+    timestamp: new Date().toISOString(),
+    location: { lat: -23.5, lng: -47.45 },
+    address: 'Rua da Penha, 120',
+    description: 'Dor no peito',
+    patientInfo: { symptoms: '' }
+  };
+
+  it('J vai para o chamado, R abre a regulação e, ao voltar, o foco volta ao cartão; N abre o novo', async () => {
+    vi.mocked(getPendingCalls).mockResolvedValue([waiting]);
+    const user = userEvent.setup();
+    renderWithAuth(<App />);
+    const card = await screen.findByRole('button', { name: 'Vermelho · Emergência: Rua da Penha, 120' });
+
+    await user.keyboard('j');
+    expect(card).toHaveFocus();
+    await user.keyboard('r');
+    expect(screen.getByRole('heading', { name: 'Regulação' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Voltar aos chamados' }));
+    expect(screen.getByRole('button', { name: 'Vermelho · Emergência: Rua da Penha, 120' })).toHaveFocus();
+
+    await user.keyboard('n');
+    expect(screen.getByRole('tab', { name: /Novo/ })).toHaveAttribute('aria-selected', 'true');
+    vi.mocked(getPendingCalls).mockResolvedValue([]);
   });
 });

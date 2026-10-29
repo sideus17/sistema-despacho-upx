@@ -1,10 +1,11 @@
 import type { CSSProperties } from 'react';
 import { CallOutcome, CallPriority, CallStatus, CloseReason, EmergencyCall } from '../types';
-import { EmergencyIcon, IconComponent, InfoIcon, WarningIcon } from '../ui/icons';
+import { EmergencyIcon, IconComponent, InfoIcon, ScheduleIcon, WarningIcon } from '../ui/icons';
 
 // Classificação de risco em 4 cores (Regulação Médica das Urgências, Ministério da Saúde): a única fonte
 // das cores fortes do sistema. `color` pinta o selo e o pino; `onColor` é o texto sobre ela (o amarelo pede
 // texto escuro); `edge` é a pulseira, a borda e o gráfico, com 3:1 sobre a superfície de cada tema.
+// Cada cor tem o seu ícone (o Azul, "pode esperar", é o relógio), para a cor não ser o único sinal.
 export type RiskKey = 'red' | 'yellow' | 'green' | 'blue';
 export const PRIORITY_META: Record<CallPriority, {
   key: RiskKey;
@@ -19,7 +20,7 @@ export const PRIORITY_META: Record<CallPriority, {
   [CallPriority.EMERGENCIA]: { key: 'red', name: 'Vermelho', label: 'Emergência', color: '#dc2626', onColor: '#ffffff', edge: { day: '#dc2626', night: '#ef4444' }, icon: EmergencyIcon, order: 0 },
   [CallPriority.URGENTE]: { key: 'yellow', name: 'Amarelo', label: 'Urgência', color: '#eab308', onColor: '#422006', edge: { day: '#a87c00', night: '#eab308' }, icon: WarningIcon, order: 1 },
   [CallPriority.PRIORITARIO]: { key: 'green', name: 'Verde', label: 'Pouco urgente', color: '#15803d', onColor: '#ffffff', edge: { day: '#15803d', night: '#22c55e' }, icon: InfoIcon, order: 2 },
-  [CallPriority.NAO_URGENTE]: { key: 'blue', name: 'Azul', label: 'Não urgente', color: '#2563eb', onColor: '#ffffff', edge: { day: '#2563eb', night: '#3b82f6' }, icon: InfoIcon, order: 3 }
+  [CallPriority.NAO_URGENTE]: { key: 'blue', name: 'Azul', label: 'Não urgente', color: '#2563eb', onColor: '#ffffff', edge: { day: '#2563eb', night: '#3b82f6' }, icon: ScheduleIcon, order: 3 }
 };
 
 // Variáveis do CSS da cor de um chamado (--risk, --risk-on e --risk-edge), para a pulseira e os selos.

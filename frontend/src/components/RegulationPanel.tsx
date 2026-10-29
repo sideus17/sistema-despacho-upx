@@ -50,6 +50,11 @@ function RegulationForm({ call, hospitals, onDone, onBack }: RegulationPanelProp
   const [busy, setBusy] = useState(false);
   const toast = useToast();
   const now = useNow(1000);
+  const reasonsRef = useRef<HTMLFieldSetElement>(null);
+  // Ao abrir "Cancelar chamado", o foco vai para o primeiro motivo
+  useEffect(() => {
+    if (mode === 'cancelar') reasonsRef.current?.querySelector('input')?.focus();
+  }, [mode]);
 
   const queue = queueOf(call);
   const changedElsewhere = call.status !== openedStatus;
@@ -176,7 +181,7 @@ function RegulationForm({ call, hospitals, onDone, onBack }: RegulationPanelProp
 
       {mode === 'cancelar' && (
         <div className={styles.closing}>
-          <fieldset className={styles.reasons}>
+          <fieldset ref={reasonsRef} className={styles.reasons}>
             <legend>Motivo do cancelamento</legend>
             {Object.values(CloseReason).map(option => (
               <label key={option} className={styles.reason}>

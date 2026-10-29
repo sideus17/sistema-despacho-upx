@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { EmergencyCall, CallStatus, Ambulance, CallOutcome, Hospital } from '../types';
 import {
   PRIORITY_META,
@@ -37,6 +37,8 @@ interface CallListProps {
   onFinish: (call: EmergencyCall, outcome?: CallOutcome) => Promise<void>;
   hospitals?: Hospital[];
   onHospitalChange?: (call: EmergencyCall, hospitalId: string | null) => void;
+  focusCallId?: string | null; // voltando da regulação ou da análise: o foco volta a este cartão
+  onFocusRestored?: () => void;
 }
 
 type Filter = 'all' | 'regulation' | 'dispatch' | 'active';
@@ -57,11 +59,21 @@ export default function CallList({
   onDispatch,
   onFinish,
   hospitals = [],
-  onHospitalChange
+  onHospitalChange,
+  focusCallId,
+  onFocusRestored
 }: CallListProps) {
   const [filter, setFilter] = useState<Filter>('all');
   const [confirmingFinishId, setConfirmingFinishId] = useState<string | null>(null);
   const [finishingId, setFinishingId] = useState<string | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Voltando da regulação ou da análise, o foco volta ao cartão de onde se saiu (teclado e leitor de tela)
+  useEffect(() => {
+    if (!focusCallId) return;
+    containerRef.current?.querySelector<HTMLElement>(`[data-call-id="${focusCallId}"] [data-card-button]`)?.focus();
+    onFocusRestored?.();
+  }, []);
 
   // Cronômetro de espera e tempo na etapa, ao vivo, só enquanto há chamado na lista
   const now = useNow(1000, calls.length > 0);
@@ -94,14 +106,14 @@ export default function CallList({
   };
 
   return (
-    <div className={styles.container}>
+    <div ref={containerRef} className={styles.container}>
       <div className={styles.toolbar}>
-        <div className={styles.filters} role="tablist" aria-label="Filtrar chamados">
+        <div className={styles.filters} role="group" aria-label="Filtrar chamados">
           {filters.map(f => (
             <button
               key={f.key}
-              role="tab"
-              aria-selected={filter === f.key}
+              type="button"
+              aria-pressed={filter === f.key}
               className={`${styles.chip} ${filter === f.key ? styles.chipActive : ''}`}
               onClick={() => setFilter(f.key)}
             >
@@ -147,11 +159,10 @@ export default function CallList({
               const hospital = hospitals.find(item => item.id === call.hospitalId);
 
               return (
+                // O cartão todo responde ao clique (mouse); pelo teclado e pelo leitor de tela, o endereço é o botão
                 <article
                   key={call.id}
-                  role="button"
-                  tabIndex={0}
-                  aria-label={`Chamado ${meta ? `${meta.name} · ${meta.label}` : call.priority} em ${call.address}`}
+                  data-call-id={call.id}
                   className={[
                     styles.card,
                     selectedCallId === call.id ? styles.cardSelected : ''
@@ -175,7 +186,20 @@ export default function CallList({
                     )}
                   </header>
 
-                  <p className={styles.address}><LocationIcon /> {call.address}</p>
+                  <p className={styles.address}>
+                    <button
+                      type="button"
+                      className={styles.cardButton}
+                      data-card-button
+                      aria-label={`${meta ? `${meta.name} · ${meta.label}` : call.priority}: ${call.address}`}
+                      onClick={event => {
+                        event.stopPropagation();
+                        onFocus(call);
+                      }}
+                    >
+                      <LocationIcon /> {call.address}
+                    </button>
+                  </p>
                   {ack && (
                     <p className={`${styles.crewAck} ${!ack.seen && ack.late ? styles.crewAckLate : ''}`}>
                       {ack.seen
@@ -226,16 +250,16 @@ export default function CallList({
 
                   <footer className={styles.actions} onClick={(e) => e.stopPropagation()}>
                     {queue === 'regulacao' && (
-                      <button className={styles.primary} onClick={() => onRegulate(call)}>
+                      <button className={styles.primary} title="Regular (R)" aria-keyshortcuts="R" onClick={() => onRegulate(call)}>
                         Regular
                       </button>
                     )}
                     {queue === 'despacho' && (
                       <div className={styles.confirmRow}>
-                        <button className={styles.primary} onClick={() => onDispatch(call)}>
+                        <button className={styles.primary} title="Despachar (D)" aria-keyshortcuts="D" onClick={() => onDispatch(call)}>
                           Despachar
                         </button>
-                        <button className={styles.ghost} onClick={() => onRegulate(call)}>
+                        <button className={styles.ghost} title="Reclassificar (R)" aria-keyshortcuts="R" onClick={() => onRegulate(call)}>
                           Reclassificar
                         </button>
                       </div>
@@ -277,6 +301,8 @@ export default function CallList({
           </div>
         </section>
       ))}
+
+      <p className={styles.shortcuts}>Atalhos: N novo chamado · J e K próximo e anterior · R regular · D despachar · Esc voltar</p>
     </div>
   );
 }

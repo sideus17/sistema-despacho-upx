@@ -4,6 +4,7 @@ import '../map/maplibre';
 import { Ambulance, Coordinates, Incident } from '../types';
 import type { Destination } from './destination';
 import { useMapStyle } from '../map/useMapStyle';
+import { MAP_LOCALE } from '../map/locale';
 import { DATA_ATTRIBUTION } from '../map/attribution';
 import { MAP_BACKGROUND } from '../map/mapStyle';
 import { useTheme } from '../theme/theme';
@@ -51,6 +52,7 @@ export default function CrewMap({ ambulance, destination, routes = [], selectedR
   return (
     <MapGL
       ref={mapRef}
+      locale={MAP_LOCALE}
       initialViewState={{ longitude: ambulance.location.lng, latitude: ambulance.location.lat, zoom: 14 }}
       mapStyle={mapStyle}
       style={{ width: '100%', height: '100%' }}
