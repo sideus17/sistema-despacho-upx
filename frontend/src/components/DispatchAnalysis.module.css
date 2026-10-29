@@ -249,6 +249,66 @@
   line-height: 1.5;
 }
 
+/* Sem viatura livre: o próximo passo é voltar à fila */
+.noFree {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  border: 1px solid var(--tint-neutral-border);
+  border-radius: var(--radius);
+  background: var(--tint-neutral-bg);
+  color: var(--tint-neutral-text);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.noFreeTitle {
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.noFree .execute {
+  margin-top: 6px;
+}
+
+/* Ocupadas: só informação, sem botão */
+.busy {
+  margin-top: 20px;
+}
+
+.busyTitle {
+  margin: 0 0 8px;
+  color: var(--color-text-soft);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.busyList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  list-style: none;
+}
+
+.busyItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  color: var(--color-text-soft);
+  font-size: 13px;
+}
+
+.busyItem strong {
+  color: var(--color-text);
+}
+
 /* Ações */
 .actions {
   margin-top: 12px;

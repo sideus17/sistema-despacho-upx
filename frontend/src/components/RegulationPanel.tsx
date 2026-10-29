@@ -55,6 +55,8 @@ function RegulationForm({ call, hospitals, onDone, onBack }: RegulationPanelProp
   const regulated = openedStatus === CallStatus.PENDENTE;
   const waited = now - Date.parse(waitingSince(call));
   const gender = formatGender(call.patientInfo.gender);
+  // Cor dada no registro (antes de qualquer regulação), para a linha "Registrado: … → Final: …"
+  const registeredPriority = call.initialPriority ?? call.priority;
 
   const submit = async (decision: RegulationDecision) => {
     const request: RegulationRequest = { decision, priority };
@@ -91,7 +93,7 @@ function RegulationForm({ call, hospitals, onDone, onBack }: RegulationPanelProp
 
       <section className={styles.summary} style={riskVars(priority)}>
         <div className={styles.summaryHeader}>
-          <PriorityLabel priority={call.priority} />
+          <PriorityLabel priority={priority} />
           <span
             className={`${styles.wait} ${styles[`wait_${waitLevel(waited, queue)}`]}`}
             aria-label={`${regulated ? 'Aguardando despacho' : 'Aguardando regulação'} há ${formatWait(waited)}`}
@@ -99,8 +101,10 @@ function RegulationForm({ call, hospitals, onDone, onBack }: RegulationPanelProp
             <TimerIcon /> {formatWait(waited)}
           </span>
         </div>
-        {call.initialPriority && call.initialPriority !== call.priority && (
-          <p className={styles.muted}>Registrado como {PRIORITY_META[call.initialPriority].name}</p>
+        {registeredPriority !== priority && (
+          <p className={styles.muted}>
+            Registrado: {PRIORITY_META[registeredPriority].name} → Final: <strong>{PRIORITY_META[priority].name}</strong>
+          </p>
         )}
         <p className={styles.address}><LocationIcon /> {call.address}</p>
         {call.reference && <p className={styles.muted}>Referência: {call.reference}</p>}
@@ -116,13 +120,16 @@ function RegulationForm({ call, hospitals, onDone, onBack }: RegulationPanelProp
         )}
       </section>
 
-      <RiskClassification
-        legend="Cor final"
-        signals={call.triage?.signals ?? []}
-        value={priority}
-        onChange={setPriority}
-        suggested={call.triage?.suggested ?? null}
-      />
+      {/* Para cancelar, a cor não importa: a escolha sai da tela (e vai a cor que já estava) */}
+      {mode !== 'cancelar' && (
+        <RiskClassification
+          legend="Cor final"
+          signals={call.triage?.signals ?? []}
+          value={priority}
+          onChange={setPriority}
+          suggested={call.triage?.suggested ?? null}
+        />
+      )}
 
       {mode === 'main' && (
         <>

@@ -8,15 +8,17 @@
   justify-content: space-between;
   gap: 24px;
   padding: calc(env(safe-area-inset-top) + 32px) 20px calc(env(safe-area-inset-bottom) + 20px);
-  border-left: var(--pulseira-width) solid var(--risk-edge);
-  background: var(--color-surface);
-  color: var(--color-text);
+  background: var(--risk);
+  color: var(--risk-on);
 }
 
+/* O texto ocupa o espaço até o botão; só rola se for longo de verdade */
 .content {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   gap: 12px;
+  min-height: 0;
   overflow-y: auto;
 }
 
@@ -26,7 +28,15 @@
 }
 
 .priority {
-  font-size: 18px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.priority :global(.icon) {
+  font-size: 30px;
 }
 
 .address {
@@ -35,9 +45,10 @@
   line-height: 1.2;
 }
 
+/* Texto secundário na própria cor do texto (cinza sobre a cor perderia contraste) */
 .detail {
-  color: var(--color-text-soft);
   font-size: 17px;
+  font-weight: 500;
   line-height: 1.4;
 }
 
@@ -46,14 +57,14 @@
   min-height: 72px;
   border: none;
   border-radius: 14px;
-  background: var(--color-primary);
-  color: var(--color-on-primary);
+  background: var(--risk-on);
+  color: var(--risk);
   font-size: 24px;
   font-weight: 800;
   cursor: pointer;
 }
 
 .ack:focus-visible {
-  outline: 3px solid var(--color-primary);
+  outline: 3px solid var(--risk-on);
   outline-offset: 3px;
 }

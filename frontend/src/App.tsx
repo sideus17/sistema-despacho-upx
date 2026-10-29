@@ -231,7 +231,7 @@ function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, [activeTab]);
 
-  // Calcula sob demanda a rota da opção selecionada (o backend só traz a da melhor)
+  // Rota da opção selecionada: o servidor já traz a das livres; calcula aqui só se faltar (motor fora do ar)
   const handleSelectRoute = async (index: number) => {
     setSelectedRouteIndex(index);
 
@@ -453,6 +453,7 @@ function App() {
                 call={selectedCall}
                 recommendation={recommendation}
                 ambulances={ambulances}
+                calls={calls}
                 onExecuteDispatch={handleExecuteDispatch}
                 onBack={() => setActiveTab('calls')}
                 onRetry={() => selectedCall && handleAnalyze(selectedCall)}

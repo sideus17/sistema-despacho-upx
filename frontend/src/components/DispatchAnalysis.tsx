@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { DispatchRecommendation, Ambulance, AmbulanceStatus, EmergencyCall } from '../types';
+import { DispatchRecommendation, Ambulance, AmbulanceStatus, CallStatus, EmergencyCall } from '../types';
 import { formatDistance, formatDuration, getTimeAgo } from '../services/api';
 import { trafficNote } from '../utils/routes';
-import { riskVars, waitingSince } from '../utils/calls';
+import { STAGE_META, callStage, elapsedLabel, riskVars, waitingSince } from '../utils/calls';
+import { AMBULANCE_TYPE_LABEL } from '../utils/ambulances';
 import { PriorityLabel } from '../ui/PriorityLabel';
 import { AmbulanceTypeIcon } from '../ui/AmbulanceTypeIcon';
 import RouteNotes from './RouteNotes';
@@ -15,6 +16,7 @@ interface DispatchAnalysisProps {
   call: EmergencyCall | null;
   recommendation: DispatchRecommendation | null;
   ambulances: Ambulance[];
+  calls?: EmergencyCall[]; // para dizer em que etapa está cada viatura ocupada
   onExecuteDispatch: (ambulanceId: string) => Promise<void>;
   onBack: () => void;
   onRetry: () => void;
@@ -28,6 +30,7 @@ export default function DispatchAnalysis({
   call,
   recommendation,
   ambulances,
+  calls = [],
   onExecuteDispatch,
   onBack,
   onRetry,
@@ -59,6 +62,15 @@ export default function DispatchAnalysis({
   // Espera pela viatura: desde a regulação (chamado de antes da regulação: desde a abertura)
   const timeAgo = getTimeAgo(waitingSince(call));
   const waiting = timeAgo === 'agora' ? 'aberto agora' : `aguardando ${timeAgo}`;
+
+  // Livres primeiro (o servidor já ordena assim); "Recomendada" é só a melhor livre
+  const options = (recommendation?.recommendations ?? []).flatMap((rec, index) => {
+    const ambulance = ambulances.find(amb => amb.id === rec.ambulanceId);
+    return ambulance ? [{ rec, index, ambulance }] : [];
+  });
+  const free = options.filter(option => option.ambulance.status === AmbulanceStatus.DISPONIVEL);
+  const busy = options.filter(option => option.ambulance.status !== AmbulanceStatus.DISPONIVEL);
+  const bestIndex = free[0]?.index;
 
   const handleConfirm = async (ambulanceId: string) => {
     setExecuting(true);
@@ -96,19 +108,25 @@ export default function DispatchAnalysis({
         <button className={styles.retry} onClick={onRetry}>Analisar despacho</button>
       )}
 
-      {!loading && recommendation && recommendation.recommendations.length === 0 && (
+      {!loading && recommendation && options.length === 0 && (
         <p className={styles.notice} role="status">Nenhuma viatura com motorista em turno agora.</p>
       )}
 
-      {!loading && recommendation && (
+      {/* Sem viatura livre: o próximo passo é voltar à fila, não um botão desativado */}
+      {!loading && recommendation && options.length > 0 && free.length === 0 && (
+        <section className={styles.noFree} role="status">
+          <p className={styles.noFreeTitle}>Nenhuma viatura livre agora.</p>
+          <p>O chamado continua na fila de despacho.</p>
+          <button className={styles.execute} onClick={onBack}>Voltar à fila</button>
+        </section>
+      )}
+
+      {!loading && free.length > 0 && (
         <>
           <div className={styles.options}>
-            {recommendation.recommendations.map((rec, index) => {
-              const ambulance = ambulances.find(amb => amb.id === rec.ambulanceId);
-              if (!ambulance) return null;
-
+            {free.map(({ rec, index, ambulance }) => {
               const isSelected = selectedIndex === index;
-              const isAvailable = ambulance.status === AmbulanceStatus.DISPONIVEL;
+              const isBest = index === bestIndex;
               const isConfirming = confirmingId === rec.ambulanceId;
 
               return (
@@ -116,12 +134,12 @@ export default function DispatchAnalysis({
                   key={rec.ambulanceId}
                   className={[
                     styles.option,
-                    index === 0 ? styles.optionBest : '',
+                    isBest ? styles.optionBest : '',
                     isSelected ? styles.optionSelected : ''
                   ].join(' ')}
                   onClick={() => onSelectRoute(index)}
                 >
-                  {index === 0 && <span className={styles.bestBadge}><StarIcon /> Recomendada</span>}
+                  {isBest && <span className={styles.bestBadge}><StarIcon /> Recomendada</span>}
 
                   <header className={styles.optionHeader}>
                     {/* O cartão todo responde ao clique; o botão é o caminho pelo teclado */}
@@ -129,7 +147,7 @@ export default function DispatchAnalysis({
                       type="button"
                       className={styles.ambulance}
                       aria-pressed={isSelected}
-                      aria-label={`Ver ${ambulance.code}${index === 0 ? ' (recomendada)' : ''}`}
+                      aria-label={`Ver ${ambulance.code}${isBest ? ' (recomendada)' : ''}`}
                       onClick={event => {
                         event.stopPropagation();
                         onSelectRoute(index);
@@ -138,7 +156,7 @@ export default function DispatchAnalysis({
                       <span className={styles.typeIcon}><AmbulanceTypeIcon type={ambulance.type} /></span>
                       <span className={styles.ambulanceText}>
                         <span className={styles.code}>{ambulance.code}</span>
-                        <span className={styles.meta}>{ambulance.type}{!isAvailable && ' · ocupada'}</span>
+                        <span className={styles.meta}>{AMBULANCE_TYPE_LABEL[ambulance.type] ?? ambulance.type}</span>
                         {ambulance.driver && (
                           <span className={styles.driver}>
                             <Avatar
@@ -174,9 +192,7 @@ export default function DispatchAnalysis({
 
                   {isSelected && (
                     <div className={styles.actions} onClick={(e) => e.stopPropagation()}>
-                      {!isAvailable ? (
-                        <button className={styles.execute} disabled>Ocupada — indisponível para despacho</button>
-                      ) : isConfirming ? (
+                      {isConfirming ? (
                         <div className={styles.confirmRow}>
                           <button
                             className={styles.execute}
@@ -201,6 +217,29 @@ export default function DispatchAnalysis({
             })}
           </div>
         </>
+      )}
+
+      {/* Ocupadas: só para saber onde estão; não dá para despachar */}
+      {!loading && busy.length > 0 && (
+        <section className={styles.busy} aria-labelledby="ocupadas">
+          <h3 id="ocupadas" className={styles.busyTitle}>Em atendimento</h3>
+          <ul className={styles.busyList}>
+            {busy.map(({ rec, ambulance }) => {
+              const serving = calls.find(item => item.ambulance_id === ambulance.id && item.status === CallStatus.EM_ATENDIMENTO);
+              const stage = serving ? callStage(serving) : null;
+              return (
+                <li key={rec.ambulanceId} className={styles.busyItem}>
+                  <AmbulanceTypeIcon type={ambulance.type} />
+                  <strong>{ambulance.code}</strong>
+                  <span>
+                    {AMBULANCE_TYPE_LABEL[ambulance.type] ?? ambulance.type}
+                    {stage ? ` · ${STAGE_META[stage.stage].label} ${elapsedLabel(stage.since, Date.now())}` : ' · em atendimento'}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
       )}
     </div>
   );

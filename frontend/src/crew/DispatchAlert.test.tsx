@@ -28,7 +28,8 @@ afterEach(() => vi.useRealTimers());
 describe('alarme do despacho no app da equipe', () => {
   it('mostra a cor, o endereço e a referência em tela cheia', () => {
     render(<DispatchAlert call={call} onAck={vi.fn()} />);
-    expect(screen.getByRole('alertdialog', { name: 'Novo despacho' })).toBeInTheDocument();
+    // A cor vem junto do título: é a primeira coisa que o leitor de tela fala
+    expect(screen.getByRole('alertdialog', { name: 'Novo despacho Amarelo · Urgência' })).toBeInTheDocument();
     expect(screen.getByText('Rua Barão do Rio Branco, 200 - Centro')).toBeInTheDocument();
     expect(screen.getByText('Referência: em frente à padaria')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Ciente' })).toHaveFocus();

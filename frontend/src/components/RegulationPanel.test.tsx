@@ -55,6 +55,23 @@ describe('regulação do chamado', () => {
     expect(screen.getByText('A cor escolhida é menos grave que a sugerida pelos sinais.')).toBeInTheDocument();
   });
 
+  it('o selo e a pulseira seguem a cor escolhida, com a cor do registro ao lado', async () => {
+    const user = userEvent.setup();
+    renderPanel();
+    expect(screen.queryByText(/^Registrado:/)).not.toBeInTheDocument();
+    await user.click(color('Verde'));
+    expect(screen.getByText('Verde · Pouco urgente')).toBeInTheDocument();
+    expect(screen.queryByText('Amarelo · Urgência')).not.toBeInTheDocument();
+    expect(screen.getByText(/^Registrado:/)).toHaveTextContent('Registrado: Amarelo → Final: Verde');
+  });
+
+  it('sem sinal marcado no registro, diz isso numa linha só', () => {
+    renderPanel({ ...CALL, triage: { signals: [], suggested: null } });
+    expect(screen.getByText('Nenhum sinal de alerta marcado no registro.')).toBeInTheDocument();
+    expect(screen.queryByText(/Sem sinais marcados/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Sugerida pelos sinais/)).not.toBeInTheDocument();
+  });
+
   it('enviar viatura manda a cor final e o hospital', async () => {
     const user = userEvent.setup();
     const { onDone } = renderPanel();
@@ -93,6 +110,8 @@ describe('regulação do chamado', () => {
     await user.click(screen.getByRole('button', { name: 'Cancelar chamado' }));
     const cancel = screen.getByRole('button', { name: 'Cancelar chamado' });
     expect(cancel).toBeDisabled();
+    // Para cancelar a cor não importa: a escolha sai da tela
+    expect(screen.queryByRole('radiogroup', { name: 'Cor final' })).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('radio', { name: 'Outro motivo' }));
     expect(cancel).toBeDisabled();

@@ -30,13 +30,16 @@ export default function RiskClassification({
   legend = 'Classificação de risco',
   footnote
 }: RiskClassificationProps) {
-  const milder = !!(value && suggested && PRIORITY_META[value].order > PRIORITY_META[suggested].order);
   const editable = !!onToggleSignal;
   const groups = editable
     ? SIGNAL_GROUPS
     : SIGNAL_GROUPS.map(group => ({ ...group, signals: group.signals.filter(signal => signals.includes(signal.code)) })).filter(
         group => group.signals.length > 0
       );
+  // Na regulação (só leitura), a cor sugerida só aparece junto dos sinais que a sustentam
+  const showSuggestion = editable || groups.length > 0;
+  const shownSuggestion = showSuggestion ? suggested : null;
+  const milder = !!(value && shownSuggestion && PRIORITY_META[value].order > PRIORITY_META[shownSuggestion].order);
 
   return (
     <fieldset className={styles.triage}>
@@ -72,9 +75,11 @@ export default function RiskClassification({
         </div>
       ))}
 
-      <p className={styles.suggestion} role="status">
-        {suggested ? <>Sugerida pelos sinais: <strong>{PRIORITY_META[suggested].name}</strong></> : 'Sem sinais marcados: escolha a cor.'}
-      </p>
+      {showSuggestion && (
+        <p className={styles.suggestion} role="status">
+          {shownSuggestion ? <>Sugerida pelos sinais: <strong>{PRIORITY_META[shownSuggestion].name}</strong></> : 'Sem sinais marcados: escolha a cor.'}
+        </p>
+      )}
 
       <div className={styles.colors} role="radiogroup" aria-label={legend}>
         {PRIORITIES_BY_SEVERITY.map(option => {
