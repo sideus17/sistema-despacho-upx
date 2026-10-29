@@ -41,6 +41,8 @@ const TEXT_PAIRS: Array<[string, string[]]> = [
   ['--color-primary-text', ['--color-surface', '--color-surface-muted']],
   ['--color-on-primary', ['--color-primary', '--color-primary-hover']],
   ['--color-on-action', ['--color-action']],
+  // Secundário da equipe (só texto à noite)
+  ['--color-secondary-text', ['--color-surface', '--color-background']],
   ['--color-danger-text', ['--color-surface', '--color-surface-muted', '--tint-error-bg', '--tint-error-bg-strong']],
   ['--tint-neutral-text', ['--tint-neutral-bg', '--tint-neutral-bg-strong']]
 ];

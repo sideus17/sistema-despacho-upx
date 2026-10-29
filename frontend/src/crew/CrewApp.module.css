@@ -491,9 +491,9 @@
 /* O Waze divide a linha com a navegação: compacto, pode quebrar em duas linhas */
 .mapsLink {
   padding: 0 10px;
-  border: 1px solid var(--color-border-strong);
+  border: 1px solid var(--color-secondary-border);
   background: transparent;
-  color: var(--color-text-soft);
+  color: var(--color-secondary-text);
   font-size: 14px;
   line-height: 1.15;
   text-align: center;
@@ -506,10 +506,10 @@
   gap: 8px;
   width: 100%;
   min-height: var(--touch-target);
-  border: 1px solid var(--color-border-strong);
+  border: 1px solid var(--color-secondary-border);
   border-radius: 12px;
   background: transparent;
-  color: var(--color-text-soft);
+  color: var(--color-secondary-text);
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
@@ -543,13 +543,13 @@
   flex: 2;
 }
 
-/* Secundário: só contorno, para o principal (cheio) ser a próxima ação de relance, de dia e à noite */
+/* Secundário: só contorno de dia e só texto à noite, para o principal (cheio) ser a próxima ação de relance */
 .secondaryButton {
   flex: 1;
   width: 100%;
-  border: 1px solid var(--color-border-strong);
+  border: 1px solid var(--color-secondary-border);
   background: transparent;
-  color: var(--color-text-soft);
+  color: var(--color-secondary-text);
 }
 
 .finish:disabled,
