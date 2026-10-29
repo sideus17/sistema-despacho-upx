@@ -199,7 +199,7 @@ function splitWait(ms: number) {
 
 // Resumo da espera longa no topo da fila, calculado a cada segundo (some sozinho quando a espera acaba).
 // Diz a pior espera de verdade, não o limite: "Vermelho aguardando regulação há 12 h 28 min · e mais 1 acima de 3 min"
-export function lateSummary(calls: EmergencyCall[], now: number): string[] {
+export function lateSummary(calls: EmergencyCall[], now: number): Array<{ text: string; callId: string }> {
   return (['regulacao', 'despacho'] as Queue[]).flatMap(queue => {
     const late = calls
       .filter(call => queueOf(call) === queue && now - Date.parse(waitingSince(call)) >= QUEUE_WAIT[queue].critical)
@@ -208,6 +208,6 @@ export function lateSummary(calls: EmergencyCall[], now: number): string[] {
     const [worst] = late;
     const label = queue === 'regulacao' ? 'aguardando regulação' : 'aguardando despacho';
     const others = late.length > 1 ? ` · e mais ${late.length - 1} acima de ${QUEUE_WAIT[queue].critical / 60_000} min` : '';
-    return [`${PRIORITY_META[worst.priority].name} ${label} há ${formatWaitShort(now - Date.parse(waitingSince(worst)))}${others}`];
+    return [{ text: `${PRIORITY_META[worst.priority].name} ${label} há ${formatWaitShort(now - Date.parse(waitingSince(worst)))}${others}`, callId: worst.id }];
   });
 }

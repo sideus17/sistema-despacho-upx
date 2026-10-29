@@ -19,9 +19,16 @@
   font-weight: var(--weight-bold);
 }
 
+/* Crítica: maior, com contorno grosso e a meta ao lado (diz o quanto passou, sem cor de risco) */
 .wait_critico {
   border: 2px solid var(--color-primary);
-  padding: 1px 7px;
+  padding: 1px 8px;
   color: var(--color-primary-text);
+  font-size: 15px;
   font-weight: var(--weight-bold);
+}
+
+.target {
+  font-size: 13px;
+  font-weight: var(--weight-medium);
 }

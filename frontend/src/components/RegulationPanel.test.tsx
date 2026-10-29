@@ -112,6 +112,8 @@ describe('regulação do chamado', () => {
     await user.click(screen.getByRole('button', { name: 'Encerrar com orientação' }));
     expect(regulateCall).not.toHaveBeenCalled();
     expect(screen.getByRole('alert')).toHaveTextContent('Amarelo · Urgência sem viatura. Encerrar mesmo assim?');
+    // A saída segura recebe o foco
+    expect(screen.getByRole('button', { name: 'Enviar viatura' })).toHaveFocus();
 
     await user.click(screen.getByRole('button', { name: 'Enviar viatura' }));
     expect(screen.getByRole('button', { name: 'Seguir para o despacho' })).toHaveFocus();

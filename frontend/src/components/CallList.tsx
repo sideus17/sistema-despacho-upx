@@ -87,7 +87,9 @@ export default function CallList({
   if (firstSeen.current === null) firstSeen.current = new Map(calls.map(call => [call.id, 0]));
   for (const call of calls) if (!firstSeen.current.has(call.id)) firstSeen.current.set(call.id, Date.now());
   const isFresh = (id: string) => Date.now() - (firstSeen.current?.get(id) ?? 0) < FRESH_MS;
-  const late = lateSummary(calls, now);
+  // Cartões à vista: o resumo do topo só aparece quando o pior chamado está fora da tela (senão repete o cartão)
+  const [onScreen, setOnScreen] = useState<Set<string>>(() => new Set());
+  const late = lateSummary(calls, now).filter(line => !onScreen.has(line.callId));
   const alertsOn = useCallAlertsEnabled();
   // Na ordem do trabalho: regulação, despacho e os que já estão com uma viatura
   const byStatus = (status: CallStatus) => sortCallsByPriority(calls.filter(call => call.status === status));
@@ -114,6 +116,26 @@ export default function CallList({
       setConfirmingFinishId(null);
     }
   };
+
+  // Observa os cartões da lista: quais estão à vista (sem o observador, o resumo continua sempre)
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver(entries => {
+      setOnScreen(current => {
+        const next = new Set(current);
+        for (const entry of entries) {
+          const id = (entry.target as HTMLElement).dataset.callId;
+          if (!id) continue;
+          if (entry.isIntersecting) next.add(id);
+          else next.delete(id);
+        }
+        return next;
+      });
+    }, { threshold: 0.5 });
+    container.querySelectorAll('[data-call-id]').forEach(card => observer.observe(card));
+    return () => observer.disconnect();
+  }, [calls, filter]);
 
   return (
     <div ref={containerRef} className={styles.container}>
@@ -145,7 +167,7 @@ export default function CallList({
       {/* Espera longa: o resumo fica na própria fila (some sozinho), em vez de um aviso por cima do mapa */}
       {late.length > 0 && (
         <div className={styles.late} role="status">
-          {late.map(line => <p key={line}><WarningIcon /> {line}</p>)}
+          {late.map(line => <p key={line.callId}><WarningIcon /> {line.text}</p>)}
         </div>
       )}
 
