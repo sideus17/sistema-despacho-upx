@@ -31,9 +31,11 @@
   margin-right: auto;
 }
 
+/* Título da página bem acima dos títulos dos blocos (15 px): a escala da Gestão não fica plana */
 .title h2 {
-  font-size: 20px;
-  font-weight: 700;
+  font-size: 24px;
+  font-weight: var(--weight-display);
+  letter-spacing: -0.01em;
 }
 
 .title span {
@@ -154,6 +156,7 @@
 .tabs button[aria-selected='true'] {
   border-bottom-color: var(--color-primary);
   color: var(--color-primary-text);
+  font-weight: var(--weight-bold);
 }
 
 @media (hover: hover) {

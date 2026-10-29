@@ -136,7 +136,7 @@
 }
 
 .results {
-  transition: opacity 0.15s;
+  transition: opacity var(--dur-fast) var(--ease-out);
 }
 
 .refreshing {
@@ -193,6 +193,8 @@
 
 .selectedRow {
   background: var(--tint-neutral-bg);
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
 }
 
 .number {

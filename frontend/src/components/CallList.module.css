@@ -80,7 +80,7 @@
   background: var(--color-surface);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   cursor: pointer;
-  transition: box-shadow 0.15s, border-color 0.15s;
+  transition: box-shadow var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
 }
 
 @media (hover: hover) {
@@ -89,10 +89,30 @@
   }
 }
 
+/* Item escolhido numa lista: anel de 2 px e fundo neutro (igual na análise, nas rotas e no histórico) */
 .cardSelected {
   border-color: var(--color-primary);
   border-left-color: var(--risk-edge);
-  box-shadow: 0 0 0 1px var(--color-primary);
+  background: var(--tint-neutral-bg);
+  box-shadow: 0 0 0 2px var(--color-primary);
+}
+
+/* Chamado que acabou de chegar: o fundo começa realçado e volta ao normal em 2 s, sem movimento */
+.cardFresh {
+  animation: cardFresh 2s var(--ease-out);
+}
+
+@keyframes cardFresh {
+  from {
+    background-color: var(--tint-neutral-bg-strong);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cardFresh {
+    animation: none;
+    background-color: var(--tint-neutral-bg-strong);
+  }
 }
 
 /* A etapa longa ("Transportando → Santa Casa · há 3 min") desce para a linha de baixo */
@@ -195,7 +215,7 @@
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
-  transition: background-color 0.15s;
+  transition: background-color var(--dur-fast) var(--ease-out);
 }
 
 .primary {
@@ -243,7 +263,7 @@
   background: var(--color-surface);
   color: var(--color-text);
   font-size: 13px;
-  font-weight: 800;
+  font-weight: var(--weight-bold);
   line-height: 1.4;
 }
 
@@ -281,7 +301,7 @@
 
 .crewAckLate {
   color: var(--color-text);
-  font-weight: 800;
+  font-weight: var(--weight-bold);
 }
 
 .stage {
@@ -355,7 +375,7 @@
   margin: 0 0 8px;
   color: var(--color-text-soft);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: var(--weight-bold);
   letter-spacing: 0.03em;
   text-transform: uppercase;
 }

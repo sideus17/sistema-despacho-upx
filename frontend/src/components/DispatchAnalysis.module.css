@@ -104,7 +104,7 @@
   background: var(--color-surface);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   cursor: pointer;
-  transition: box-shadow 0.15s, border-color 0.15s;
+  transition: box-shadow var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
 }
 
 @media (hover: hover) {
@@ -260,7 +260,7 @@
 
 .noFreeTitle {
   font-size: 16px;
-  font-weight: 800;
+  font-weight: var(--weight-bold);
 }
 
 .noFree .execute {
@@ -276,7 +276,7 @@
   margin: 0 0 8px;
   color: var(--color-text-soft);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: var(--weight-bold);
   letter-spacing: 0.03em;
   text-transform: uppercase;
 }

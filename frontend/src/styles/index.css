@@ -42,6 +42,21 @@
   --touch-target: 44px;
   --pulseira-width: 6px; /* faixa da classificação na lateral do cartão, igual em todo lugar */
   --color-focus: var(--color-primary); /* anel de foco do teclado */
+
+  /* Pesos: três de uso, e o dos textos grandes, que desce um degrau à noite (texto claro no escuro parece mais grosso) */
+  --weight-regular: 400;
+  --weight-medium: 600;
+  --weight-bold: 700;
+  --weight-display: 700;
+
+  /* Movimento: curto e só para mostrar o que mudou; o clique vale durante a animação */
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+  --ease-out: cubic-bezier(0.2, 0, 0, 1);
+
+  /* Alarme do despacho: a cor de risco fica só na faixa do topo; de dia a faixa é alta (lida de longe, no sol) */
+  --alarm-surface: var(--color-surface);
+  --alarm-band-height: 28dvh;
 }
 
 /* Escuro: cinzas da navegação noturna; a tinta vira o cinza claro */
@@ -78,6 +93,11 @@
 
   --chart-accent: #a78bfa;
   --chart-accent-soft: rgba(167, 139, 250, 0.16);
+
+  --weight-display: 600;
+  /* À noite a faixa encolhe para a altura do texto: cor saturada em área grande ofusca a cabine */
+  --alarm-surface: var(--color-background);
+  --alarm-band-height: 0px;
 }
 
 /* Reset and Base Styles */
@@ -100,6 +120,24 @@ body {
 /* Botões e campos com a fonte do app (o navegador põe Arial neles) */
 :where(button, input, select, textarea) {
   font-family: inherit;
+}
+
+/* Toque, seleção e troca de estado com uma transição curta (cada tela pode refinar) */
+:where(button, a, select, input, textarea) {
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+
+/* "Reduzir movimento" do sistema: sem transições (as animações que são enfeite saem em cada tela) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* Foco do teclado em qualquer controle: anel de 2 px (cada tela pode refinar, nunca tirar) */
@@ -211,7 +249,7 @@ body {
   background: white;
   color: #111827;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: var(--weight-bold);
 }
 
 .header-view-short {
@@ -319,7 +357,7 @@ body {
   font-size: 14px;
   font-weight: 600;
   color: var(--color-text-muted);
-  transition: color 0.2s, background-color 0.2s, border-color 0.2s;
+  transition: color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
 }
 
 .tab:focus-visible {
@@ -351,6 +389,7 @@ body {
 
 .tab.active {
   color: var(--color-primary-text);
+  font-weight: var(--weight-bold);
   border-bottom-color: var(--color-primary);
   background-color: var(--color-surface);
 }

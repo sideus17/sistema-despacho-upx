@@ -26,7 +26,7 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 describe('alarme do despacho no app da equipe', () => {
-  it('mostra a cor, o endereço e a referência em tela cheia', () => {
+  it('mostra a cor numa faixa, o endereço e a referência em tela cheia', () => {
     render(<DispatchAlert call={call} onAck={vi.fn()} />);
     // A cor vem junto do título: é a primeira coisa que o leitor de tela fala
     expect(screen.getByRole('alertdialog', { name: 'Novo despacho Amarelo · Urgência' })).toBeInTheDocument();

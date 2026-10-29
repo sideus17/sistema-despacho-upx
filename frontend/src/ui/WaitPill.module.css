@@ -16,12 +16,12 @@
 .wait_atencao {
   border-color: var(--color-text-soft);
   color: var(--color-text);
-  font-weight: 800;
+  font-weight: var(--weight-bold);
 }
 
 .wait_critico {
   border-color: var(--color-primary);
   background: var(--color-primary);
   color: var(--color-on-primary);
-  font-weight: 800;
+  font-weight: var(--weight-bold);
 }

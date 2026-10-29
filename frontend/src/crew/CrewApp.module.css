@@ -57,7 +57,7 @@
 .headerCode {
   margin-bottom: 4px;
   font-size: 20px;
-  font-weight: 800;
+  font-weight: var(--weight-display);
 }
 
 .headerCode span {
@@ -143,7 +143,7 @@
 .picker h1 {
   margin-bottom: 4px;
   font-size: 24px;
-  font-weight: 800;
+  font-weight: var(--weight-display);
 }
 
 .pickerList {
@@ -174,7 +174,7 @@
 
 .pickerCode {
   font-size: 18px;
-  font-weight: 800;
+  font-weight: var(--weight-bold);
   color: var(--color-text);
 }
 
@@ -200,7 +200,7 @@
 
 .priority {
   font-size: 14px;
-  font-weight: 800;
+  font-weight: var(--weight-bold);
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
@@ -208,7 +208,7 @@
 .address {
   margin: 4px 0 6px;
   font-size: 20px;
-  font-weight: 800;
+  font-weight: var(--weight-display);
   line-height: 1.3;
 }
 
@@ -257,7 +257,7 @@
   background: var(--tint-neutral-bg);
   color: var(--tint-neutral-text);
   font-size: 14px;
-  font-weight: 800;
+  font-weight: var(--weight-bold);
 }
 
 .timeline {
@@ -283,7 +283,7 @@
   color: var(--color-text);
   font: inherit;
   font-size: 14px;
-  font-weight: 800;
+  font-weight: var(--weight-bold);
   cursor: pointer;
 }
 
@@ -312,7 +312,7 @@
   background: var(--color-action);
   color: var(--color-on-action);
   font-size: 15px;
-  font-weight: 800;
+  font-weight: var(--weight-bold);
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
   cursor: pointer;
 }
@@ -349,7 +349,7 @@
 
 .routeChoice strong {
   font-size: 16px;
-  font-weight: 800;
+  font-weight: var(--weight-bold);
 }
 
 .routeChoice span {
@@ -363,7 +363,8 @@
 
 .routeChoiceSelected {
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 1px var(--color-primary);
+  background: var(--tint-neutral-bg);
+  box-shadow: 0 0 0 2px var(--color-primary);
 }
 
 .idle {
@@ -377,7 +378,7 @@
 .idleTitle {
   margin-bottom: 4px;
   font-size: 20px;
-  font-weight: 800;
+  font-weight: var(--weight-display);
 }
 
 /* Pedido de permissão do aviso: o toque é o gesto que o iPhone exige */
@@ -436,7 +437,7 @@
   border: none;
   border-radius: var(--radius);
   font-size: 16px;
-  font-weight: 800;
+  font-weight: var(--weight-bold);
   text-decoration: none;
   cursor: pointer;
 }
@@ -501,7 +502,7 @@
   background: var(--color-action);
   color: var(--color-on-action);
   font-size: 16px;
-  font-weight: 800;
+  font-weight: var(--weight-bold);
   cursor: pointer;
 }
 
