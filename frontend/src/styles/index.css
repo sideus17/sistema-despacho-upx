@@ -177,8 +177,6 @@ body {
   align-items: center;
   gap: 16px;
   height: 56px;
-  max-width: 1920px;
-  margin: 0 auto;
 }
 
 .header-brand {
