@@ -224,6 +224,13 @@
   margin: -4px 0 12px;
 }
 
+.staleNote {
+  margin: 0 0 6px;
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: var(--weight-bold);
+}
+
 .routePending {
   margin-bottom: 12px;
   padding: 10px;

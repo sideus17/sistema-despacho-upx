@@ -43,6 +43,38 @@
   text-align: center;
 }
 
+/* GPS com problema: o motorista precisa saber que a central o vê parado */
+.gpsBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 12px 8px 16px;
+  background: var(--tint-error-bg-strong);
+  color: var(--tint-error-text);
+  font-size: 13px;
+  font-weight: var(--weight-medium);
+}
+
+.gpsBanner p {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.gpsBanner button {
+  flex-shrink: 0;
+  min-height: var(--touch-target);
+  padding: 0 12px;
+  border: 1px solid currentColor;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font-size: 13px;
+  font-weight: var(--weight-bold);
+  cursor: pointer;
+}
+
 /* Cabeçalho */
 .header {
   display: flex;

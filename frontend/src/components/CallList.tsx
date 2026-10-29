@@ -23,6 +23,7 @@ import { PriorityLabel } from '../ui/PriorityLabel';
 import { OutcomeChoice } from '../ui/OutcomeChoice';
 import { signalsText } from '../utils/triage';
 import { formatPhone } from '../utils/documents';
+import { staleLocationText } from '../utils/ambulances';
 import { AmbulanceIcon, BellIcon, BellOffIcon, CallIcon, CheckCircleIcon, LocationIcon, PersonIcon, WarningIcon } from '../ui/icons';
 import { WaitPill } from '../ui/WaitPill';
 import styles from './CallList.module.css';
@@ -189,6 +190,10 @@ export default function CallList({
                       // Em atendimento: etapa marcada pelo GPS da viatura e há quanto tempo
                       <span className={styles.stage}>
                         {stageMeta.label}{stage.stage === 'TRANSPORTANDO' && hospital ? ` → ${hospital.shortName}` : ''} · {elapsedLabel(stage.since, now)}
+                        {/* A etapa vem do GPS: parado, ela pode estar velha */}
+                        {assignedAmbulance && staleLocationText(assignedAmbulance, now) && (
+                          <em className={styles.gpsStale}> · {staleLocationText(assignedAmbulance, now)}</em>
+                        )}
                       </span>
                     ) : (
                       // Na fila: há quanto tempo espera a regulação (desde a abertura) ou a viatura (desde a regulação)
@@ -265,7 +270,7 @@ export default function CallList({
 
                     {isActive && (
                       <>
-                        <span className={styles.ambulanceBadge}><AmbulanceIcon /> {assignedAmbulance?.code ?? 'Viatura'} em atendimento</span>
+                        <span className={`${styles.ambulanceBadge} ${assignedAmbulance && staleLocationText(assignedAmbulance, now) ? styles.ambulanceBadgeStale : ''}`}><AmbulanceIcon /> {assignedAmbulance?.code ?? 'Viatura'} em atendimento</span>
                         {isConfirming && needsOutcome(call) ? (
                           <OutcomeChoice
                             busy={finishingId === call.id}

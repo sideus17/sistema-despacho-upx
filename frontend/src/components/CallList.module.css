@@ -242,6 +242,17 @@
   }
 }
 
+/* GPS parado: a etapa pode estar velha (o selo da viatura fica tracejado, como no mapa) */
+.gpsStale {
+  font-style: normal;
+  font-weight: var(--weight-bold);
+}
+
+.ambulanceBadgeStale {
+  border-style: dashed;
+  border-color: var(--color-text-soft);
+}
+
 .ambulanceBadge {
   align-self: flex-start;
   padding: 4px 10px;
