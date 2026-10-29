@@ -32,12 +32,15 @@ export default defineConfig({
         start_url: '/',
         scope: '/',
         display: 'standalone',
-        orientation: 'portrait',
+        // O motorista usa o celular em pé ou deitado no painel: as duas telas existem
+        orientation: 'any',
         theme_color: '#2563eb',
         background_color: '#ffffff'
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico}'],
+        // Aviso do despacho (Web Push): eventos push e notificationclick em public/push-sw.js
+        importScripts: ['push-sw.js'],
         navigateFallback: '/index.html',
         runtimeCaching: [
           {

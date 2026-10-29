@@ -354,28 +354,8 @@ export default function NavigationView({
     else if (meters <= 300) once(`${nav.stepIndex}:far`, spokenInstruction(step, meters));
   }, [nav.stepIndex, nav.distanceToManeuver, nav.arrived, nav.offRoute, rerouting, step, speak]);
 
-  // Tela sempre acesa enquanto navega
-  useEffect(() => {
-    let lock: WakeLockSentinel | null = null;
-    const request = async () => {
-      try {
-        lock = (await navigator.wakeLock?.request('screen')) ?? null;
-      } catch {
-        // Sem suporte ou bateria fraca: segue sem travar a tela
-      }
-    };
-    const handleVisibility = () => {
-      if (document.visibilityState === 'visible') request();
-    };
-
-    request();
-    document.addEventListener('visibilitychange', handleVisibility);
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibility);
-      lock?.release().catch(() => {});
-      window.speechSynthesis?.cancel();
-    };
-  }, []);
+  // A tela fica acesa pelo turno (useWakeLock no CrewApp); ao sair, a voz para
+  useEffect(() => () => window.speechSynthesis?.cancel(), []);
 
   // Posição para a central acompanhar a viatura
   useEffect(() => {
