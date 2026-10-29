@@ -250,8 +250,23 @@ export default function CrewApp() {
       .catch(() => toast('Sem conexão: a central ainda não sabe que você viu o despacho.', 'error'));
   };
 
-  // Chamado, viatura ou destino novos (chegou ao local e há hospital): começa do zero
+  // Chamado, viatura ou destino novos (chegou ao local e há hospital): começa do zero.
+  // Exceção: a central trocou o hospital (do mesmo chamado) com a navegação aberta — ela segue para o novo destino.
+  const previousTarget = useRef({ callId: activeCall?.id, ambulanceId: ambulance?.id, destinationKey });
+  const ownHospitalChoice = useRef(false);
   useEffect(() => {
+    const previous = previousTarget.current;
+    previousTarget.current = { callId: activeCall?.id, ambulanceId: ambulance?.id, destinationKey };
+    const hospitalChanged =
+      previous.callId === activeCall?.id &&
+      previous.ambulanceId === ambulance?.id &&
+      previous.destinationKey.startsWith('hospital:') &&
+      destinationKey.startsWith('hospital:') &&
+      previous.destinationKey !== destinationKey;
+    if (hospitalChanged && navigating) return;
+    // Fora da navegação, a troca feita pela central aparece num aviso (a feita aqui já tem o dela)
+    if (hospitalChanged && !ownHospitalChoice.current && destination) toast(`Destino mudou: ${destination.label}`, 'info');
+    ownHospitalChoice.current = false;
     setRoute(null);
     setConfirmingFinish(false);
     setNavigating(false);
@@ -453,7 +468,10 @@ export default function CrewApp() {
       current={activeCall.hospitalId}
       from={ambulance.location}
       onClose={() => setChoosingHospital(false)}
-      onChosen={loadData}
+      onChosen={() => {
+        ownHospitalChoice.current = true;
+        loadData();
+      }}
     />
   );
   const reportSheet = reporting && (
@@ -469,12 +487,14 @@ export default function CrewApp() {
 
   const gender = activeCall ? formatGender(activeCall.patientInfo.gender) : null;
 
-  if (navigating && destination && chosenRoute) {
+  if (navigating && activeCall && destination && chosenRoute) {
     return (
       <Suspense fallback={<div className={styles.shell}><div className={styles.centered}><Spinner size={40} /></div></div>}>
         <NavigationView
           ambulance={ambulance}
           destination={destination}
+          priority={activeCall.priority}
+          reference={activeCall.reference}
           initialRoute={chosenRoute}
           incidents={incidents}
           simulate={SIMULATE}

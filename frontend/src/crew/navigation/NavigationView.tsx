@@ -38,7 +38,8 @@ import {
   sourceLabel
 } from '../../map/incidents';
 import { IncidentIcon } from '../../ui/IncidentIcon';
-import { ArrivalIcon, DetourIcon, MyLocationIcon, ReportIcon, VolumeOffIcon, VolumeOnIcon } from '../../ui/icons';
+import { ArrivalIcon, DetourIcon, HospitalIcon, LocationIcon, MyLocationIcon, ReportIcon, VolumeOffIcon, VolumeOnIcon } from '../../ui/icons';
+import { riskVars } from '../../utils/calls';
 import ReportSheet from '../incidents/ReportSheet';
 import StillTherePrompt from '../incidents/StillTherePrompt';
 import { useIncidentAlerts } from '../incidents/useIncidentAlerts';
@@ -49,6 +50,8 @@ const REROUTE_INTERVAL_MS = 15000;
 // Bloqueio novo à frente: recalcula logo (o intervalo só evita repetir enquanto a rota nova chega)
 const BLOCK_REROUTE_INTERVAL_MS = 5000;
 const LOCATION_SYNC_MS = 10000;
+// Quanto tempo o aviso "Destino mudou" fica no topo
+const DESTINATION_NOTICE_MS = 8000;
 const VOICE_KEY = 'samu:voz';
 
 const VEHICLE_SVG =
@@ -84,6 +87,8 @@ function readVoicePreference(): boolean {
 interface NavigationViewProps {
   ambulance: Ambulance;
   destination: Destination; // o chamado e, depois do local, o hospital
+  priority: CallPriority; // cor do chamado: a pulseira do destino, também a caminho do hospital
+  reference?: string | null; // referência do local ("portão azul"), dita junto do endereço
   initialRoute: RouteInfo;
   incidents: Incident[];
   simulate: boolean;
@@ -94,6 +99,8 @@ interface NavigationViewProps {
 export default function NavigationView({
   ambulance,
   destination,
+  priority,
+  reference,
   initialRoute,
   incidents,
   simulate,
@@ -151,6 +158,9 @@ export default function NavigationView({
   const trafficVersionRef = useRef(trafficVersion);
   trafficVersionRef.current = trafficVersion;
   const lastReroute = useRef(0);
+  const destinationMarkerRef = useRef<Marker | null>(null);
+  const destinationIdRef = useRef(destination.id);
+  const [destinationNotice, setDestinationNotice] = useState<string | null>(null);
   const announced = useRef(new Set<string>());
   const voiceRef = useRef(voiceOn);
   const fixRef = useRef(fix);
@@ -198,7 +208,7 @@ export default function NavigationView({
     map.on('dragstart', stopFollowing);
     map.on('rotatestart', stopFollowing);
 
-    new Marker({ element: destinationEl, anchor: destination.kind === 'hospital' ? 'center' : 'bottom' })
+    destinationMarkerRef.current = new Marker({ element: destinationEl, anchor: destination.kind === 'hospital' ? 'center' : 'bottom' })
       .setLngLat(toLngLat(destination.location))
       .addTo(map);
 
@@ -293,6 +303,33 @@ export default function NavigationView({
       .catch(error => toast(getErrorMessage(error, 'Não foi possível recalcular a rota.'), 'error'))
       .finally(() => setRerouting(false));
   }, [rerouting, destination.location, speak, toast]);
+
+  // A central trocou o hospital com a navegação aberta: o destino muda sem fechar a tela.
+  // Move o pino, fala, avisa no topo e calcula a rota nova a partir de onde o carro está.
+  useEffect(() => {
+    if (destinationIdRef.current === destination.id) return;
+    destinationIdRef.current = destination.id;
+    destinationMarkerRef.current?.setLngLat(toLngLat(destination.location));
+    const text = `Destino mudou: ${destination.label}`;
+    setDestinationNotice(text);
+    speak(text);
+    lastReroute.current = Date.now();
+    setRerouting(true);
+    calculateRoute(fixRef.current?.position ?? ambulance.location, destination.location)
+      .then(newRoute => {
+        announced.current.clear();
+        setRoute(newRoute);
+      })
+      .catch(error => toast(getErrorMessage(error, 'Não foi possível calcular a rota para o novo destino.'), 'error'))
+      .finally(() => setRerouting(false));
+  }, [destination.id, destination.label, destination.location, ambulance.location, speak, toast]);
+
+  // O aviso do destino novo fica alguns segundos no topo
+  useEffect(() => {
+    if (!destinationNotice) return;
+    const timer = window.setTimeout(() => setDestinationNotice(null), DESTINATION_NOTICE_MS);
+    return () => window.clearTimeout(timer);
+  }, [destinationNotice]);
 
   const alerts = useIncidentAlerts({
     incidents,
@@ -396,7 +433,7 @@ export default function NavigationView({
     <div ref={screenRef} className={styles.screen} data-theme={theme}>
       <div ref={containerRef} className={styles.map} />
       {createPortal(
-        destination.kind === 'hospital' ? <HospitalMarker /> : <CallMarker priority={destination.priority ?? CallPriority.EMERGENCIA} />,
+        destination.kind === 'hospital' ? <HospitalMarker /> : <CallMarker priority={priority} />,
         destinationEl
       )}
 
@@ -420,6 +457,8 @@ export default function NavigationView({
             </>
           ) : null}
         </header>
+
+        {destinationNotice && <p className={`${styles.notice} ${styles.noticeStrong}`} role="status">{destinationNotice}</p>}
 
         {!simulate && real.error ? (
           <p className={styles.notice}>{real.error}</p>
@@ -487,6 +526,14 @@ export default function NavigationView({
 
       <footer ref={panelRef} className={`${styles.panel} ${collapsed ? styles.collapsed : ''}`}>
         {!nav.arrived && <PanelHandle collapsed={collapsed} onChange={setPanelCollapsed} label="painel da navegação" />}
+        {/* Para onde vai: o motorista confere o endereço e a referência na chegada, sem sair da navegação */}
+        <p className={styles.destination} style={riskVars(priority)}>
+          {destination.kind === 'hospital' ? <HospitalIcon /> : <LocationIcon />}
+          <span>
+            {destination.label}
+            {destination.kind === 'chamado' && reference && <small> · {reference}</small>}
+          </span>
+        </p>
         {nav.arrived ? (
           <button className={styles.finish} onClick={onExit}>
             Sair da navegação
