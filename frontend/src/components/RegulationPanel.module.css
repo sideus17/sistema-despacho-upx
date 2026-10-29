@@ -143,6 +143,20 @@
   gap: 8px;
 }
 
+/* Vermelho ou Amarelo encerrado sem viatura: a confirmação fica no lugar do botão, com o porquê */
+.confirmSevere {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--tint-error-border);
+  border-radius: 10px;
+  background: var(--tint-error-bg);
+  color: var(--tint-error-text);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
 .primary,
 .secondary,
 .danger,

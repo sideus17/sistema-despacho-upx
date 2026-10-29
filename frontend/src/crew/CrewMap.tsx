@@ -32,19 +32,17 @@ export default function CrewMap({ ambulance, destination, routes = [], selectedR
   const mapStyle = useMapStyle(theme);
 
   const lines = routes.filter(line => line.length > 1);
-  const points: Coordinates[] = lines.length > 0
-    ? lines.flat()
-    : destination
-      ? [ambulance.location, destination.location]
-      : [ambulance.location];
-  const pointsKey = points.map(p => `${p.lat},${p.lng}`).join(';');
+  // A viatura e o destino sempre à vista, com a rota inteira quando houver
+  const points: Coordinates[] = [ambulance.location, ...(destination ? [destination.location] : []), ...lines.flat()];
+  // Reenquadra só quando o destino ou a rota mudam (a viatura andando no polling não mexe no zoom)
+  const pointsKey = [...(destination ? [destination.location] : []), ...lines.flat()].map(p => `${p.lat},${p.lng}`).join(';');
 
-  // Reenquadra só quando os pontos mudam de fato (o polling não mexe no zoom)
   useEffect(() => {
     const map = mapRef.current;
     if (!loaded || !map) return;
     if (points.length === 1) map.jumpTo({ center: toLngLat(points[0]), zoom: 15 });
-    else map.fitBounds(boundsOf(points), { padding: 32, duration: 0 });
+    // Zoom máximo de rua: viatura e destino quase no mesmo ponto (no local) não viram um borrão de uma rua só
+    else map.fitBounds(boundsOf(points), { padding: 32, duration: 0, maxZoom: 16 });
   }, [pointsKey, loaded]);
 
   if (!mapStyle) return <div style={{ height: '100%', background: MAP_BACKGROUND[theme] }} />;

@@ -104,6 +104,29 @@ describe('regulação do chamado', () => {
     });
   });
 
+  it('Vermelho ou Amarelo encerrado com orientação pede confirmação; "Enviar viatura" volta ao passo principal', async () => {
+    const user = userEvent.setup();
+    renderPanel();
+    await user.click(screen.getByRole('button', { name: 'Orientação por telefone' }));
+    await user.type(screen.getByLabelText('Orientação dada por telefone'), 'Procurar a UPA');
+    await user.click(screen.getByRole('button', { name: 'Encerrar com orientação' }));
+    expect(regulateCall).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent('Amarelo · Urgência sem viatura. Encerrar mesmo assim?');
+
+    await user.click(screen.getByRole('button', { name: 'Enviar viatura' }));
+    expect(screen.getByRole('button', { name: 'Enviar viatura' })).toHaveFocus();
+    expect(regulateCall).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: 'Orientação por telefone' }));
+    await user.click(screen.getByRole('button', { name: 'Encerrar com orientação' }));
+    await user.click(screen.getByRole('button', { name: 'Sim, encerrar sem viatura' }));
+    expect(regulateCall).toHaveBeenCalledWith('call-1', {
+      decision: RegulationDecision.ORIENTACAO,
+      priority: CallPriority.URGENTE,
+      note: 'Procurar a UPA'
+    });
+  });
+
   it('cancelar exige o motivo; "outro motivo" exige a explicação', async () => {
     const user = userEvent.setup();
     renderPanel();

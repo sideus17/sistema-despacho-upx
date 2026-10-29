@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CallPriority, CallStatus, EmergencyCall, Hospital } from '../types';
-import { callDestination } from './destination';
+import { callDestination, crewPhase } from './destination';
 import { wazeUrl } from './navigation/mapsLink';
 
 const SANTA_CASA: Hospital = {
@@ -35,6 +35,14 @@ describe('destino da equipe', () => {
     expect(callDestination(call({ times: onScene }), [SANTA_CASA]).kind).toBe('chamado');
     // Lista ainda não carregada: fica no chamado até chegar
     expect(callDestination(call({ times: onScene, hospitalId: 'hosp-santa-casa' }), []).kind).toBe('chamado');
+  });
+
+  it('a etapa da barra segue o GPS: a caminho, no local sem hospital, levando ao hospital, no hospital', () => {
+    const onScene = '2026-10-16T10:10:00Z';
+    expect(crewPhase(call({ hospitalId: 'hosp-santa-casa' }), [SANTA_CASA])).toBe('a_caminho');
+    expect(crewPhase(call({ times: { onScene } }), [SANTA_CASA])).toBe('no_local_sem_hospital');
+    expect(crewPhase(call({ times: { onScene }, hospitalId: 'hosp-santa-casa' }), [SANTA_CASA])).toBe('levando_ao_hospital');
+    expect(crewPhase(call({ times: { onScene, atHospital: '2026-10-16T10:40:00Z' }, hospitalId: 'hosp-santa-casa' }), [SANTA_CASA])).toBe('no_hospital');
   });
 
   it('Waze abre direto a navegação até o ponto', () => {

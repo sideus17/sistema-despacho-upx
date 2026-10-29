@@ -9,6 +9,15 @@ export interface Destination {
   priority?: CallPriority; // cor do pino do chamado
 }
 
+// Etapa do atendimento para a barra de ações: cada uma tem um botão principal só
+export type CrewPhase = 'a_caminho' | 'no_local_sem_hospital' | 'levando_ao_hospital' | 'no_hospital';
+
+export function crewPhase(call: EmergencyCall, hospitals: Hospital[]): CrewPhase {
+  if (call.times?.atHospital) return 'no_hospital';
+  if (!call.times?.onScene) return 'a_caminho';
+  return hospitals.some(item => item.id === call.hospitalId) ? 'levando_ao_hospital' : 'no_local_sem_hospital';
+}
+
 export function callDestination(call: EmergencyCall, hospitals: Hospital[]): Destination {
   const hospital = call.times?.onScene ? hospitals.find(item => item.id === call.hospitalId) : undefined;
   return hospital
