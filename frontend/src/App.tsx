@@ -54,6 +54,8 @@ function App() {
   // State
   const [ambulances, setAmbulances] = useState<Ambulance[]>([]);
   const [calls, setCalls] = useState<EmergencyCall[]>([]);
+  // Os alertas só comparam depois da primeira carga (a lista vazia de antes não diz nada)
+  const [callsLoaded, setCallsLoaded] = useState(false);
   const [bases, setBases] = useState<Base[]>([]);
   const [hospitals, setHospitals] = useState<Hospital[]>([]);
   // Hospitais quase não mudam: carregam uma vez (de novo só se a tentativa falhou)
@@ -89,6 +91,7 @@ function App() {
 
       setAmbulances(ambData);
       setCalls(callData);
+      setCallsLoaded(true);
       setBases(baseData);
       if (!hospitalsLoaded.current) {
         hospitalsLoaded.current = true;
@@ -112,7 +115,7 @@ function App() {
   const ownQueueKeys = useRef(new Set<string>());
   // Viaturas liberadas por esta tela (ao finalizar): o aviso de "ficou livre" não volta para quem finalizou
   const ownFreed = useRef(new Set<string>());
-  useCallAlerts(calls, ownQueueKeys, toast, ambulances, ownFreed);
+  useCallAlerts(callsLoaded ? calls : null, ownQueueKeys, toast, ambulances, ownFreed);
 
   // "Escolher no mapa" do formulário de chamado: o próximo clique no mapa vira o local
   const callPickHandler = useRef<((location: Coordinates) => void) | null>(null);

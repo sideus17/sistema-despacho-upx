@@ -23,17 +23,20 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(NOW);
   vi.mocked(playAlert).mockReset();
+  sessionStorage.clear();
 });
 
 afterEach(() => vi.useRealTimers());
 
-function setup(initial: EmergencyCall[], own: string[] = [], ambulances: Ambulance[] = []) {
+type Props = { calls: EmergencyCall[] | null; ambulances?: Ambulance[] };
+
+function setup(initial: EmergencyCall[] | null, own: string[] = [], ambulances: Ambulance[] = []) {
   const toast = vi.fn();
   const ownKeys = { current: new Set(own) };
   const ownFreed = { current: new Set<string>() };
   const view = renderHook(
-    ({ calls, ambulances = [] }: { calls: EmergencyCall[]; ambulances?: Ambulance[] }) => useCallAlerts(calls, ownKeys, toast, ambulances, ownFreed),
-    { initialProps: { calls: initial, ambulances } as { calls: EmergencyCall[]; ambulances?: Ambulance[] } }
+    ({ calls, ambulances = [] }: Props) => useCallAlerts(calls, ownKeys, toast, ambulances, ownFreed),
+    { initialProps: { calls: initial, ambulances } as Props }
   );
   return { ...view, toast, ownKeys, ownFreed };
 }
@@ -57,6 +60,30 @@ describe('alertas da central', () => {
     rerender({ calls: [call('a'), call('b')] });
     expect(toast).toHaveBeenCalledWith('Novo chamado: Amarelo · Rua b, 1', 'info');
     expect(playAlert).toHaveBeenCalledWith('novo');
+  });
+
+  it('antes da primeira carga não compara: os chamados que já estavam na fila não viram "Novo chamado"', () => {
+    const { rerender, toast } = setup(null);
+    rerender({ calls: [call('a'), call('b')] });
+    expect(toast).not.toHaveBeenCalled();
+    expect(playAlert).not.toHaveBeenCalled();
+
+    rerender({ calls: [call('a'), call('b'), call('c')] });
+    expect(toast).toHaveBeenCalledTimes(1);
+    expect(toast).toHaveBeenCalledWith('Novo chamado: Amarelo · Rua c, 1', 'info');
+  });
+
+  it('numa recarga, só avisa o que chegou no meio-tempo, e a espera longa não toca de novo', () => {
+    const first = setup([call('a'), call('velho', 4)]);
+    expect(playAlert).toHaveBeenCalledWith('espera');
+    first.unmount();
+    vi.mocked(playAlert).mockReset();
+
+    const { toast } = setup([call('a'), call('velho', 4), call('b')]);
+    expect(toast).toHaveBeenCalledTimes(1);
+    expect(toast).toHaveBeenCalledWith('Novo chamado: Amarelo · Rua b, 1', 'info');
+    expect(playAlert).toHaveBeenCalledWith('novo');
+    expect(playAlert).not.toHaveBeenCalledWith('espera');
   });
 
   it('chamado aberto ou regulado nesta tela não alerta', () => {

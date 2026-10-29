@@ -77,15 +77,38 @@ const ARRIVAL: Record<Queue, { one: string; many: (count: number) => string; tit
 
 const waitingDispatch = (count: number) => `${count} ${count === 1 ? 'chamado esperando' : 'chamados esperando'} despacho`;
 
+// O que esta aba já viu e já tocou fica guardado na sessão: recarregar a página não repete os avisos
+const SEEN_KEY = 'samu:alertas-vistos';
+const WARNED_KEY = 'samu:alertas-espera';
+const MAX_KEYS = 500;
+
+function readKeys(name: string): Set<string> | null {
+  try {
+    const raw = sessionStorage.getItem(name);
+    return raw ? new Set(JSON.parse(raw) as string[]) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeKeys(name: string, keys: Set<string>) {
+  try {
+    sessionStorage.setItem(name, JSON.stringify([...keys].slice(-MAX_KEYS)));
+  } catch {
+    // Sem armazenamento: vale até fechar a página
+  }
+}
+
 /**
  * Avisa a central: chamado novo para regular, chamado regulado esperando viatura (os que esta tela
  * abriu ou regulou não contam), espera longa em cada fila (3 min na regulação, 5 min no despacho; uma
  * vez por chamado e fila) e viatura que ficou livre com chamado esperando despacho (as que esta tela
  * liberou ao finalizar não contam). A espera longa aparece na própria fila (CallList), não num aviso:
  * aqui ela só toca e notifica. Som e notificação, só com os alertas ligados.
+ * `calls` é null até a primeira carga: comparar com a lista vazia do primeiro desenho anunciaria tudo como novo.
  */
 export function useCallAlerts(
-  calls: EmergencyCall[],
+  calls: EmergencyCall[] | null,
   ownKeys: { current: Set<string> },
   toast: Toast,
   ambulances: Ambulance[] = [],
@@ -93,9 +116,9 @@ export function useCallAlerts(
 ) {
   const on = useCallAlertsEnabled();
   const seen = useRef<Set<string> | null>(null);
-  const warned = useRef(new Set<string>());
+  const warned = useRef<Set<string> | null>(null);
   const free = useRef<Set<string> | null>(null);
-  const waiting = calls.filter(call => queueOf(call) !== null);
+  const waiting = (calls ?? []).filter(call => queueOf(call) !== null);
   const [tick, setTick] = useState(0);
 
   // O primeiro toque ou tecla na página libera o som (exigência dos navegadores) e, com os alertas
@@ -115,14 +138,21 @@ export function useCallAlerts(
 
   // Chamado que acabou de chegar numa fila
   useEffect(() => {
+    if (calls === null) return;
     const keys = calls.map(queueKey);
     if (seen.current === null) {
-      // Primeira leitura: o que já estava nas filas não é novidade
-      seen.current = new Set(keys);
-      return;
+      // Primeira leitura: o que já estava nas filas não é novidade. Numa recarga vale o que esta aba já
+      // tinha visto, e só avisa o que chegou nesse meio-tempo
+      const stored = readKeys(SEEN_KEY);
+      seen.current = stored ?? new Set(keys);
+      if (!stored) {
+        writeKeys(SEEN_KEY, seen.current);
+        return;
+      }
     }
     const fresh = waiting.filter(call => !seen.current!.has(queueKey(call)) && !ownKeys.current.has(queueKey(call)));
     keys.forEach(key => seen.current!.add(key));
+    writeKeys(SEEN_KEY, seen.current);
 
     for (const queue of ['regulacao', 'despacho'] as Queue[]) {
       const arrived = fresh.filter(call => queueOf(call) === queue);
@@ -144,13 +174,17 @@ export function useCallAlerts(
   }, [waiting.length]);
 
   useEffect(() => {
+    if (calls === null) return;
+    // Numa recarga, a espera que já tocou nesta aba não toca de novo
+    if (warned.current === null) warned.current = readKeys(WARNED_KEY) ?? new Set();
     const now = Date.now();
     for (const queue of ['regulacao', 'despacho'] as Queue[]) {
       const late = waiting.filter(
-        call => queueOf(call) === queue && now - Date.parse(waitingSince(call)) >= QUEUE_WAIT[queue].critical && !warned.current.has(queueKey(call))
+        call => queueOf(call) === queue && now - Date.parse(waitingSince(call)) >= QUEUE_WAIT[queue].critical && !warned.current!.has(queueKey(call))
       );
       if (late.length === 0) continue;
-      late.forEach(call => warned.current.add(queueKey(call)));
+      late.forEach(call => warned.current!.add(queueKey(call)));
+      writeKeys(WARNED_KEY, warned.current);
 
       if (on) {
         playAlert('espera');
@@ -171,7 +205,7 @@ export function useCallAlerts(
     }
     const released = ambulances.filter(ambulance => ids.has(ambulance.id) && !free.current!.has(ambulance.id));
     free.current = ids;
-    const pending = calls.filter(call => queueOf(call) === 'despacho').length;
+    const pending = (calls ?? []).filter(call => queueOf(call) === 'despacho').length;
 
     for (const ambulance of released) {
       // Liberada por esta tela ao finalizar: quem finalizou já sabe
