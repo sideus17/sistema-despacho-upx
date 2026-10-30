@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Ambulance, Base, Hospital, ManagementScope } from '../../types';
 import { BarChartIcon, HeatMapIcon, HistoryIcon, PersonIcon, RefreshIcon } from '../../ui/icons';
 import HeatMap from './HeatMap';
@@ -8,6 +8,7 @@ import People from './People';
 import { PERIODS, PeriodKey, periodRange } from './format';
 import { useManagementBusy } from './useLoad';
 import { announce } from '../../ui/announce';
+import { SlidingThumb } from '../../ui/SlidingThumb';
 import styles from './ManagementPage.module.css';
 
 // Gestão da central: indicadores, por pessoa, mapa de calor e histórico do período escolhido, em tela cheia
@@ -87,22 +88,11 @@ export default function ManagementPage({ ambulances, hospitals, bases }: {
     if (!busy && reducedMotion) setSpinning(false);
   }, [busy]);
 
-  // Período: o fundo do item marcado desliza até o escolhido
-  const segmentedRef = useRef<HTMLDivElement>(null);
-  const [thumb, setThumb] = useState<{ left: number; width: number } | null>(null);
-  useLayoutEffect(() => {
-    const group = segmentedRef.current;
-    if (!group) return;
-    const measure = () => {
-      const checked = group.querySelector<HTMLElement>('[aria-checked="true"]');
-      if (checked) setThumb({ left: checked.offsetLeft, width: checked.offsetWidth });
-    };
-    measure();
-    if (typeof ResizeObserver === 'undefined') return;
-    const observer = new ResizeObserver(measure);
-    observer.observe(group);
-    return () => observer.disconnect();
-  }, [preferences.period]);
+  // Aba escolhida à vista: no celular a linha de abas rola e o Histórico ficava fora da tela
+  const tabsRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    tabsRef.current?.querySelector('[aria-selected="true"]')?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+  }, [preferences.tab]);
 
   const rangeLabel = preferences.period === 'hoje'
     ? `Hoje, até ${clock(scope.to)}`
@@ -118,8 +108,8 @@ export default function ManagementPage({ ambulances, hospitals, bases }: {
           </div>
 
           <div className={styles.filters}>
-            <div ref={segmentedRef} className={styles.segmented} role="radiogroup" aria-label="Período">
-              {thumb && <span className={styles.thumb} style={{ width: thumb.width, transform: `translateX(${thumb.left - 3}px)` }} aria-hidden="true" />}
+            <div className={`${styles.segmented} slide-group`} role="radiogroup" aria-label="Período">
+              <SlidingThumb variant="raised" watch={preferences.period} />
               {PERIODS.map(period => (
                 <button
                   key={period.key}
@@ -161,7 +151,8 @@ export default function ManagementPage({ ambulances, hospitals, bases }: {
             </button>
           </div>
 
-          <div className={styles.tabs} role="tablist" aria-label="Seções da gestão">
+          <div ref={tabsRef} className={`${styles.tabs} slide-group`} role="tablist" aria-label="Seções da gestão">
+            <SlidingThumb variant="line" watch={preferences.tab} />
             {TABS.map(({ key, label, Icon }) => (
               <button
                 key={key}

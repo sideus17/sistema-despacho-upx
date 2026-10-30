@@ -27,6 +27,7 @@ import { staleLocationText } from '../utils/ambulances';
 import { AmbulanceIcon, BellIcon, BellOffIcon, CallIcon, CheckCircleIcon, LocationIcon, PersonIcon, WarningIcon } from '../ui/icons';
 import { WaitPill } from '../ui/WaitPill';
 import { Select } from '../ui/Select';
+import { SlidingThumb } from '../ui/SlidingThumb';
 import styles from './CallList.module.css';
 
 interface CallListProps {
@@ -156,7 +157,8 @@ export default function CallList({
   return (
     <div ref={containerRef} className={styles.container}>
       <div className={styles.toolbar}>
-        <div className={styles.filters} role="group" aria-label="Filtrar chamados">
+        <div className={`${styles.filters} slide-group`} role="group" aria-label="Filtrar chamados">
+          <SlidingThumb variant="ink" watch={filter} />
           {filters.map((f, index) => (
             <button
               key={f.key}

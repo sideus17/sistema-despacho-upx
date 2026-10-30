@@ -1,11 +1,13 @@
 import { setThemePreference, THEME_OPTIONS, useTheme } from './theme';
 import styles from './ThemePicker.module.css';
+import { SlidingThumb } from '../ui/SlidingThumb';
 
 // Automático · Claro · Escuro, lado a lado
 export function ThemePicker() {
   const { preference } = useTheme();
   return (
-    <div className={styles.picker} role="group" aria-label="Tema">
+    <div className={`${styles.picker} slide-group`} role="group" aria-label="Tema">
+      <SlidingThumb variant="ink" watch={preference} />
       {THEME_OPTIONS.map(({ value, label, Icon }) => (
         <button
           key={value}

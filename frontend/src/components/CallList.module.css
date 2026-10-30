@@ -39,9 +39,10 @@
   cursor: pointer;
 }
 
+/* O fundo cheio do escolhido vem do indicador que desliza (SlidingThumb) */
 .chipActive {
-  border-color: var(--color-primary);
-  background: var(--color-primary);
+  border-color: transparent;
+  background: transparent;
   color: var(--color-on-primary);
 }
 

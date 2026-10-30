@@ -36,7 +36,8 @@
   }
 }
 
+/* O fundo cheio do escolhido vem do indicador que desliza (SlidingThumb) */
 .option[aria-pressed='true'] {
-  background: var(--color-primary);
+  background: transparent;
   color: var(--color-on-primary);
 }
