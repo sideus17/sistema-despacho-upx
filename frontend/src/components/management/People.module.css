@@ -32,3 +32,15 @@
   font-weight: 700;
   line-height: 1.6;
 }
+
+/* Título do ranking, acima das barras */
+.rankingTitle {
+  margin: 0 0 10px;
+  color: var(--color-text-soft);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.ranking {
+  margin-bottom: 18px;
+}

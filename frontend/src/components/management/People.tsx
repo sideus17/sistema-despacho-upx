@@ -1,6 +1,6 @@
 import { ManagementScope, PeopleIndicators } from '../../types';
 import { getPeople } from '../../services/api';
-import { ChartCard } from './charts';
+import { BarList, ChartCard, medianOf } from './charts';
 import { Failure } from './Indicators';
 import { formatCount, formatMinutes, plural } from './format';
 import { useLoad } from './useLoad';
@@ -83,6 +83,33 @@ function TimeCell({ stats, limit }: { stats: Stats; limit: number | null }) {
 
 const SLOW_NOTE = '↑ tempo 50% acima da mediana da equipe';
 
+// Abaixo disso, a mediana da pessoa diz pouco: a barra fica apagada
+const FEW_CASES = 5;
+
+// Ranking de um tempo (mediana por pessoa), do mais rápido ao mais lento, com a mediana da equipe marcada
+function TimeRanking({ people, title, label }: { people: Array<{ id: string; name: string; stats: Stats }>; title: string; label: string }) {
+  const ranked = people.filter(person => person.stats.n > 0 && person.stats.median !== null).sort((a, b) => a.stats.median! - b.stats.median!);
+  if (ranked.length < 2) return null;
+  const team = medianOf(ranked.map(person => person.stats.median!))!;
+  return (
+    <div className={styles.ranking}>
+      <h4 className={styles.rankingTitle}>{title}</h4>
+      <BarList
+        label={label}
+        reference={{ value: team, label: `Mediana da equipe: ${formatMinutes(team)}` }}
+        items={ranked.map(person => ({
+          key: person.id,
+          label: person.name,
+          value: person.stats.median!,
+          valueText: formatMinutes(person.stats.median),
+          detail: person.stats.n < FEW_CASES ? `poucos casos (${person.stats.n})` : plural(person.stats.n, 'caso', 'casos'),
+          muted: person.stats.n < FEW_CASES
+        }))}
+      />
+    </div>
+  );
+}
+
 function PeopleView({ data }: { data: PeopleIndicators }) {
   const limits = {
     regulation: slowLimit(data.attendants.map(person => person.regulation)),
@@ -95,6 +122,11 @@ function PeopleView({ data }: { data: PeopleIndicators }) {
   return (
     <div className={indicatorStyles.grid}>
       <ChartCard wide title="Atendentes" subtitle="Registro, regulação e despacho; tempos pela mediana">
+        <TimeRanking
+          title="Tempo de regulação, da abertura à cor final"
+          label="Tempo de regulação por atendente"
+          people={data.attendants.map(person => ({ id: person.id, name: person.name, stats: person.regulation }))}
+        />
         <div className={chartStyles.tableWrap}>
           <table className={`${chartStyles.table} ${styles.table}`}>
             <thead>
@@ -132,28 +164,35 @@ function PeopleView({ data }: { data: PeopleIndicators }) {
         {data.drivers.length === 0 ? (
           <p className={indicatorStyles.muted}>Nenhum atendimento com motorista registrado no período.</p>
         ) : (
-          <div className={chartStyles.tableWrap}>
-            <table className={`${chartStyles.table} ${styles.table}`}>
-              <thead>
-                <tr>
-                  <th scope="col">Motorista</th>
-                  <th scope="col">Atendimentos</th>
-                  <th scope="col" title="Do despacho à saída da viatura">Saída</th>
-                  <th scope="col" title="Do despacho à chegada ao local">Chegada ao local</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.drivers.map(person => (
-                  <tr key={person.id}>
-                    <th scope="row"><Name name={person.name} demo={person.demo} /></th>
-                    <td>{formatCount(person.attended)}</td>
-                    <TimeCell stats={person.departure} limit={limits.departure} />
-                    <TimeCell stats={person.arrival} limit={limits.arrival} />
+          <>
+            <TimeRanking
+              title="Chegada ao local, do despacho à chegada"
+              label="Tempo até o local por motorista"
+              people={data.drivers.map(person => ({ id: person.id, name: person.name, stats: person.arrival }))}
+            />
+            <div className={chartStyles.tableWrap}>
+              <table className={`${chartStyles.table} ${styles.table}`}>
+                <thead>
+                  <tr>
+                    <th scope="col">Motorista</th>
+                    <th scope="col">Atendimentos</th>
+                    <th scope="col" title="Do despacho à saída da viatura">Saída</th>
+                    <th scope="col" title="Do despacho à chegada ao local">Chegada ao local</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {data.drivers.map(person => (
+                    <tr key={person.id}>
+                      <th scope="row"><Name name={person.name} demo={person.demo} /></th>
+                      <td>{formatCount(person.attended)}</td>
+                      <TimeCell stats={person.departure} limit={limits.departure} />
+                      <TimeCell stats={person.arrival} limit={limits.arrival} />
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
         {slowDriver && <p className={indicatorStyles.muted}>{SLOW_NOTE}</p>}
       </ChartCard>

@@ -1,9 +1,14 @@
-import { ReactNode, RefObject, useLayoutEffect, useRef, useState } from 'react';
+import { CSSProperties, ReactNode, RefObject, useLayoutEffect, useRef, useState } from 'react';
 import { formatCount, formatMinutes, niceMax } from './format';
 import styles from './charts.module.css';
 
 // Peças dos gráficos da gestão, em SVG e HTML próprios (sem biblioteca): cartão com a versão em
 // tabela, número em destaque, colunas com dica ao passar o mouse e barras horizontais.
+// Na primeira vez as barras crescem do zero, uma depois da outra (--i); depois, numa troca de período,
+// vão do valor antigo ao novo (a entrada não se repete)
+
+// Ordem da barra para o escalonamento da entrada (até 8 passos de 40 ms)
+const step = (index: number) => ({ '--i': Math.min(index, 8) }) as CSSProperties;
 
 // Largura do elemento, acompanhando o redimensionamento (sem medida, como nos testes, vale a reserva)
 function useElementWidth<T extends HTMLElement>(fallback: number): [RefObject<T>, number] {
@@ -136,6 +141,7 @@ export function ColumnChart({ columns, tickLabel, label, height = 180 }: {
               {barHeight > 0 && (
                 <path
                   className={styles.column}
+                  style={step(Math.floor((index / Math.max(1, columns.length)) * 8))}
                   d={columnPath(center(index) - barWidth / 2, y(column.value), barWidth, barHeight)}
                   opacity={active !== null && active !== index ? 0.45 : 1}
                 />
@@ -186,26 +192,37 @@ export interface BarItem {
   muted?: boolean; // "sem registro": cinza, fora do destaque
 }
 
-// Barras horizontais de uma série só, com o valor escrito na ponta
-export function BarList({ items, label }: { items: BarItem[]; label: string }) {
-  const max = Math.max(1, ...items.map(item => item.value));
+// Barras horizontais de uma série só, com o valor escrito na ponta; com `reference`, uma linha tracejada
+// marca o valor de referência (ex.: a mediana da equipe) em todas as linhas
+export function BarList({ items, label, reference }: {
+  items: BarItem[];
+  label: string;
+  reference?: { value: number; label: string };
+}) {
+  const max = Math.max(1, reference?.value ?? 0, ...items.map(item => item.value));
   return (
-    <ul className={styles.bars} aria-label={label}>
-      {items.map(item => (
-        <li key={item.key} className={styles.barRow}>
-          <span className={styles.barLabel}>{item.label}</span>
-          <span className={styles.barTrack}>
-            {item.value > 0 && (
-              <span className={`${styles.bar} ${item.muted ? styles.barMuted : ''}`} style={{ width: `${(item.value / max) * 100}%` }} />
-            )}
-          </span>
-          <span className={styles.barValue}>
-            <strong>{item.valueText}</strong>
-            {item.detail && <small>{item.detail}</small>}
-          </span>
-        </li>
-      ))}
-    </ul>
+    <>
+      <ul className={styles.bars} aria-label={label}>
+        {items.map((item, index) => (
+          <li key={item.key} className={styles.barRow} style={step(index)}>
+            <span className={styles.barLabel}>{item.label}</span>
+            <span className={styles.barTrack}>
+              {item.value > 0 && (
+                <span className={`${styles.bar} ${item.muted ? styles.barMuted : ''}`} style={{ width: `${(item.value / max) * 100}%` }} />
+              )}
+              {reference && <span className={styles.barReference} style={{ left: `${(reference.value / max) * 100}%` }} />}
+            </span>
+            <span className={styles.barValue}>
+              <strong>{item.valueText}</strong>
+              {item.detail && <small>{item.detail}</small>}
+            </span>
+          </li>
+        ))}
+      </ul>
+      {reference && (
+        <p className={styles.referenceNote}><span className={styles.referenceKey} aria-hidden="true" /> {reference.label}</p>
+      )}
+    </>
   );
 }
 
@@ -244,8 +261,8 @@ export function RangeList({ items, label }: { items: RangeItem[]; label: string 
         {hasTarget && <li><span className={styles.keyTarget} /> Meta</li>}
       </ul>
       <ul className={styles.rangeRows} aria-label={label}>
-        {items.map(item => (
-          <li key={item.key} className={styles.rangeRow}>
+        {items.map((item, index) => (
+          <li key={item.key} className={styles.rangeRow} style={step(index)}>
             <span className={styles.rangeLabel}>{item.label}</span>
             <span className={styles.rangeTrack} style={{ color: item.color }}>
               {item.median !== null && <span className={styles.rangeBar} style={{ width: at(item.median) }} />}
@@ -268,6 +285,179 @@ export function RangeList({ items, label }: { items: RangeItem[]; label: string 
         </span>
         <span />
       </div>
+    </div>
+  );
+}
+
+// Mediana de uma lista de números (null sem nenhum)
+export function medianOf(values: number[]): number | null {
+  if (values.length === 0) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+}
+
+export interface BulletItem {
+  key: string;
+  label: ReactNode;
+  value: number | null; // fração de 0 a 1
+  color: string;
+  summary: ReactNode;
+}
+
+// Faixas cinza do fundo (ruim, razoável, bom), como no gráfico de bala de Stephen Few
+const BULLET_BANDS = [0.5, 0.8, 1];
+
+/**
+ * Gráfico de bala: a fração de cada linha (barra fina na cor da linha) sobre faixas cinza de 0 a 100%,
+ * com a referência marcada em tinta (padrão: 90%, o "9 em cada 10" das metas de ambulância)
+ */
+export function BulletList({ items, label, reference = 0.9, referenceLabel = '9 em 10' }: {
+  items: BulletItem[];
+  label: string;
+  reference?: number;
+  referenceLabel?: string;
+}) {
+  return (
+    <div className={styles.ranges}>
+      <ul className={styles.rangeLegend} aria-hidden="true">
+        <li><span className={styles.keyBar} /> Dentro da meta</li>
+        <li><span className={styles.keyTarget} /> Referência: {referenceLabel} ({Math.round(reference * 100)}%)</li>
+      </ul>
+      <ul className={styles.rangeRows} aria-label={label}>
+        {items.map((item, index) => (
+          <li key={item.key} className={styles.rangeRow} style={step(index)}>
+            <span className={styles.rangeLabel}>{item.label}</span>
+            <span className={styles.bulletTrack} style={{ color: item.color }}>
+              {BULLET_BANDS.map((band, bandIndex) => (
+                <span
+                  key={band}
+                  className={styles.bulletBand}
+                  style={{ left: `${(BULLET_BANDS[bandIndex - 1] ?? 0) * 100}%`, width: `${(band - (BULLET_BANDS[bandIndex - 1] ?? 0)) * 100}%` }}
+                />
+              ))}
+              {item.value !== null && <span className={styles.bulletBar} style={{ width: `${Math.min(1, item.value) * 100}%` }} />}
+              <span className={styles.rangeTarget} style={{ left: `${reference * 100}%` }} />
+            </span>
+            <span className={styles.rangeSummary}>{item.summary}</span>
+          </li>
+        ))}
+      </ul>
+      <div className={styles.rangeAxis} aria-hidden="true">
+        <span />
+        <span className={styles.rangeTicks}>
+          <span style={{ left: 0 }}>0</span>
+          <span style={{ left: '50%' }}>50%</span>
+          <span style={{ left: '100%' }}>100%</span>
+        </span>
+        <span />
+      </div>
+    </div>
+  );
+}
+
+// Regra do IHI para o gráfico de corrida: 6 ou mais pontos seguidos do mesmo lado da mediana
+// (os pontos em cima da mediana não contam nem quebram a sequência) são um sinal, não acaso
+export const SHIFT_RUN = 6;
+
+export function shiftPoints(values: number[], median: number): Set<number> {
+  const marked = new Set<number>();
+  let run: number[] = [];
+  let side = 0;
+  values.forEach((value, index) => {
+    const current = Math.sign(value - median);
+    if (current === 0) return;
+    if (current !== side) {
+      if (run.length >= SHIFT_RUN) run.forEach(i => marked.add(i));
+      run = [];
+      side = current;
+    }
+    run.push(index);
+  });
+  if (run.length >= SHIFT_RUN) run.forEach(i => marked.add(i));
+  return marked;
+}
+
+/**
+ * Gráfico de corrida (run chart, padrão do IHI e do NHS): a série no tempo com a mediana tracejada;
+ * as sequências de 6 ou mais pontos do mesmo lado da mediana ficam em tinta, com a nota embaixo
+ */
+export function RunChart({ points, tickLabel, label, unit, height = 180 }: {
+  points: Column[];
+  tickLabel: (index: number) => string | null;
+  label: string;
+  unit: string; // "/dia"
+  height?: number;
+}) {
+  const [ref, width] = useElementWidth<HTMLDivElement>(600);
+  const [active, setActive] = useState<number | null>(null);
+  const values = points.map(point => point.value);
+  const median = medianOf(values) ?? 0;
+  const shifts = shiftPoints(values, median);
+  const max = niceMax(Math.max(0, ...values));
+  const plotWidth = Math.max(10, width - MARGIN.left - MARGIN.right);
+  const plotHeight = height - MARGIN.top - MARGIN.bottom;
+  const band = plotWidth / Math.max(1, points.length);
+  const x = (index: number) => MARGIN.left + index * band + band / 2;
+  const y = (value: number) => MARGIN.top + plotHeight - (value / max) * plotHeight;
+  const ticks = [0, max / 2, max].filter(Number.isInteger);
+  const line = points.map((point, index) => `${index === 0 ? 'M' : 'L'}${x(index)},${y(point.value)}`).join('');
+  const current = active === null ? null : points[active];
+  const medianText = formatCount(Math.round(median * 10) / 10);
+
+  return (
+    <div ref={ref} className={styles.columns}>
+      <svg width={width} height={height} role="img" aria-label={`${label}; mediana ${medianText}${unit}`}>
+        {ticks.map(tick => (
+          <g key={tick}>
+            <line className={styles.grid} x1={MARGIN.left} x2={width - MARGIN.right} y1={y(tick)} y2={y(tick)} />
+            <text className={styles.axis} x={MARGIN.left - 6} y={y(tick)} dy="0.32em" textAnchor="end">{formatCount(tick)}</text>
+          </g>
+        ))}
+        <line className={styles.medianLine} x1={MARGIN.left} x2={width - MARGIN.right} y1={y(median)} y2={y(median)} />
+        <text className={styles.medianLabel} x={width - MARGIN.right} y={y(median) - 5} textAnchor="end">mediana {medianText}{unit}</text>
+        {points.length > 1 && <path className={styles.runLine} d={line} pathLength={1} />}
+        {points.map((point, index) => (
+          <g key={point.key}>
+            <circle
+              className={`${styles.runDot} ${shifts.has(index) ? styles.runDotShift : ''}`}
+              cx={x(index)}
+              cy={y(point.value)}
+              r={active === index ? 5 : 3.5}
+            />
+            {tickLabel(index) && <text className={styles.axis} x={x(index)} y={height - 6} textAnchor="middle">{tickLabel(index)}</text>}
+            <rect
+              className={styles.hit}
+              x={MARGIN.left + index * band}
+              y={MARGIN.top}
+              width={band}
+              height={plotHeight}
+              tabIndex={0}
+              aria-label={`${point.labelText}: ${point.valueText}`}
+              onPointerEnter={() => setActive(index)}
+              onPointerLeave={() => setActive(null)}
+              onFocus={() => setActive(index)}
+              onBlur={() => setActive(null)}
+            />
+          </g>
+        ))}
+      </svg>
+      {current && active !== null && (
+        <div
+          className={styles.tooltip}
+          style={{ left: Math.min(Math.max(x(active), 70), width - 70), top: y(current.value) - 10 }}
+          aria-hidden="true"
+        >
+          <strong>{current.valueText}</strong>
+          <span>{current.labelText}</span>
+        </div>
+      )}
+      {shifts.size > 0 && (
+        <p className={styles.runNote}>
+          <span className={styles.runNoteDot} aria-hidden="true" /> {SHIFT_RUN} ou mais dias seguidos do mesmo lado da mediana: mudança de
+          padrão, não acaso.
+        </p>
+      )}
     </div>
   );
 }
