@@ -165,7 +165,7 @@ export default function DispatchAnalysis({
                             <Avatar
                               name={ambulance.driver.name}
                               seed={ambulance.driver.id}
-                              icon={ambulance.driver.avatar}
+                              photo={ambulance.driver.avatarPhoto}
                               color={ambulance.driver.avatarColor}
                               size={20}
                             />

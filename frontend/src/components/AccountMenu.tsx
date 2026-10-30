@@ -77,7 +77,7 @@ export function AccountMenu({ onSignOut, blockedReason, shift }: AccountMenuProp
     }
   };
 
-  const avatar = { name: me.fullName, seed: me.id, icon: me.avatar, color: me.avatarColor };
+  const avatar = { name: me.fullName, seed: me.id, photo: me.avatarPhoto, color: me.avatarColor };
 
   return (
     <div ref={wrapperRef} className={styles.wrapper}>

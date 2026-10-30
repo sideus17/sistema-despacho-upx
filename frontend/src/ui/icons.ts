@@ -88,12 +88,3 @@ export { default as CheckIcon } from '~icons/material-symbols/check-rounded';
 // Olho do campo de senha (Phosphor, que tem o olho fechado): o desenho mostra o estado da senha
 export { default as ShowPasswordIcon } from '~icons/ph/eye-bold';
 export { default as HidePasswordIcon } from '~icons/ph/eye-closed-bold';
-
-// Figuras do avatar (Healthicons)
-export { default as AvatarDoctorMaleIcon } from '~icons/healthicons/doctor-male';
-export { default as AvatarDoctorFemaleIcon } from '~icons/healthicons/doctor-female';
-export { default as AvatarNurseIcon } from '~icons/healthicons/nurse';
-export { default as AvatarHealthWorkerIcon } from '~icons/healthicons/health-worker';
-export { default as AvatarManIcon } from '~icons/healthicons/man';
-export { default as AvatarWomanIcon } from '~icons/healthicons/woman';
-export { default as AvatarPersonIcon } from '~icons/healthicons/person';

@@ -155,7 +155,7 @@ router.get('/me', async (req: Request, res: Response) => {
 router.patch('/me', async (req: Request, res: Response) => {
   let update: Record<string, unknown>;
   try {
-    update = profileUpdate(req.body ?? {});
+    update = profileUpdate(req.body ?? {}, req.user!.id);
   } catch (error) {
     if (error instanceof ProfileError) return fail(res, 400, error.message);
     throw error;
@@ -242,7 +242,7 @@ router.post('/shifts/end', requireRole(UserRole.MOTORISTA), async (req: Request,
 // ============================================
 
 router.get('/ambulances', async (req: Request, res: Response) => {
-  // "*" no motorista: funciona antes e depois da migração 003; só id, nome e avatar saem daqui
+  // "*" no motorista: funciona antes e depois da migração 003; só id, nome, foto e cor saem daqui
   const { data, error } = await supabase.from('ambulances').select('*, driver:profiles!driver_id(*)');
   // O celular do motorista vai só para a central, para ligar para a equipe
   const withPhone = req.user!.role === UserRole.OPERADOR;
@@ -267,7 +267,7 @@ router.get('/ambulances', async (req: Request, res: Response) => {
       ? {
           id: amb.driver.id,
           name: amb.driver.full_name,
-          avatar: amb.driver.avatar ?? null,
+          avatarPhoto: amb.driver.avatar_photo ?? null,
           avatarColor: amb.driver.avatar_color ?? null,
           ...(withPhone && amb.driver.phone ? { phone: amb.driver.phone } : {})
         }

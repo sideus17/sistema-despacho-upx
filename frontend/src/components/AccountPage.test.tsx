@@ -5,6 +5,7 @@ import { getMe } from '../services/api';
 import { supabase } from '../lib/supabase';
 import { Me, UserRole } from '../types';
 import { OPERATOR, renderWithAuth } from '../test/renderWithAuth';
+import { squarePhoto } from '../utils/photo';
 import { AccountPage } from './AccountPage';
 
 vi.mock('../services/api', async importOriginal => ({
@@ -12,8 +13,18 @@ vi.mock('../services/api', async importOriginal => ({
   getMe: vi.fn()
 }));
 
+vi.mock('../utils/photo', () => ({ squarePhoto: vi.fn(async () => new Blob(['x'], { type: 'image/webp' })) }));
+
+const storage = vi.hoisted(() => ({
+  upload: vi.fn(async () => ({ data: {}, error: null })),
+  remove: vi.fn(async () => ({ data: [], error: null }))
+}));
+
 vi.mock('../lib/supabase', () => ({
+  AVATAR_BUCKET: 'avatars',
+  avatarUrl: (path: string) => `https://fotos.test/${path}`,
   supabase: {
+    storage: { from: () => storage },
     auth: {
       mfa: {
         listFactors: vi.fn(async () => ({ data: { totp: [{ id: 'fator-1', status: 'verified' }] }, error: null })),
@@ -43,39 +54,79 @@ beforeEach(() => {
   vi.mocked(getMe).mockReset();
   vi.mocked(supabase.auth.updateUser).mockClear();
   vi.mocked(supabase.auth.mfa.challengeAndVerify).mockClear();
+  storage.upload.mockClear();
+  storage.remove.mockClear();
 });
 
 describe('Minha conta', () => {
-  it('CPF aparece mascarado até tocar em "Mostrar"', async () => {
+  it('dados só para leitura; o CPF fica oculto até tocar no olho', async () => {
     const { user } = await openPage();
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
     expect(screen.getByText('***.982.247-**')).toBeInTheDocument();
-    expect(screen.queryByDisplayValue('529.982.247-25')).not.toBeInTheDocument();
+    expect(screen.queryByText('529.982.247-25')).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Mostrar' }));
-    expect(screen.getByDisplayValue('529.982.247-25')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Mostrar CPF' }));
+    expect(screen.getByText('529.982.247-25')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Ocultar CPF' }));
+    expect(screen.getByText('***.982.247-**')).toBeInTheDocument();
   });
 
-  it('salva só o que mudou', async () => {
+  it('"Editar" abre os campos; salvar manda só o que mudou e volta para a leitura, sem fechar', async () => {
     const { user, auth, onClose } = await openPage();
+    await user.click(screen.getByRole('button', { name: 'Editar' }));
+    expect(screen.getByRole('button', { name: 'Salvar alterações' })).toBeDisabled();
+    expect(screen.getByDisplayValue('529.982.247-25')).toHaveAttribute('type', 'password');
+
     const phone = screen.getByDisplayValue('(15) 99123-4567');
     await user.clear(phone);
     await user.type(phone, '15988887777');
-    await user.click(screen.getByRole('button', { name: 'Médica' }));
-    await user.click(screen.getByRole('button', { name: 'Turquesa' }));
     await user.click(screen.getByRole('button', { name: 'Salvar alterações' }));
 
-    expect(auth.updateMe).toHaveBeenCalledWith({ phone: '15988887777', avatar: 'medica', avatarColor: 'turquesa' });
-    expect(onClose).toHaveBeenCalled();
+    expect(auth.updateMe).toHaveBeenCalledWith({ phone: '15988887777' });
+    expect(await screen.findByRole('button', { name: 'Editar' })).toBeInTheDocument();
+    expect(screen.getByText('(15) 98888-7777')).toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
   });
 
-  it('sem mudança, o botão de salvar fica desligado', async () => {
-    await openPage();
-    expect(screen.getByRole('button', { name: 'Salvar alterações' })).toBeDisabled();
+  it('"Cancelar" descarta a edição', async () => {
+    const { user, auth } = await openPage();
+    await user.click(screen.getByRole('button', { name: 'Editar' }));
+    await user.clear(screen.getByDisplayValue('(15) 99123-4567'));
+    await user.click(screen.getByRole('button', { name: 'Cancelar' }));
+    expect(screen.getByText('(15) 99123-4567')).toBeInTheDocument();
+    expect(auth.updateMe).not.toHaveBeenCalled();
   });
 
-  it('conta antiga: avisa o que falta e não aceita CPF inválido', async () => {
+  it('a cor salva ao tocar', async () => {
+    const { user, auth } = await openPage();
+    await user.click(screen.getByRole('button', { name: 'Turquesa' }));
+    expect(auth.updateMe).toHaveBeenCalledWith({ avatarColor: 'turquesa' });
+  });
+
+  it('a foto vai para a pasta da pessoa no Storage e o perfil guarda o caminho', async () => {
+    const { user, auth, container } = await openPage({ ...OPERATOR, avatarPhoto: `${OPERATOR.id}/antiga.webp` });
+    const file = new File(['foto'], 'eu.jpg', { type: 'image/jpeg' });
+    await user.upload(container.ownerDocument.querySelector('input[type="file"]') as HTMLInputElement, file);
+
+    expect(squarePhoto).toHaveBeenCalledWith(file);
+    const [path] = storage.upload.mock.calls[0] as unknown as [string];
+    expect(path).toMatch(new RegExp(`^${OPERATOR.id}/\\d+\\.webp$`));
+    expect(auth.updateMe).toHaveBeenCalledWith({ avatarPhoto: path });
+    expect(storage.remove).toHaveBeenCalledWith([`${OPERATOR.id}/antiga.webp`]);
+    expect(await screen.findByText('Foto atualizada.')).toBeInTheDocument();
+  });
+
+  it('remover a foto volta às iniciais', async () => {
+    const { user, auth } = await openPage({ ...OPERATOR, avatarPhoto: `${OPERATOR.id}/antiga.webp` });
+    await user.click(screen.getByRole('button', { name: 'Remover foto' }));
+    expect(auth.updateMe).toHaveBeenCalledWith({ avatarPhoto: null });
+    expect(storage.remove).toHaveBeenCalledWith([`${OPERATOR.id}/antiga.webp`]);
+  });
+
+  it('conta antiga: já abre editando, avisa o que falta e não aceita CPF inválido', async () => {
     const { user, auth } = await openPage({ ...OPERATOR, cpf: null, phone: null, missing: ['cpf', 'phone'] });
     expect(screen.getByText('Complete seu cadastro: faltam CPF e celular.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Editar' })).not.toBeInTheDocument();
 
     await user.type(screen.getByPlaceholderText('000.000.000-00'), '12345678900');
     await user.click(screen.getByRole('button', { name: 'Salvar alterações' }));

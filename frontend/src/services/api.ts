@@ -30,7 +30,6 @@ import {
   HistoryPage,
   HeatPoint,
   ManagementScope,
-  AvatarIcon,
   AvatarColor,
   UserRole
 } from '../types';
@@ -107,7 +106,7 @@ export interface ProfilePatch {
   fullName?: string;
   cpf?: string;
   phone?: string;
-  avatar?: AvatarIcon | null;
+  avatarPhoto?: string | null;
   avatarColor?: AvatarColor | null;
   theme?: 'auto' | 'day' | 'night';
 }

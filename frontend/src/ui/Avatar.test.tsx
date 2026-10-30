@@ -16,15 +16,15 @@ describe('avatar', () => {
     expect(Object.keys(AVATAR_COLORS)).toContain(color);
   });
 
-  it('mostra as iniciais ou a figura escolhida, na cor escolhida', () => {
+  it('mostra as iniciais na cor escolhida, ou a foto enviada', () => {
     const { container, rerender } = render(<Avatar name="Ana Souza" seed="x" color="roxo" />);
     const avatar = container.firstElementChild as HTMLElement;
     expect(avatar).toHaveTextContent('AS');
     expect(avatar.style.background).toBe('rgb(132, 48, 206)'); // #8430ce
 
-    rerender(<Avatar name="Ana Souza" seed="x" icon="medica" />);
+    rerender(<Avatar name="Ana Souza" seed="x" photo="x/1730300000.webp" />);
     expect(avatar).not.toHaveTextContent('AS');
-    expect(avatar.querySelector('svg')).not.toBeNull();
+    expect(avatar.querySelector('img')?.getAttribute('src')).toMatch(/\/storage\/v1\/object\/public\/avatars\/x\/1730300000\.webp$/);
   });
 
   it('ponto vermelho quando falta completar o cadastro', () => {
