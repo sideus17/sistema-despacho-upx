@@ -67,6 +67,18 @@ describe('GPS da viatura no cartão', () => {
   });
 });
 
+describe('filtros pelo teclado', () => {
+  it('teclas 1 a 4 trocam o filtro, menos dentro de um campo', async () => {
+    const user = userEvent.setup();
+    render(<CallList calls={[active()]} ambulances={[]} onFocus={vi.fn()} onRegulate={vi.fn()} onDispatch={vi.fn()} onFinish={vi.fn()} />);
+    await user.keyboard('4');
+    expect(screen.getByRole('button', { name: /^Em atendimento/ })).toHaveAttribute('aria-pressed', 'true');
+    await user.keyboard('2');
+    expect(screen.getByRole('button', { name: /^Regulação/ })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: /^Todos/ })).toHaveAttribute('aria-keyshortcuts', '1');
+  });
+});
+
 describe('finalizar atendimento na central', () => {
   it('sem chegada ao hospital, pergunta como terminou; a escolha finaliza', async () => {
     const user = userEvent.setup();
