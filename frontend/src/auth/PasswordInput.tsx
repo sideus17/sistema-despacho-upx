@@ -33,7 +33,8 @@ export function PasswordInput({ className, ...props }: PasswordInputProps) {
         title={visible ? 'Ocultar senha' : 'Mostrar senha'}
         onClick={() => setVisible(value => !value)}
       >
-        {visible ? <HidePasswordIcon /> : <ShowPasswordIcon />}
+        {/* Olho aberto: senha à vista; fechado: oculta */}
+        {visible ? <ShowPasswordIcon /> : <HidePasswordIcon />}
       </button>
     </span>
   );
