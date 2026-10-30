@@ -20,10 +20,12 @@ interface IncidentLayerProps {
   // Camada a partir da qual as áreas ficam por baixo (ex.: a rota)
   beforeId?: string;
   onSelect?: (incident: Incident, event: { originalEvent: MouseEvent }) => void;
+  // Quais ocorrências ganham ícone (as áreas e linhas aparecem sempre); sem ele, todas
+  showMarker?: (incident: Incident) => boolean;
 }
 
 // Áreas e marcadores das ocorrências; a mesma camada na central e no app da equipe
-export function IncidentLayer({ incidents, beforeId, onSelect }: IncidentLayerProps) {
+export function IncidentLayer({ incidents, beforeId, onSelect, showMarker }: IncidentLayerProps) {
   const { theme } = useTheme();
   const areas = useMemo(() => incidentAreas(incidents, theme), [incidents, theme]);
 
@@ -56,7 +58,7 @@ export function IncidentLayer({ incidents, beforeId, onSelect }: IncidentLayerPr
       </Source>
 
       {incidents
-        .filter(incident => incident.radius > 0 || incident.geometry)
+        .filter(incident => (incident.radius > 0 || incident.geometry) && (!showMarker || showMarker(incident)))
         .map(incident => (
           <Marker
             key={incident.id}

@@ -62,6 +62,18 @@ interface MapProps {
   callDraft?: Coordinates | null;
 }
 
+// Ícones das ocorrências na central (alagamento, buraco, acidente…): ligados por padrão, a escolha fica no
+// aparelho. O congestionamento não ganha ícone: a cor do trânsito já mostra onde está parado
+const INCIDENT_ICONS_KEY = 'samu:icones-ocorrencias';
+
+function readIncidentIcons(): boolean {
+  try {
+    return localStorage.getItem(INCIDENT_ICONS_KEY) !== '0';
+  } catch {
+    return true;
+  }
+}
+
 export default function Map({
   ambulances,
   calls,
@@ -81,6 +93,17 @@ export default function Map({
   const [loaded, setLoaded] = useState(false);
   const [popup, setPopup] = useState<Selection>(null);
   const [legendOpen, setLegendOpen] = useState(false);
+  const [incidentIcons, setIncidentIcons] = useState(readIncidentIcons);
+  const toggleIncidentIcons = () => {
+    setIncidentIcons(value => {
+      try {
+        localStorage.setItem(INCIDENT_ICONS_KEY, value ? '0' : '1');
+      } catch {
+        // Sem armazenamento: vale até fechar a página
+      }
+      return !value;
+    });
+  };
   const { theme } = useTheme();
   const mapStyle = useMapStyle(theme);
 
@@ -311,7 +334,11 @@ export default function Map({
           <MapControls />
           <TrafficLayer theme={theme} />
 
-          <IncidentLayer incidents={incidents} onSelect={(incident, event) => open('incident', incident.id)(event)} />
+          <IncidentLayer
+            incidents={incidents}
+            onSelect={(incident, event) => open('incident', incident.id)(event)}
+            showMarker={incident => incidentIcons && incident.type !== IncidentType.CONGESTIONAMENTO}
+          />
 
           {routeGeometry && routeGeometry.length > 1 && <RouteLayer line={routeGeometry} theme={theme} />}
 
@@ -408,6 +435,9 @@ export default function Map({
           aria-expanded={legendOpen}
         >
           Legenda {legendOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+        </button>
+        <button type="button" role="switch" aria-checked={incidentIcons} className={styles.iconsSwitch} onClick={toggleIncidentIcons}>
+          Ícones de ocorrência <span className={styles.switchTrack} aria-hidden="true"><span /></span>
         </button>
         {legendOpen && (
           <ul className={styles.legendItems}>
