@@ -200,6 +200,7 @@ export default function CallList({
               const queue = queueOf(call);
               const waited = now - Date.parse(waitingSince(call));
               const assignedAmbulance = isActive ? ambulances.find(a => a.id === call.ambulance_id) : undefined;
+              const gpsStale = assignedAmbulance ? staleLocationText(assignedAmbulance, now) : null;
               const gender = formatGender(call.patientInfo.gender);
               const isConfirming = confirmingFinishId === call.id;
               const stage = isActive ? callStage(call) : null;
@@ -227,12 +228,10 @@ export default function CallList({
                     </span>
                     {stage && stageMeta ? (
                       // Em atendimento: etapa marcada pelo GPS da viatura e há quanto tempo
-                      <span className={styles.stage}>
+                      <span className={`${styles.stage} ${gpsStale ? styles.stageTall : ''}`}>
                         {stageMeta.label}{stage.stage === 'TRANSPORTANDO' && hospital ? ` → ${hospital.shortName}` : ''} · {elapsedLabel(stage.since, now)}
-                        {/* A etapa vem do GPS: parado, ela pode estar velha */}
-                        {assignedAmbulance && staleLocationText(assignedAmbulance, now) && (
-                          <em className={styles.gpsStale}> · {staleLocationText(assignedAmbulance, now)}</em>
-                        )}
+                        {/* A etapa vem do GPS: parado, ela pode estar velha (numa linha própria, para caber no cartão) */}
+                        {gpsStale && <em className={styles.gpsStale}><span className={styles.srOnly}> · </span>{gpsStale}</em>}
                       </span>
                     ) : (
                       // Na fila: há quanto tempo espera a regulação (desde a abertura) ou a viatura (desde a regulação)
