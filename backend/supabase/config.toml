@@ -52,7 +52,8 @@ enabled = false
 [auth]
 enabled = true
 site_url = "http://localhost:5173"
-additional_redirect_urls = []
+# Volta do link do "Esqueci a senha" (central e app da equipe no localhost)
+additional_redirect_urls = ["http://central.localhost:5173", "http://equipe.localhost:5173"]
 jwt_expiry = 3600
 enable_refresh_token_rotation = true
 refresh_token_reuse_interval = 10
