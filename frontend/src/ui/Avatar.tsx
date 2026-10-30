@@ -1,15 +1,6 @@
 import { CSSProperties } from 'react';
-import { AvatarColor, AvatarIcon } from '../types';
-import {
-  AvatarDoctorFemaleIcon,
-  AvatarDoctorMaleIcon,
-  AvatarHealthWorkerIcon,
-  AvatarManIcon,
-  AvatarNurseIcon,
-  AvatarPersonIcon,
-  AvatarWomanIcon,
-  IconComponent
-} from './icons';
+import { AvatarColor } from '../types';
+import { avatarUrl } from '../lib/supabase';
 import styles from './Avatar.module.css';
 
 // Cores escuras o bastante para as iniciais em branco (contraste ≥ 4,5:1)
@@ -22,16 +13,6 @@ export const AVATAR_COLORS: Record<AvatarColor, string> = {
   turquesa: '#007b83',
   rosa: '#c2185b',
   grafite: '#5f6368'
-};
-
-export const AVATAR_ICONS: Record<AvatarIcon, { label: string; Icon: IconComponent }> = {
-  medico: { label: 'Médico', Icon: AvatarDoctorMaleIcon },
-  medica: { label: 'Médica', Icon: AvatarDoctorFemaleIcon },
-  enfermagem: { label: 'Enfermagem', Icon: AvatarNurseIcon },
-  socorrista: { label: 'Socorrista', Icon: AvatarHealthWorkerIcon },
-  homem: { label: 'Homem', Icon: AvatarManIcon },
-  mulher: { label: 'Mulher', Icon: AvatarWomanIcon },
-  pessoa: { label: 'Pessoa', Icon: AvatarPersonIcon }
 };
 
 const COLOR_KEYS = Object.keys(AVATAR_COLORS) as AvatarColor[];
@@ -55,7 +36,8 @@ export function colorFromSeed(seed: string): AvatarColor {
 interface AvatarProps {
   name: string;
   seed: string;
-  icon?: AvatarIcon | null;
+  // Foto enviada pela pessoa; sem ela, as iniciais na cor
+  photo?: string | null;
   color?: AvatarColor | null;
   size?: number;
   // Ponto vermelho no canto (ex.: cadastro incompleto)
@@ -63,16 +45,15 @@ interface AvatarProps {
   className?: string;
 }
 
-export function Avatar({ name, seed, icon, color, size = 32, badge = false, className = '' }: AvatarProps) {
+export function Avatar({ name, seed, photo, color, size = 32, badge = false, className = '' }: AvatarProps) {
   const background = AVATAR_COLORS[color ?? colorFromSeed(seed)];
-  const figure = icon ? AVATAR_ICONS[icon] : null;
   return (
     <span
-      className={`${styles.avatar} ${figure ? styles.withIcon : ''} ${className}`}
+      className={`${styles.avatar} ${className}`}
       style={{ '--avatar-size': `${size}px`, background } as CSSProperties}
       aria-hidden="true"
     >
-      {figure ? <figure.Icon /> : initials(name)}
+      {photo ? <img className={styles.photo} src={avatarUrl(photo)} alt="" loading="lazy" /> : initials(name)}
       {badge && <span className={styles.badge} />}
     </span>
   );

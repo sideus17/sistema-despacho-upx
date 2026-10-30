@@ -1,17 +1,18 @@
 import { FormEvent, ReactNode, useEffect, useRef, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { getErrorMessage, getMe, ProfilePatch } from '../services/api';
-import { supabase } from '../lib/supabase';
+import { AVATAR_BUCKET, supabase } from '../lib/supabase';
 import { authErrorMessage } from '../auth/authErrors';
 import { PasswordInput } from '../auth/PasswordInput';
-import { AvatarColor, AvatarIcon, Me, ProfileField, UserRole } from '../types';
-import { Avatar, AVATAR_COLORS, AVATAR_ICONS, colorFromSeed } from '../ui/Avatar';
-import { CheckIcon, CloseIcon } from '../ui/icons';
+import { AvatarColor, Me, ProfileField, UserRole } from '../types';
+import { Avatar, AVATAR_COLORS, colorFromSeed } from '../ui/Avatar';
+import { CheckIcon, CloseIcon, HidePasswordIcon, ShowPasswordIcon } from '../ui/icons';
 import { useFocusTrap } from '../ui/useFocusTrap';
 import { ThemePicker } from '../theme/ThemePicker';
 import { formatCpf, formatPhone, isValidCellphone, isValidCpf, maskCpf, onlyDigits } from '../utils/documents';
 import { useToast } from './Toast';
 import { Spinner } from '../ui/Spinner';
+import { squarePhoto } from '../utils/photo';
 import styles from './AccountPage.module.css';
 
 export const ROLE_LABEL: Record<UserRole, string> = {
@@ -21,12 +22,11 @@ export const ROLE_LABEL: Record<UserRole, string> = {
 
 const FIELD_LABEL: Record<ProfileField, string> = { cpf: 'CPF', phone: 'celular' };
 
+// Dados pessoais (foto e cor salvam na hora, fora do "Editar")
 interface Form {
   fullName: string;
   cpf: string;
   phone: string;
-  avatar: AvatarIcon | null;
-  avatarColor: AvatarColor;
 }
 
 type Errors = Partial<Record<keyof Form, string>>;
@@ -34,9 +34,7 @@ type Errors = Partial<Record<keyof Form, string>>;
 const toForm = (profile: Me): Form => ({
   fullName: profile.fullName,
   cpf: formatCpf(profile.cpf ?? ''),
-  phone: formatPhone(profile.phone ?? ''),
-  avatar: profile.avatar ?? null,
-  avatarColor: profile.avatarColor ?? colorFromSeed(profile.id)
+  phone: formatPhone(profile.phone ?? '')
 });
 
 const listJoin = (items: string[]) =>
@@ -60,8 +58,6 @@ function buildPatch(form: Form, initial: Form): { patch: ProfilePatch; errors: E
     if (!isValidCellphone(form.phone)) errors.phone = 'Celular inválido. Use DDD + número, ex.: (15) 99999-9999.';
     else patch.phone = onlyDigits(form.phone);
   }
-  if (form.avatar !== initial.avatar) patch.avatar = form.avatar;
-  if (form.avatarColor !== initial.avatarColor) patch.avatarColor = form.avatarColor;
   return { patch, errors };
 }
 
@@ -150,6 +146,7 @@ export function AccountPage({ onClose }: { onClose: () => void }) {
   const { me, updateMe } = useAuth();
   const toast = useToast();
   const pageRef = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
   const [initial, setInitial] = useState<Form | null>(null);
   const [form, setForm] = useState<Form | null>(null);
   const [profile, setProfile] = useState<Me | null>(null);
@@ -157,19 +154,25 @@ export function AccountPage({ onClose }: { onClose: () => void }) {
   const [errors, setErrors] = useState<Errors>({});
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [showCpf, setShowCpf] = useState(false);
+  const [photoBusy, setPhotoBusy] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
 
+  const loaded = (fresh: Me) => {
+    setProfile(fresh);
+    setInitial(toForm(fresh));
+    setForm(toForm(fresh));
+  };
 
-  // O CPF não fica no aparelho: busca o perfil completo ao abrir
+  // O CPF não fica no aparelho: busca o perfil completo ao abrir. Cadastro incompleto já abre editando
   useEffect(() => {
     let cancelled = false;
     getMe()
       .then(fresh => {
         if (cancelled) return;
-        setProfile(fresh);
-        setInitial(toForm(fresh));
-        setForm(toForm(fresh));
+        loaded(fresh);
+        setEditing((fresh.missing ?? []).length > 0);
       })
       .catch(error => !cancelled && setLoadError(getErrorMessage(error, 'Sem conexão: não dá para abrir sua conta agora.')));
     return () => {
@@ -177,7 +180,7 @@ export function AccountPage({ onClose }: { onClose: () => void }) {
     };
   }, []);
 
-  const dirty = !!form && !!initial && JSON.stringify(form) !== JSON.stringify(initial);
+  const dirty = editing && !!form && !!initial && JSON.stringify(form) !== JSON.stringify(initial);
   const requestClose = () => {
     if (dirty && !window.confirm('Descartar as alterações?')) return;
     onClose();
@@ -190,26 +193,86 @@ export function AccountPage({ onClose }: { onClose: () => void }) {
     setSaveError(null);
   };
 
+  const cancelEdit = () => {
+    setForm(initial);
+    setErrors({});
+    setSaveError(null);
+    setEditing(false);
+  };
+
   const save = async () => {
     if (!form || !initial) return;
     const { patch, errors: found } = buildPatch(form, initial);
     setErrors(found);
     if (Object.values(found).some(Boolean)) return setSaveError('Confira os campos destacados.');
-    if (Object.keys(patch).length === 0) return onClose();
+    if (Object.keys(patch).length === 0) return setEditing(false);
 
     setSaving(true);
     setSaveError(null);
     try {
-      await updateMe(patch);
-      toast('Perfil atualizado.', 'success');
-      onClose();
+      loaded(await updateMe(patch));
+      setEditing(false);
+      toast('Dados salvos.', 'success');
     } catch (error) {
       setSaveError(getErrorMessage(error, 'Não foi possível salvar.'));
+    } finally {
       setSaving(false);
     }
   };
 
+  // Foto e cor salvam na hora, sem o "Editar"
+  const saveLook = async (patch: ProfilePatch, success: string) => {
+    const fresh = await updateMe(patch);
+    setProfile(fresh);
+    toast(success, 'success');
+  };
+
+  const sendPhoto = async (file: File | undefined) => {
+    if (!file) return;
+    setPhotoBusy(true);
+    const previous = profile?.avatarPhoto;
+    try {
+      const blob = await squarePhoto(file);
+      const path = `${me.id}/${Date.now()}.${blob.type === 'image/png' ? 'png' : 'webp'}`;
+      const { error } = await supabase.storage.from(AVATAR_BUCKET).upload(path, blob, { contentType: blob.type });
+      if (error) throw error;
+      await saveLook({ avatarPhoto: path }, 'Foto atualizada.');
+      // A antiga sai do Storage; se falhar, só sobra um arquivo sem uso
+      if (previous) void supabase.storage.from(AVATAR_BUCKET).remove([previous]);
+    } catch (error) {
+      toast(getErrorMessage(error, 'Não foi possível enviar a foto. Tente outra imagem.'), 'error');
+    } finally {
+      setPhotoBusy(false);
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  };
+
+  const removePhoto = async () => {
+    const previous = profile?.avatarPhoto;
+    if (!previous) return;
+    setPhotoBusy(true);
+    try {
+      await saveLook({ avatarPhoto: null }, 'Foto removida.');
+      void supabase.storage.from(AVATAR_BUCKET).remove([previous]);
+    } catch (error) {
+      toast(getErrorMessage(error, 'Não foi possível remover a foto.'), 'error');
+    } finally {
+      setPhotoBusy(false);
+    }
+  };
+
+  const chooseColor = async (color: AvatarColor) => {
+    if (!profile || color === (profile.avatarColor ?? colorFromSeed(profile.id))) return;
+    try {
+      await saveLook({ avatarColor: color }, 'Cor atualizada.');
+    } catch (error) {
+      toast(getErrorMessage(error, 'Não foi possível trocar a cor.'), 'error');
+    }
+  };
+
   const missing = profile?.missing ?? [];
+  const color = profile ? profile.avatarColor ?? colorFromSeed(profile.id) : null;
+  const photo = profile?.avatarPhoto ?? null;
 
   return (
     <div className={styles.backdrop} onMouseDown={event => event.target === event.currentTarget && requestClose()}>
@@ -222,7 +285,7 @@ export function AccountPage({ onClose }: { onClose: () => void }) {
         <div className={styles.body}>
           {loadError ? (
             <p className={styles.error} role="alert">{loadError}</p>
-          ) : !form ? (
+          ) : !form || !initial || !profile ? (
             <Spinner className={styles.spinner} />
           ) : (
             <>
@@ -235,34 +298,22 @@ export function AccountPage({ onClose }: { onClose: () => void }) {
               <section className={styles.section} aria-labelledby="account-photo">
                 <h3 id="account-photo">Foto do perfil</h3>
                 <div className={styles.preview}>
-                  <Avatar name={form.fullName || me.fullName} seed={me.id} icon={form.avatar} color={form.avatarColor} size={80} />
+                  <Avatar name={profile.fullName} seed={me.id} photo={photo} color={color} size={80} />
                 </div>
-
-                <p className={styles.label}>Figura</p>
-                <div className={styles.figures} role="group" aria-label="Figura">
-                  <button
-                    type="button"
-                    className={styles.figure}
-                    aria-pressed={form.avatar === null}
-                    aria-label="Iniciais"
-                    title="Iniciais"
-                    onClick={() => set('avatar', null)}
-                  >
-                    <Avatar name={form.fullName || me.fullName} seed={me.id} color={form.avatarColor} size={44} />
+                <div className={styles.photoActions}>
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    accept="image/*"
+                    hidden
+                    onChange={event => sendPhoto(event.target.files?.[0])}
+                  />
+                  <button type="button" className={styles.secondary} disabled={photoBusy} onClick={() => fileRef.current?.click()}>
+                    {photoBusy ? 'Enviando…' : photo ? 'Trocar foto' : 'Enviar foto'}
                   </button>
-                  {(Object.keys(AVATAR_ICONS) as AvatarIcon[]).map(key => (
-                    <button
-                      key={key}
-                      type="button"
-                      className={styles.figure}
-                      aria-pressed={form.avatar === key}
-                      aria-label={AVATAR_ICONS[key].label}
-                      title={AVATAR_ICONS[key].label}
-                      onClick={() => set('avatar', key)}
-                    >
-                      <Avatar name={me.fullName} seed={me.id} icon={key} color={form.avatarColor} size={44} />
-                    </button>
-                  ))}
+                  {photo && (
+                    <button type="button" className={styles.secondary} disabled={photoBusy} onClick={removePhoto}>Remover foto</button>
+                  )}
                 </div>
 
                 <p className={styles.label}>Cor</p>
@@ -273,59 +324,90 @@ export function AccountPage({ onClose }: { onClose: () => void }) {
                       type="button"
                       className={styles.color}
                       style={{ background: AVATAR_COLORS[key] }}
-                      aria-pressed={form.avatarColor === key}
+                      aria-pressed={color === key}
                       aria-label={key[0].toUpperCase() + key.slice(1)}
                       title={key[0].toUpperCase() + key.slice(1)}
-                      onClick={() => set('avatarColor', key)}
+                      onClick={() => chooseColor(key)}
                     >
-                      {form.avatarColor === key && <CheckIcon />}
+                      {color === key && <CheckIcon />}
                     </button>
                   ))}
                 </div>
+                {photo && <p className={styles.hint}>A cor aparece com as iniciais, quando não há foto.</p>}
               </section>
 
               <section className={styles.section} aria-labelledby="account-personal">
-                <h3 id="account-personal">Dados pessoais</h3>
-                <Field label="Nome completo" error={errors.fullName}>
-                  <input autoComplete="name" value={form.fullName} onChange={e => set('fullName', e.target.value)} />
-                </Field>
+                <div className={styles.sectionHeader}>
+                  <h3 id="account-personal">Dados pessoais</h3>
+                  {!editing && (
+                    <button type="button" className={styles.secondary} onClick={() => setEditing(true)}>Editar</button>
+                  )}
+                </div>
 
-                {initial?.cpf && !showCpf ? (
-                  <div className={styles.field}>
-                    <span>CPF</span>
-                    <div className={styles.masked}>
-                      <span>{maskCpf(initial.cpf)}</span>
-                      <button type="button" className={styles.link} onClick={() => setShowCpf(true)}>Mostrar</button>
+                {editing ? (
+                  <>
+                    <Field label="Nome completo" error={errors.fullName}>
+                      <input autoComplete="name" value={form.fullName} onChange={e => set('fullName', e.target.value)} />
+                    </Field>
+                    <Field label="CPF" error={errors.cpf} hint={missing.includes('cpf') ? 'Obrigatório' : undefined}>
+                      <PasswordInput
+                        secret="CPF"
+                        autoComplete="off"
+                        inputMode="numeric"
+                        placeholder="000.000.000-00"
+                        value={form.cpf}
+                        onChange={e => set('cpf', formatCpf(e.target.value))}
+                      />
+                    </Field>
+                    <Field label="Celular" error={errors.phone} hint={missing.includes('phone') ? 'Obrigatório' : undefined}>
+                      <input
+                        type="tel"
+                        inputMode="tel"
+                        autoComplete="tel-national"
+                        placeholder="(15) 99999-9999"
+                        value={form.phone}
+                        onChange={e => set('phone', formatPhone(e.target.value))}
+                      />
+                    </Field>
+                    {saveError && <p className={styles.error} role="alert">{saveError}</p>}
+                    <div className={styles.inlineActions}>
+                      <button type="button" className={styles.secondary} disabled={saving} onClick={cancelEdit}>Cancelar</button>
+                      <button type="button" className={styles.primary} disabled={saving || !dirty} onClick={save}>
+                        {saving ? 'Salvando…' : 'Salvar alterações'}
+                      </button>
                     </div>
-                  </div>
+                  </>
                 ) : (
-                  <Field label="CPF" error={errors.cpf} hint={missing.includes('cpf') ? 'Obrigatório' : undefined}>
-                    <input
-                      inputMode="numeric"
-                      autoComplete="off"
-                      placeholder="000.000.000-00"
-                      value={form.cpf}
-                      onChange={e => set('cpf', formatCpf(e.target.value))}
-                    />
-                  </Field>
+                  <dl className={styles.readonly}>
+                    <div><dt>Nome</dt><dd>{initial.fullName}</dd></div>
+                    <div>
+                      <dt>CPF</dt>
+                      <dd className={styles.secret}>
+                        {initial.cpf ? (showCpf ? initial.cpf : maskCpf(initial.cpf)) : 'Não informado'}
+                        {initial.cpf && (
+                          <button
+                            type="button"
+                            className={styles.eye}
+                            aria-pressed={showCpf}
+                            aria-label={showCpf ? 'Ocultar CPF' : 'Mostrar CPF'}
+                            title={showCpf ? 'Ocultar CPF' : 'Mostrar CPF'}
+                            onClick={() => setShowCpf(value => !value)}
+                          >
+                            {/* Olho aberto: CPF à vista; fechado: oculto (como no campo de senha) */}
+                            {showCpf ? <ShowPasswordIcon /> : <HidePasswordIcon />}
+                          </button>
+                        )}
+                      </dd>
+                    </div>
+                    <div><dt>Celular</dt><dd>{initial.phone || 'Não informado'}</dd></div>
+                  </dl>
                 )}
-
-                <Field label="Celular" error={errors.phone} hint={missing.includes('phone') ? 'Obrigatório' : undefined}>
-                  <input
-                    type="tel"
-                    inputMode="tel"
-                    autoComplete="tel-national"
-                    placeholder="(15) 99999-9999"
-                    value={form.phone}
-                    onChange={e => set('phone', formatPhone(e.target.value))}
-                  />
-                </Field>
               </section>
 
               <section className={styles.section} aria-labelledby="account-access">
                 <h3 id="account-access">Acesso</h3>
                 <dl className={styles.readonly}>
-                  <div><dt>E-mail</dt><dd>{profile?.email ?? '—'}</dd></div>
+                  <div><dt>E-mail</dt><dd>{profile.email ?? '—'}</dd></div>
                   <div><dt>Função</dt><dd>{ROLE_LABEL[me.role]}</dd></div>
                 </dl>
                 {changingPassword ? (
@@ -343,18 +425,6 @@ export function AccountPage({ onClose }: { onClose: () => void }) {
             </>
           )}
         </div>
-
-        {form && (
-          <footer className={styles.footer}>
-            {saveError && <p className={styles.error} role="alert">{saveError}</p>}
-            <div className={styles.inlineActions}>
-              <button type="button" className={styles.secondary} disabled={saving} onClick={requestClose}>Cancelar</button>
-              <button type="button" className={styles.primary} disabled={saving || !dirty} onClick={save}>
-                {saving ? 'Salvando…' : 'Salvar alterações'}
-              </button>
-            </div>
-          </footer>
-        )}
       </div>
     </div>
   );

@@ -1,7 +1,6 @@
 import { UserRole } from '../types';
 
-// Valores aceitos (iguais às regras da migração 003)
-export const AVATAR_ICONS = ['medico', 'medica', 'enfermagem', 'socorrista', 'homem', 'mulher', 'pessoa'] as const;
+// Valores aceitos (iguais às regras da migração 003; a figura do avatar deu lugar à foto, migração 010)
 export const AVATAR_COLORS = ['azul', 'verde', 'vermelho', 'laranja', 'roxo', 'turquesa', 'rosa', 'grafite'] as const;
 export const THEMES = ['auto', 'day', 'night'] as const;
 
@@ -54,6 +53,16 @@ export function parseCpf(input: unknown): string {
   return cpf;
 }
 
+// Foto do perfil: o caminho no bucket avatars do Storage (migração 010), sempre na pasta da própria
+// pessoa. O app monta o endereço público a partir dele
+export function parsePhoto(input: unknown, userId: string): string | null {
+  if (input === null) return null;
+  if (typeof input === 'string' && userId && input.startsWith(`${userId}/`) && /^[\w-]+\.(webp|png)$/.test(input.slice(userId.length + 1))) {
+    return input;
+  }
+  throw new ProfileError('Foto inválida.');
+}
+
 export function parsePhone(input: unknown): string {
   const phone = typeof input === 'string' ? onlyDigits(input) : '';
   if (!isValidCellphone(phone)) throw new ProfileError('Celular inválido. Use DDD + número, ex.: (15) 99999-9999.');
@@ -73,7 +82,7 @@ export interface ProfileRow {
   role: UserRole;
   cpf?: string | null;
   phone?: string | null;
-  avatar?: string | null;
+  avatar_photo?: string | null;
   avatar_color?: string | null;
   theme?: string | null;
 }
@@ -82,14 +91,14 @@ export interface ProfileRow {
  * Converte o corpo do PATCH /me em colunas. Só os campos enviados mudam;
  * CPF e celular não podem ser apagados, só trocados.
  */
-export function profileUpdate(body: Record<string, unknown>): Record<string, unknown> {
+export function profileUpdate(body: Record<string, unknown>, userId = ''): Record<string, unknown> {
   const update: Record<string, unknown> = {};
   if ('fullName' in body) update.full_name = parseName(body.fullName);
   if ('cpf' in body) update.cpf = parseCpf(body.cpf);
   if ('phone' in body) update.phone = parsePhone(body.phone);
   // A CNH deixou de ser pedida (decisão do grupo); as colunas antigas ficam no banco, sem uso
   if ('cnh' in body) throw new ProfileError('A CNH não é mais pedida.');
-  if ('avatar' in body) update.avatar = parseChoice(body.avatar, AVATAR_ICONS, 'Figura inválida.');
+  if ('avatarPhoto' in body) update.avatar_photo = parsePhoto(body.avatarPhoto, userId);
   if ('avatarColor' in body) update.avatar_color = parseChoice(body.avatarColor, AVATAR_COLORS, 'Cor inválida.');
   if ('theme' in body) {
     const theme = parseChoice(body.theme, THEMES, 'Tema inválido.');
@@ -117,7 +126,7 @@ export function toMe(row: ProfileRow, email: string | undefined) {
     email: email ?? null,
     cpf: row.cpf ?? null,
     phone: row.phone ?? null,
-    avatar: row.avatar ?? null,
+    avatarPhoto: row.avatar_photo ?? null,
     avatarColor: row.avatar_color ?? null,
     theme: row.theme ?? 'auto',
     missing: missingFields(row)

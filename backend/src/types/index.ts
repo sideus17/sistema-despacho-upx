@@ -124,7 +124,7 @@ export interface Ambulance {
     nurse?: string;
   };
   // Motorista em turno (login no app); o celular só vai para a central
-  driver: { id: string; name: string; avatar: string | null; avatarColor: string | null; phone?: string } | null;
+  driver: { id: string; name: string; avatarPhoto: string | null; avatarColor: string | null; phone?: string } | null;
   locationUpdatedAt: string | null;
 }
 

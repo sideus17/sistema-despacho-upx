@@ -25,9 +25,16 @@ test('PATCH /me: só os campos enviados; a CNH não é mais pedida', () => {
   });
   assert.throws(() => profileUpdate({ cnh: { number: '52601815980', category: 'B', expiresOn: '2030-01-01' } }), /não é mais pedida/);
   assert.throws(() => profileUpdate({ cpf: null }), ProfileError);
-  assert.throws(() => profileUpdate({ avatar: 'robo' }), ProfileError);
-  assert.deepEqual(profileUpdate({ avatar: null, avatarColor: 'verde' }), { avatar: null, avatar_color: 'verde' });
+  assert.deepEqual(profileUpdate({ avatarPhoto: null, avatarColor: 'verde' }), { avatar_photo: null, avatar_color: 'verde' });
   assert.throws(() => profileUpdate({}), ProfileError);
+});
+
+test('foto do perfil: só da pasta da própria pessoa no Storage', () => {
+  assert.deepEqual(profileUpdate({ avatarPhoto: 'u1/1730300000.webp' }, 'u1'), { avatar_photo: 'u1/1730300000.webp' });
+  assert.throws(() => profileUpdate({ avatarPhoto: 'u2/1730300000.webp' }, 'u1'), /Foto inválida/);
+  assert.throws(() => profileUpdate({ avatarPhoto: 'https://outro.site/u1/a.webp' }, 'u1'), /Foto inválida/);
+  assert.throws(() => profileUpdate({ avatarPhoto: 'u1/../u2/a.webp' }, 'u1'), /Foto inválida/);
+  assert.throws(() => profileUpdate({ avatarPhoto: 'u1/a.webp' }), /Foto inválida/);
 });
 
 test('cadastro incompleto e duplicados', () => {

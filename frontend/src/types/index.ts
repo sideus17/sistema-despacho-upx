@@ -107,7 +107,6 @@ export enum UserRole {
   OPERADOR = 'OPERADOR'
 }
 
-export type AvatarIcon = 'medico' | 'medica' | 'enfermagem' | 'socorrista' | 'homem' | 'mulher' | 'pessoa';
 export type AvatarColor = 'azul' | 'verde' | 'vermelho' | 'laranja' | 'roxo' | 'turquesa' | 'rosa' | 'grafite';
 // Dados que contas antigas ainda não preencheram
 export type ProfileField = 'cpf' | 'phone';
@@ -120,7 +119,7 @@ export interface Me {
   email?: string | null;
   cpf?: string | null;
   phone?: string | null;
-  avatar?: AvatarIcon | null;
+  avatarPhoto?: string | null;
   avatarColor?: AvatarColor | null;
   theme?: 'auto' | 'day' | 'night';
   missing?: ProfileField[];
@@ -145,7 +144,7 @@ export interface Ambulance {
     nurse?: string;
   };
   // Motorista em turno; o celular só vem para a central
-  driver: { id: string; name: string; avatar?: AvatarIcon | null; avatarColor?: AvatarColor | null; phone?: string } | null;
+  driver: { id: string; name: string; avatarPhoto?: string | null; avatarColor?: AvatarColor | null; phone?: string } | null;
   locationUpdatedAt: string | null;
 }
 

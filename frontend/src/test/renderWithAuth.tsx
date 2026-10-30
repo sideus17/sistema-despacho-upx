@@ -12,7 +12,7 @@ export const OPERATOR: Me = {
   email: 'ana@samu.test',
   cpf: '52998224725',
   phone: '15991234567',
-  avatar: null,
+  avatarPhoto: null,
   avatarColor: null,
   theme: 'auto',
   missing: []
