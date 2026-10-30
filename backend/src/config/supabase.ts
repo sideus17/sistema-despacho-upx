@@ -21,7 +21,3 @@ export function databaseLabel(): string {
   return host === '127.0.0.1' || host === 'localhost' ? 'local (Supabase CLI)' : `PRODUÇÃO (${host})`;
 }
 
-// Cliente descartável para conferir a senha de alguém sem trocar a sessão do cliente acima
-export function createVerifierClient() {
-  return createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } });
-}
