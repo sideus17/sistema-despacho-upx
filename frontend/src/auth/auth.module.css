@@ -210,6 +210,25 @@
   text-align: center;
 }
 
+/* Aviso neutro (link enviado) */
+.notice {
+  margin-bottom: 18px;
+  padding: 12px 14px;
+  border: 1px solid var(--tint-neutral-border);
+  border-radius: 10px;
+  background: var(--tint-neutral-bg);
+  color: var(--tint-neutral-text);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* "Esqueci a senha", logo abaixo do campo */
+.forgot {
+  align-self: flex-end;
+  margin-top: -6px;
+  font-size: 13px;
+}
+
 .error {
   padding: 10px 12px;
   border-radius: 8px;

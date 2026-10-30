@@ -12,10 +12,42 @@ import { AuthLayout } from './AuthUI';
 import LoginScreen from './LoginScreen';
 import SignupScreen from './SignupScreen';
 import { MfaEnroll, MfaVerify } from './Mfa';
+import ForgotPasswordScreen, { RECOVERY_PARAM } from './ForgotPasswordScreen';
+import ResetPasswordScreen from './ResetPasswordScreen';
 import { Spinner } from '../ui/Spinner';
 import styles from './auth.module.css';
 
-type Stage = 'loading' | 'login' | 'signup' | 'mfa-enroll' | 'mfa-verify' | 'unavailable' | 'ready';
+type Stage = 'loading' | 'login' | 'signup' | 'forgot' | 'mfa-enroll' | 'mfa-verify' | 'reset' | 'unavailable' | 'ready';
+
+// Voltou pelo link do "Esqueci a senha": depois do código do autenticador, cria a senha nova (vale
+// nesta aba até salvar ou sair)
+const RECOVERY_KEY = 'samu:redefinir-senha';
+
+function setRecovering(on: boolean) {
+  try {
+    if (on) sessionStorage.setItem(RECOVERY_KEY, '1');
+    else sessionStorage.removeItem(RECOVERY_KEY);
+  } catch {
+    // Sem armazenamento: a senha nova fica para a página Minha conta
+  }
+}
+
+function isRecovering(): boolean {
+  try {
+    return sessionStorage.getItem(RECOVERY_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+// O marcador do link sai da barra de endereço (o resto, com a sessão do link, o supabase-js limpa)
+function takeRecoveryMarker() {
+  const url = new URL(window.location.href);
+  if (!url.searchParams.has(RECOVERY_PARAM)) return;
+  setRecovering(true);
+  url.searchParams.delete(RECOVERY_PARAM);
+  window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
+}
 
 // Último perfil confirmado pelo servidor: deixa o motorista abrir o app sem sinal
 const PROFILE_KEY = 'samu:perfil';
@@ -49,6 +81,7 @@ function cacheProfile(profile: Me | null) {
 export default function AuthGate() {
   const [stage, setStage] = useState<Stage>('loading');
   const [me, setMe] = useState<Me | null>(null);
+  const [forgotEmail, setForgotEmail] = useState('');
   const toast = useToast();
 
   const applyProfile = useCallback((profile: Me) => {
@@ -66,13 +99,19 @@ export default function AuthGate() {
         return;
       }
       setMe(null);
-      setStage(current => (current === 'signup' ? 'signup' : 'login'));
+      setStage(current => (current === 'signup' || current === 'forgot' ? current : 'login'));
       return;
     }
 
     const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
     if (aal?.currentLevel !== 'aal2') {
       setStage(aal?.nextLevel === 'aal2' ? 'mfa-verify' : 'mfa-enroll');
+      return;
+    }
+
+    // Link do "Esqueci a senha": com o código confirmado, a senha nova antes de abrir o app
+    if (isRecovering()) {
+      setStage('reset');
       return;
     }
 
@@ -111,9 +150,17 @@ export default function AuthGate() {
   }, [check, applyProfile]);
 
   useEffect(() => {
+    takeRecoveryMarker();
     evaluate();
     const { data } = supabase.auth.onAuthStateChange(event => {
-      if (event === 'SIGNED_OUT') cacheProfile(null);
+      if (event === 'SIGNED_OUT') {
+        cacheProfile(null);
+        setRecovering(false);
+      }
+      if (event === 'PASSWORD_RECOVERY') {
+        setRecovering(true);
+        window.setTimeout(evaluate, 0);
+      }
       if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'MFA_CHALLENGE_VERIFIED') {
         // Fora do callback: o supabase-js recomenda não chamar a API dentro dele
         window.setTimeout(evaluate, 0);
@@ -177,7 +224,32 @@ export default function AuthGate() {
       </AuthLayout>
     );
   }
-  if (stage === 'login') return <LoginScreen onSignup={() => setStage('signup')} />;
+  if (stage === 'login') {
+    return (
+      <LoginScreen
+        onSignup={() => setStage('signup')}
+        onForgot={email => {
+          setForgotEmail(email);
+          setStage('forgot');
+        }}
+      />
+    );
+  }
+  if (stage === 'forgot') return <ForgotPasswordScreen initialEmail={forgotEmail} onBack={() => setStage('login')} />;
+  if (stage === 'reset') {
+    return (
+      <ResetPasswordScreen
+        onDone={() => {
+          setRecovering(false);
+          evaluate();
+        }}
+        onCancel={() => {
+          setRecovering(false);
+          signOut();
+        }}
+      />
+    );
+  }
   if (stage === 'signup') return <SignupScreen onLogin={() => setStage('login')} />;
   if (stage === 'mfa-enroll') return <MfaEnroll onCancel={signOut} />;
   if (stage === 'mfa-verify') return <MfaVerify onCancel={signOut} />;
