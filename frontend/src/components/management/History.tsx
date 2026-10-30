@@ -23,7 +23,7 @@ export default function History({ scope, ambulances, hospitals }: { scope: Manag
   const page = paging.key === filterKey ? paging.page : 1;
   const setPage = (next: number) => setPaging({ key: filterKey, page: next });
   const [selected, setSelected] = useState<EmergencyCall | null>(null);
-  const compact = useMediaQuery('(max-width: 760px)');
+  const compact = useMediaQuery('(max-width: 900px)');
 
   // A busca espera a pessoa parar de digitar
   useEffect(() => {

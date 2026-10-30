@@ -79,6 +79,12 @@
   font-weight: 700;
 }
 
+@media (hover: hover) {
+  .chip:not([aria-pressed='true']):not(.chipMarked):hover {
+    background: var(--color-surface-hover);
+  }
+}
+
 .suggestion {
   color: var(--color-text-soft);
   font-size: 13px;

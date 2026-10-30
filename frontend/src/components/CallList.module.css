@@ -327,6 +327,14 @@
   cursor: pointer;
 }
 
+@media (hover: hover) {
+  .chip:not(.chipActive):hover,
+  .alerts:hover {
+    background: var(--color-surface-hover);
+    color: var(--color-text);
+  }
+}
+
 .alertsOn {
   border-color: var(--color-primary);
   color: var(--color-text);

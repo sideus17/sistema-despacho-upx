@@ -1,6 +1,10 @@
 /* Tabelas por pessoa: a lista cresce com a equipe, sem o limite de altura dos gráficos */
+/* Nome fixo à esquerda: no celular a tabela rola de lado sem perder de quem é a linha */
 .table th[scope='row'] {
-  position: static;
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--color-surface);
   color: var(--color-text);
   font-weight: 600;
   white-space: nowrap;

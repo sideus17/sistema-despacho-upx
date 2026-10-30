@@ -167,6 +167,11 @@
   cursor: pointer;
 }
 
+.tabs button:focus-visible {
+  /* A linha de abas rola de lado e cortaria o anel por fora */
+  outline-offset: -2px;
+}
+
 .tabs button .icon {
   font-size: 20px;
 }

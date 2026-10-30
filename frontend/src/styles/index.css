@@ -9,7 +9,7 @@
   --color-danger-text: #991b1b; /* só texto e ícone de erro, nunca fundo */
   --color-text: #1f2937;
   --color-text-soft: #374151;
-  --color-text-muted: #6b7280;
+  --color-text-muted: #5f6672;
   --color-border: #e5e7eb;
   --color-border-strong: #d1d5db;
   --color-surface: #ffffff;
@@ -71,7 +71,7 @@
   --color-danger-text: #fca5a5;
   --color-text: #e5e7eb;
   --color-text-soft: #d1d5db;
-  --color-text-muted: #9ca3af;
+  --color-text-muted: #aab1bc;
   --color-border: #374151;
   --color-border-strong: #4b5563;
   --color-surface: #1f2937;
@@ -161,6 +161,25 @@ body {
 :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
   outline: 2px solid var(--color-focus);
   outline-offset: 2px;
+}
+
+/* Toque (celular e tablet): alvo mínimo de 44 px em qualquer controle; no mouse o visual fica como está */
+@media (pointer: coarse) {
+  button,
+  select,
+  [role='button'],
+  [role='tab'] {
+    min-height: 44px !important;
+  }
+
+  button[aria-label] {
+    min-width: 44px !important;
+  }
+}
+
+/* Aperto: todo botão escurece um pouco enquanto é pressionado (cada tela pode ter o seu) */
+:where(button, [role='button'], [role='tab']):not(:disabled):active {
+  filter: brightness(0.9);
 }
 
 /* Ícones SVG (unplugin-icons) alinhados ao texto */
@@ -453,6 +472,8 @@ body {
 .tab-content {
   flex: 1;
   overflow-y: auto;
+  /* O foco do teclado não para embaixo da barra fixa do Novo chamado */
+  scroll-padding-bottom: 96px;
   background-color: var(--color-surface-muted);
 }
 
@@ -509,6 +530,13 @@ body {
   height: 28px;
   color: inherit;
   font-size: 18px;
+}
+
+/* Zoom do MapLibre: o anel de foco da plataforma (o do MapLibre some no tema) */
+.maplibregl-ctrl button:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+  box-shadow: none;
 }
 
 /* Zoom e créditos do MapLibre (ele só tem versão clara) */

@@ -24,7 +24,7 @@ describe('folha de relato da equipe', () => {
 
   it('oferece os 9 tipos, inclusive os novos do modelo Waze', () => {
     renderWithAuth(<ReportSheet getPosition={async () => POSITION} onClose={vi.fn()} />);
-    const names = screen.getAllByRole('button').map(button => button.textContent);
+    const names = screen.getAllByRole('button').map(button => button.textContent?.replace(/­/g, ''));
     expect(names).toEqual([
       'Acidente',
       'Congestionamento',

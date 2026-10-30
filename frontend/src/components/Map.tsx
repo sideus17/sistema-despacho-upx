@@ -189,7 +189,7 @@ export default function Map({
             <p><strong>Tipo:</strong> {AMBULANCE_TYPE_LABEL[ambulance.type] ?? ambulance.type}</p>
             <p>
               <strong>Status:</strong>{' '}
-              {AMBULANCE_STATUS_LABEL[ambulance.status] ?? ambulance.status}
+              {ambulance.driver ? AMBULANCE_STATUS_LABEL[ambulance.status] ?? ambulance.status : 'Fora de serviço'}
             </p>
             <p className={styles.popupDriver}>
               <strong>Motorista:</strong>

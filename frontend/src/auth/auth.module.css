@@ -192,7 +192,8 @@
 }
 
 .link {
-  padding: 4px;
+  min-height: 44px;
+  padding: 4px 8px;
   border: none;
   background: none;
   color: var(--color-primary-text);

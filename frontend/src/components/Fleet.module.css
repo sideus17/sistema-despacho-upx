@@ -102,6 +102,12 @@
   cursor: pointer;
 }
 
+@media (hover: hover) {
+  .locate:hover {
+    background: var(--color-surface-hover);
+  }
+}
+
 .driverRow {
   display: flex;
   flex-wrap: wrap;

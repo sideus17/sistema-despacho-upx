@@ -30,6 +30,9 @@ interface ReportSheetProps {
   speak?: (text: string) => void;
 }
 
+// Hífen opcional: "Congestionamento" não cabe inteiro no botão de um celular estreito
+const fitLabel = (label: string) => label.replace('Congestionamento', 'Conges­tionamento');
+
 // Relato com um toque: o local é o GPS da viatura
 export default function ReportSheet({ getPosition, onClose, onReported, speak }: ReportSheetProps) {
   const [sending, setSending] = useState<IncidentType | null>(null);
@@ -37,6 +40,9 @@ export default function ReportSheet({ getPosition, onClose, onReported, speak }:
   const sheetRef = useRef<HTMLElement>(null);
   useRestoreFocus();
   useFocusTrap(sheetRef, true, onClose);
+  // Foco inicial no Cancelar: um Enter sem querer não relata um Acidente
+  const cancelRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => cancelRef.current?.focus(), []);
 
   // Fecha sozinha se ninguém tocar. O onClose mais recente fica num ref: quem abre a folha passa uma
   // função nova a cada atualização (GPS, lista), e isso não pode reiniciar a contagem
@@ -94,11 +100,11 @@ export default function ReportSheet({ getPosition, onClose, onReported, speak }:
           {REPORT_TYPES.map(type => (
             <button key={type} className={styles.option} disabled={!!sending} onClick={() => report(type)}>
               <span className={styles.optionIcon}><IncidentIcon type={type} /></span>
-              {sending === type ? 'Enviando…' : incidentTypeLabel(type)}
+              {sending === type ? 'Enviando…' : fitLabel(incidentTypeLabel(type))}
             </button>
           ))}
         </div>
-        <button className={styles.cancel} disabled={!!sending} onClick={onClose}>Cancelar</button>
+        <button ref={cancelRef} className={styles.cancel} disabled={!!sending} onClick={onClose}>Cancelar</button>
       </section>
     </div>
   );

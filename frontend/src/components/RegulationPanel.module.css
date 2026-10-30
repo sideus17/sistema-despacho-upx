@@ -197,6 +197,23 @@
   color: var(--color-text-muted);
 }
 
+@media (hover: hover) {
+  .secondary:not(:disabled):hover,
+  .ghost:not(:disabled):hover {
+    background: var(--color-surface-hover);
+    color: var(--color-text);
+  }
+
+  .danger:not(:disabled):hover {
+    background: var(--tint-error-bg);
+  }
+
+  .back:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}
+
 .primary:disabled,
 .secondary:disabled,
 .danger:disabled,
