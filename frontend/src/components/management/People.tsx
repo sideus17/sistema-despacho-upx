@@ -91,11 +91,15 @@ function TimeRanking({ people, title, label }: { people: Array<{ id: string; nam
   const ranked = people.filter(person => person.stats.n > 0 && person.stats.median !== null).sort((a, b) => a.stats.median! - b.stats.median!);
   if (ranked.length < 2) return null;
   const team = medianOf(ranked.map(person => person.stats.median!))!;
+  // A escala vai até o mais lento com casos suficientes: quem tem poucos casos e passa disso fica cortado
+  const solid = ranked.filter(person => person.stats.n >= FEW_CASES);
+  const max = Math.max(team, ...(solid.length > 0 ? solid : ranked).map(person => person.stats.median!)) * 1.1;
   return (
     <div className={styles.ranking}>
       <h4 className={styles.rankingTitle}>{title}</h4>
       <BarList
         label={label}
+        max={max}
         reference={{ value: team, label: `Mediana da equipe: ${formatMinutes(team)}` }}
         items={ranked.map(person => ({
           key: person.id,

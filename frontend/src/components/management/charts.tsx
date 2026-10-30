@@ -193,13 +193,15 @@ export interface BarItem {
 }
 
 // Barras horizontais de uma série só, com o valor escrito na ponta; com `reference`, uma linha tracejada
-// marca o valor de referência (ex.: a mediana da equipe) em todas as linhas
-export function BarList({ items, label, reference }: {
+// marca o valor de referência (ex.: a mediana da equipe) em todas as linhas. Com `max`, a escala para
+// ali: o que passa dele fica cortado, com a ponta tracejada (um caso isolado não esmaga os outros)
+export function BarList({ items, label, reference, max: fixedMax }: {
   items: BarItem[];
   label: string;
   reference?: { value: number; label: string };
+  max?: number;
 }) {
-  const max = Math.max(1, reference?.value ?? 0, ...items.map(item => item.value));
+  const max = fixedMax ?? Math.max(1, reference?.value ?? 0, ...items.map(item => item.value));
   return (
     <>
       <ul className={styles.bars} aria-label={label}>
@@ -208,7 +210,10 @@ export function BarList({ items, label, reference }: {
             <span className={styles.barLabel}>{item.label}</span>
             <span className={styles.barTrack}>
               {item.value > 0 && (
-                <span className={`${styles.bar} ${item.muted ? styles.barMuted : ''}`} style={{ width: `${(item.value / max) * 100}%` }} />
+                <span
+                  className={`${styles.bar} ${item.muted ? styles.barMuted : ''} ${item.value > max ? styles.barClipped : ''}`}
+                  style={{ width: `${Math.min(1, item.value / max) * 100}%` }}
+                />
               )}
               {reference && <span className={styles.barReference} style={{ left: `${(reference.value / max) * 100}%` }} />}
             </span>
