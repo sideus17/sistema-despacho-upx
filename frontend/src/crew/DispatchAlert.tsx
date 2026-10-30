@@ -17,6 +17,8 @@ interface DispatchAlertProps {
   // Rota da prévia (calculada enquanto o alarme toca) e a posição da viatura, para a distância até o local
   route?: RouteInfo | null;
   from?: Coordinates;
+  // Com a rota pronta, o principal já abre a navegação ("Ciente e navegar") e o "Só ciente" fica de lado
+  onAckAndNavigate?: () => void;
 }
 
 // "2,3 km · 6 min" pela rota; sem ela, a distância em linha reta
@@ -27,7 +29,7 @@ function distanceLine(call: EmergencyCall, route?: RouteInfo | null, from?: Coor
 }
 
 // Despacho novo em tela cheia, como uma ligação recebida: toca e vibra até o "Ciente"
-export default function DispatchAlert({ call, onAck, route, from }: DispatchAlertProps) {
+export default function DispatchAlert({ call, onAck, route, from, onAckAndNavigate }: DispatchAlertProps) {
   useEffect(() => {
     const ring = () => {
       playAlert('despacho');
@@ -44,6 +46,7 @@ export default function DispatchAlert({ call, onAck, route, from }: DispatchAler
   // A cor do chamado numa faixa no topo, como a pulseira em tamanho grande: a tela inteira na cor cansa a
   // vista e, à noite, ofusca a cabine. O resto segue o tema
   const meta = PRIORITY_META[call.priority];
+  const navigate = route ? onAckAndNavigate : undefined;
   const RiskIcon = meta.icon;
   return (
     <div
@@ -69,7 +72,13 @@ export default function DispatchAlert({ call, onAck, route, from }: DispatchAler
         {call.reference && <p className={styles.detail}>Referência: {call.reference}</p>}
         {call.triage?.signals.length ? <p className={styles.detail}>Sinais: {signalsText(call.triage.signals)}</p> : null}
       </div>
-      <button className={styles.ack} onClick={onAck} autoFocus>Ciente</button>
+      {/* O mesmo botão troca o rótulo quando a rota chega: o foco não se perde */}
+      <div className={styles.actions}>
+        <button className={styles.ack} onClick={navigate ?? onAck} autoFocus>
+          {navigate ? 'Ciente e navegar' : 'Ciente'}
+        </button>
+        {navigate && <button className={styles.ackOnly} onClick={onAck}>Só ciente</button>}
+      </div>
     </div>
   );
 }
