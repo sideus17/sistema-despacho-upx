@@ -85,6 +85,8 @@ export { default as ArrivalIcon } from '~icons/material-symbols/sports-score-rou
 export { default as LogoutIcon } from '~icons/material-symbols/logout-rounded';
 export { default as EndShiftIcon } from '~icons/material-symbols/timer-off-rounded';
 export { default as CheckIcon } from '~icons/material-symbols/check-rounded';
+export { default as ShowPasswordIcon } from '~icons/material-symbols/visibility-rounded';
+export { default as HidePasswordIcon } from '~icons/material-symbols/visibility-off-rounded';
 
 // Figuras do avatar (Healthicons)
 export { default as AvatarDoctorMaleIcon } from '~icons/healthicons/doctor-male';

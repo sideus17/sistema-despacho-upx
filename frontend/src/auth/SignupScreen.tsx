@@ -7,6 +7,7 @@ import { formatCpf, formatPhone, isValidCellphone, isValidCpf, onlyDigits } from
 import { AuthLayout } from './AuthUI';
 import styles from './auth.module.css';
 import { authErrorMessage } from './authErrors';
+import { PasswordInput } from './PasswordInput';
 
 const ROLES = [
   { value: UserRole.MOTORISTA, Icon: AmbulanceIcon, label: 'Motorista', description: 'Recebe despachos e navega até o local' },
@@ -127,17 +128,11 @@ export default function SignupScreen({ onLogin }: { onLogin: () => void }) {
         </label>
         <label className={styles.field}>
           <span>Senha (mínimo 8 caracteres)</span>
-          <input type="password" autoComplete="new-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+          <PasswordInput autoComplete="new-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
         </label>
         <label className={styles.field}>
           <span>Confirme a senha</span>
-          <input
-            type="password"
-            autoComplete="new-password"
-            required
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-          />
+          <PasswordInput autoComplete="new-password" required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
         </label>
 
         {role === UserRole.OPERADOR && (

@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { AuthLayout } from './AuthUI';
 import styles from './auth.module.css';
 import { authErrorMessage } from './authErrors';
+import { PasswordInput } from './PasswordInput';
 
 export default function LoginScreen({ onSignup }: { onSignup: () => void }) {
   const [email, setEmail] = useState('');
@@ -32,13 +33,7 @@ export default function LoginScreen({ onSignup }: { onSignup: () => void }) {
         </label>
         <label className={styles.field}>
           <span>Senha</span>
-          <input
-            type="password"
-            autoComplete="current-password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
+          <PasswordInput autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
         </label>
 
         {error && <p className={styles.error} role="alert">{error}</p>}
