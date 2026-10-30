@@ -52,8 +52,14 @@
 }
 
 @media (hover: hover) {
-  .tableToggle:hover {
+  .tableToggle:not([aria-pressed='true']):hover {
     background: var(--color-surface-hover);
+  }
+
+  /* Marcado: o hover escurece o fundo cheio, sem clarear sob o texto branco */
+  .tableToggle[aria-pressed='true']:hover {
+    border-color: var(--color-primary-hover);
+    background: var(--color-primary-hover);
   }
 }
 
