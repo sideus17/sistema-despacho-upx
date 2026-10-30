@@ -66,7 +66,8 @@ describe('alarme do despacho no app da equipe', () => {
     const onAck = vi.fn();
     const { unmount } = render(<DispatchAlert call={call} onAck={onAck} />);
     expect(playAlert).toHaveBeenCalledTimes(1);
-    expect(playAlert).toHaveBeenLastCalledWith('despacho');
+    // O toque depende da cor
+    expect(playAlert).toHaveBeenLastCalledWith('despacho', CallPriority.URGENTE);
 
     act(() => vi.advanceTimersByTime(ALARM_INTERVAL_MS * 2));
     expect(playAlert).toHaveBeenCalledTimes(3);

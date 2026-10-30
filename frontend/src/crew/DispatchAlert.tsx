@@ -32,7 +32,7 @@ function distanceLine(call: EmergencyCall, route?: RouteInfo | null, from?: Coor
 export default function DispatchAlert({ call, onAck, route, from, onAckAndNavigate }: DispatchAlertProps) {
   useEffect(() => {
     const ring = () => {
-      playAlert('despacho');
+      playAlert('despacho', call.priority);
       navigator.vibrate?.(VIBRATION);
     };
     ring();

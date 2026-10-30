@@ -15,7 +15,8 @@ function fleetOrder(a: Ambulance): number {
   return 2;
 }
 
-export default function Fleet({ ambulances }: { ambulances: Ambulance[] }) {
+// "Ver no mapa" leva o mapa até a viatura e abre o popup dela
+export default function Fleet({ ambulances, onFocus }: { ambulances: Ambulance[]; onFocus?: (ambulance: Ambulance) => void }) {
   const sorted = [...ambulances].sort((a, b) => fleetOrder(a) - fleetOrder(b) || a.code.localeCompare(b.code));
   const onShift = ambulances.filter(a => a.driver).length;
   const now = Date.now();
@@ -65,6 +66,11 @@ export default function Fleet({ ambulances }: { ambulances: Ambulance[] }) {
                   <LocationIcon /> {ambulance.locationUpdatedAt ? `posição atualizada ${getTimeAgo(ambulance.locationUpdatedAt)}` : 'posição da base (sem GPS ainda)'}
                 </p>
               ))}
+              {onFocus && (
+                <button type="button" className={styles.locate} onClick={() => onFocus(ambulance)} aria-label={`Ver ${ambulance.code} no mapa`}>
+                  <LocationIcon /> Ver no mapa
+                </button>
+              )}
             </li>
           );
         })}

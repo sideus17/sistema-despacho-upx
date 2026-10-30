@@ -43,6 +43,7 @@ interface CallListProps {
 }
 
 type Filter = 'all' | 'regulation' | 'dispatch' | 'active';
+const FILTER_ORDER: Filter[] = ['all', 'regulation', 'dispatch', 'active'];
 
 // Quanto dura o realce do cartão de um chamado que acabou de chegar
 const FRESH_MS = 2000;
@@ -107,6 +108,20 @@ export default function CallList({
     { key: 'active', label: 'Em atendimento', count: sections[2].calls.length }
   ];
 
+  // Teclas 1 a 4 trocam o filtro, na ordem dos botões (fora de campos de texto e diálogos)
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
+      if ((event.target as HTMLElement | null)?.closest('input, textarea, select, [contenteditable="true"], [role="dialog"]')) return;
+      const key = FILTER_ORDER[Number(event.key) - 1];
+      if (!key) return;
+      event.preventDefault();
+      setFilter(key);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   const handleFinish = async (call: EmergencyCall, outcome?: CallOutcome) => {
     setFinishingId(call.id);
     try {
@@ -141,11 +156,13 @@ export default function CallList({
     <div ref={containerRef} className={styles.container}>
       <div className={styles.toolbar}>
         <div className={styles.filters} role="group" aria-label="Filtrar chamados">
-          {filters.map(f => (
+          {filters.map((f, index) => (
             <button
               key={f.key}
               type="button"
               aria-pressed={filter === f.key}
+              aria-keyshortcuts={String(index + 1)}
+              title={`${f.label} (${index + 1})`}
               className={`${styles.chip} ${filter === f.key ? styles.chipActive : ''}`}
               onClick={() => setFilter(f.key)}
             >
@@ -327,7 +344,9 @@ export default function CallList({
         </section>
       ))}
 
-      <p className={styles.shortcuts}>Atalhos: N novo chamado · J e K próximo e anterior · R regular · D despachar · Esc voltar</p>
+      <p className={styles.shortcuts}>
+        Atalhos: N novo chamado · C, F e O abas · 1 a 4 filtros · J e K próximo e anterior · R regular · D despachar · Esc voltar
+      </p>
     </div>
   );
 }

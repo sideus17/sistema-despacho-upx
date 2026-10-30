@@ -2,9 +2,11 @@ import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Ambulance, AmbulanceStatus, AmbulanceType, CallPriority, CallStatus, EmergencyCall } from '../types';
 import { playAlert } from '../utils/alertSound';
+import { announce } from '../ui/announce';
 import { useCallAlerts } from './useCallAlerts';
 
 vi.mock('../utils/alertSound', () => ({ playAlert: vi.fn(), unlockAlertSound: vi.fn() }));
+vi.mock('../ui/announce', () => ({ announce: vi.fn() }));
 
 const NOW = new Date('2026-10-16T12:00:00Z').getTime();
 
@@ -23,6 +25,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(NOW);
   vi.mocked(playAlert).mockReset();
+  vi.mocked(announce).mockReset();
   sessionStorage.clear();
 });
 
@@ -109,9 +112,12 @@ describe('alertas da central', () => {
     expect(playAlert).toHaveBeenCalledWith('espera');
     // O resumo fica na própria fila (lateSummary), não num aviso de erro
     expect(toast).not.toHaveBeenCalled();
+    // O leitor de tela ouve uma vez
+    expect(announce).toHaveBeenCalledWith('Passou da meta de espera, aguardando regulação: Amarelo · Rua velho, 1');
 
     act(() => vi.advanceTimersByTime(60_000));
     expect(playAlert).toHaveBeenCalledTimes(1);
+    expect(announce).toHaveBeenCalledTimes(1);
   });
 
   it('no despacho, a espera conta da regulação e avisa com 5 min', () => {

@@ -48,6 +48,8 @@ const ManagementPage = lazy(() => import('./components/management/ManagementPage
 
 type Connection = 'connecting' | 'online' | 'error';
 type Tab = 'calls' | 'new-call' | 'regulation' | 'analysis' | 'fleet' | 'incidents';
+// Teclas das abas (o N, do novo chamado, também foca o telefone)
+const TAB_KEYS: Partial<Record<string, Tab>> = { c: 'calls', f: 'fleet', o: 'incidents' };
 type View = 'operacao' | 'gestao';
 
 function App() {
@@ -62,6 +64,7 @@ function App() {
   const hospitalsLoaded = useRef(false);
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [focusIncident, setFocusIncident] = useState<{ id: string; at: number } | null>(null);
+  const [focusAmbulance, setFocusAmbulance] = useState<{ id: string; at: number } | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
   const [selectedRouteIndex, setSelectedRouteIndex] = useState<number>(0);
   const [selectedCall, setSelectedCall] = useState<EmergencyCall | null>(null);
@@ -241,8 +244,9 @@ function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, [activeTab]);
 
-  // Atalhos da central, fora de campos de texto e diálogos: N abre o novo chamado; na fila, J e K andam
-  // entre os chamados (foco no endereço do cartão), R regula e D despacha o chamado em foco
+  // Atalhos da central, fora de campos de texto e diálogos: N abre o novo chamado; C, F e O vão às abas
+  // Chamados, Frota e Ocorrências; na fila, J e K andam entre os chamados (foco no endereço do cartão),
+  // R regula e D despacha o chamado em foco (os filtros 1 a 4 ficam com a própria lista)
   useEffect(() => {
     if (view !== 'operacao') return;
     const onKey = (event: KeyboardEvent) => {
@@ -253,6 +257,13 @@ function App() {
         event.preventDefault();
         setActiveTab('new-call');
         window.setTimeout(() => document.getElementById('call-phone')?.focus(), 0);
+        return;
+      }
+      const tab = TAB_KEYS[key];
+      if (tab) {
+        event.preventDefault();
+        if (tab === 'calls') setRegulatingId(null);
+        setActiveTab(tab);
         return;
       }
       if (activeTab !== 'calls') return;
@@ -430,6 +441,7 @@ function App() {
               routeGeometry={recommendation?.recommendations[selectedRouteIndex]?.route?.geometry}
               onCallSelect={handleOpenCall}
               focusIncident={focusIncident}
+              focusAmbulance={focusAmbulance}
               callPick={callPick}
               callDraft={callDraft}
             />
@@ -441,11 +453,11 @@ function App() {
           {/* Abas: regulação e análise de despacho são passos de um chamado, sem aba própria */}
           <div className="tabs" role="tablist" aria-label="Painéis da central">
             {([
-              ['calls', <CallIcon />, 'Chamados'],
-              ['new-call', <AddIcon />, 'Novo'],
-              ['fleet', <AmbulanceIcon />, 'Frota'],
-              ['incidents', <WarningIcon />, 'Ocorrências']
-            ] as const).map(([tab, icon, label]) => {
+              ['calls', <CallIcon />, 'Chamados', 'C'],
+              ['new-call', <AddIcon />, 'Novo', 'N'],
+              ['fleet', <AmbulanceIcon />, 'Frota', 'F'],
+              ['incidents', <WarningIcon />, 'Ocorrências', 'O']
+            ] as const).map(([tab, icon, label, shortcut]) => {
               // Regulação e análise são passos de um chamado: a aba que fica marcada é "Chamados"
               const selected = tab === 'calls' ? ['calls', 'regulation', 'analysis'].includes(activeTab) : activeTab === tab;
               return (
@@ -456,7 +468,8 @@ function App() {
                   role="tab"
                   aria-selected={selected}
                   aria-controls="painel-central"
-                  {...(tab === 'new-call' && { title: 'Novo chamado (N)', 'aria-keyshortcuts': 'N' })}
+                  title={`${tab === 'new-call' ? 'Novo chamado' : label} (${shortcut})`}
+                  aria-keyshortcuts={shortcut}
                   className={`tab ${selected ? 'active' : ''}`}
                   onClick={() => setActiveTab(tab)}
                 >
@@ -534,7 +547,7 @@ function App() {
             )}
 
             {activeTab === 'fleet' && (
-              <Fleet ambulances={ambulances} />
+              <Fleet ambulances={ambulances} onFocus={ambulance => setFocusAmbulance({ id: ambulance.id, at: Date.now() })} />
             )}
 
             {activeTab === 'incidents' && (

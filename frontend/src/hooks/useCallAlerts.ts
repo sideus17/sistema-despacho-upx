@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Ambulance, AmbulanceStatus, EmergencyCall } from '../types';
 import { PRIORITY_META, Queue, isLate, queueOf } from '../utils/calls';
 import { playAlert, unlockAlertSound } from '../utils/alertSound';
+import { announce } from '../ui/announce';
 
 type Toast = (message: string, kind?: 'success' | 'error' | 'info') => void;
 
@@ -185,6 +186,8 @@ export function useCallAlerts(
       if (late.length === 0) continue;
       late.forEach(call => warned.current!.add(queueKey(call)));
       writeKeys(WARNED_KEY, warned.current);
+      // O leitor de tela fica sabendo mesmo com os alertas desligados (a pílula da espera não fala sozinha)
+      announce(`Passou da meta de espera, ${queue === 'regulacao' ? 'aguardando regulação' : 'aguardando despacho'}: ${late.map(describe).join('; ')}`);
 
       if (on) {
         playAlert('espera');
