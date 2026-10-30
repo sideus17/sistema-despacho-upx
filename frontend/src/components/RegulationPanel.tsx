@@ -9,6 +9,7 @@ import { PriorityLabel } from '../ui/PriorityLabel';
 import { BackIcon, CallIcon, LocationIcon, PersonIcon } from '../ui/icons';
 import { pressCtrlEnterAction } from '../ui/ctrlEnter';
 import { WaitPill } from '../ui/WaitPill';
+import { Select } from '../ui/Select';
 import RiskClassification from './RiskClassification';
 import { useToast } from './Toast';
 import styles from './RegulationPanel.module.css';
@@ -180,15 +181,20 @@ function RegulationForm({ call, hospitals, onDone, onBack }: RegulationPanelProp
 
       {mode === 'main' && (
         <>
-          <label className={styles.field}>
-            <span>Hospital de destino <em>(opcional)</em></span>
-            <select value={hospitalId} disabled={hospitals.length === 0} onChange={(e) => setHospitalId(e.target.value)}>
-              <option value="">{hospitals.length === 0 ? 'Carregando…' : 'Sem escolha (a equipe decide)'}</option>
-              {hospitalsByDistance(hospitals, call.location).map(({ hospital, meters }) => (
-                <option key={hospital.id} value={hospital.id}>{hospital.shortName} · {formatKm(meters)}</option>
-              ))}
-            </select>
-          </label>
+          <Select
+            className={styles.field}
+            label={<>Hospital de destino <em>(opcional)</em></>}
+            value={hospitalId}
+            disabled={hospitals.length === 0}
+            onChange={setHospitalId}
+            options={[
+              { value: '', label: hospitals.length === 0 ? 'Carregando…' : 'Sem escolha (a equipe decide)' },
+              ...hospitalsByDistance(hospitals, call.location).map(({ hospital, meters }) => ({
+                value: hospital.id,
+                label: `${hospital.shortName} · ${formatKm(meters)}`
+              }))
+            ]}
+          />
 
           <div className={styles.actions}>
             <button

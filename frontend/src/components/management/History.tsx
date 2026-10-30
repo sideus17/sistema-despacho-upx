@@ -3,6 +3,7 @@ import { Ambulance, CallOutcome, CallPriority, CallStatus, EmergencyCall, Histor
 import { getHistory } from '../../services/api';
 import { CALL_STATUS_LABEL, OUTCOME_LABEL, PRIORITIES_BY_SEVERITY, PRIORITY_META } from '../../utils/calls';
 import { useMediaQuery } from '../../ui/useMediaQuery';
+import { Select } from '../../ui/Select';
 import { ChevronLeftIcon, ChevronRightIcon, SearchIcon } from '../../ui/icons';
 import { CallDetail, callDurations, openedAt, resultLabel } from './CallDetail';
 import { PRIORITY_CHART_COLOR, formatCount, formatMinutes } from './format';
@@ -22,7 +23,7 @@ export default function History({ scope, ambulances, hospitals }: { scope: Manag
   const page = paging.key === filterKey ? paging.page : 1;
   const setPage = (next: number) => setPaging({ key: filterKey, page: next });
   const [selected, setSelected] = useState<EmergencyCall | null>(null);
-  const compact = useMediaQuery('(max-width: 760px)');
+  const compact = useMediaQuery('(max-width: 900px)');
 
   // A busca espera a pessoa parar de digitar
   useEffect(() => {
@@ -60,28 +61,54 @@ export default function History({ scope, ambulances, hospitals }: { scope: Manag
             aria-label="Buscar no histórico"
           />
         </label>
-        <select aria-label="Cor" value={filters.priority ?? ''} onChange={event => setFilter('priority', event.target.value as CallPriority)}>
-          <option value="">Todas as cores</option>
-          {PRIORITIES_BY_SEVERITY.map(priority => (
-            <option key={priority} value={priority}>{PRIORITY_META[priority].name} · {PRIORITY_META[priority].label}</option>
-          ))}
-        </select>
-        <select aria-label="Status" value={filters.status ?? ''} onChange={event => setFilter('status', event.target.value as CallStatus)}>
-          <option value="">Todos os status</option>
-          {Object.values(CallStatus).map(status => <option key={status} value={status}>{CALL_STATUS_LABEL[status]}</option>)}
-        </select>
-        <select aria-label="Desfecho" value={filters.outcome ?? ''} onChange={event => setFilter('outcome', event.target.value as CallOutcome)}>
-          <option value="">Todos os desfechos</option>
-          {Object.values(CallOutcome).map(outcome => <option key={outcome} value={outcome}>{OUTCOME_LABEL[outcome]}</option>)}
-        </select>
-        <select aria-label="Viatura" value={filters.ambulance ?? ''} onChange={event => setFilter('ambulance', event.target.value)}>
-          <option value="">Todas as viaturas</option>
-          {ambulances.map(ambulance => <option key={ambulance.id} value={ambulance.id}>{ambulance.code}</option>)}
-        </select>
-        <select aria-label="Hospital" value={filters.hospital ?? ''} onChange={event => setFilter('hospital', event.target.value)}>
-          <option value="">Todos os hospitais</option>
-          {hospitals.map(hospital => <option key={hospital.id} value={hospital.id}>{hospital.shortName}</option>)}
-        </select>
+        <Select
+          hideLabel
+          label="Cor"
+          size="compact"
+          className={styles.filter}
+          value={filters.priority ?? ''}
+          onChange={value => setFilter('priority', value as CallPriority)}
+          options={[
+            { value: '', label: 'Todas as cores' },
+            ...PRIORITIES_BY_SEVERITY.map(priority => ({ value: priority, label: `${PRIORITY_META[priority].name} · ${PRIORITY_META[priority].label}` }))
+          ]}
+        />
+        <Select
+          hideLabel
+          label="Status"
+          size="compact"
+          className={styles.filter}
+          value={filters.status ?? ''}
+          onChange={value => setFilter('status', value as CallStatus)}
+          options={[{ value: '', label: 'Todos os status' }, ...Object.values(CallStatus).map(status => ({ value: status, label: CALL_STATUS_LABEL[status] }))]}
+        />
+        <Select
+          hideLabel
+          label="Desfecho"
+          size="compact"
+          className={styles.filter}
+          value={filters.outcome ?? ''}
+          onChange={value => setFilter('outcome', value as CallOutcome)}
+          options={[{ value: '', label: 'Todos os desfechos' }, ...Object.values(CallOutcome).map(outcome => ({ value: outcome, label: OUTCOME_LABEL[outcome] }))]}
+        />
+        <Select
+          hideLabel
+          label="Viatura"
+          size="compact"
+          className={styles.filter}
+          value={filters.ambulance ?? ''}
+          onChange={value => setFilter('ambulance', value)}
+          options={[{ value: '', label: 'Todas as viaturas' }, ...ambulances.map(ambulance => ({ value: ambulance.id, label: ambulance.code }))]}
+        />
+        <Select
+          hideLabel
+          label="Hospital"
+          size="compact"
+          className={styles.filter}
+          value={filters.hospital ?? ''}
+          onChange={value => setFilter('hospital', value)}
+          options={[{ value: '', label: 'Todos os hospitais' }, ...hospitals.map(hospital => ({ value: hospital.id, label: hospital.shortName }))]}
+        />
         {(active || search) && (
           <button
             type="button"

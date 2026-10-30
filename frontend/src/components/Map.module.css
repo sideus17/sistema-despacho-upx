@@ -32,7 +32,8 @@
   top: 10px;
   right: 10px;
   z-index: 2;
-  max-height: calc(100% - 60px);
+  /* Sobra espaço embaixo para o zoom e os créditos, mesmo no mapa baixo do celular */
+  max-height: min(calc(100% - 60px), 50vh);
   border-radius: var(--radius);
   background: var(--color-surface);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);

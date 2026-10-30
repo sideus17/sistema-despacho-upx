@@ -26,6 +26,8 @@ import { formatPhone } from '../utils/documents';
 import { staleLocationText } from '../utils/ambulances';
 import { AmbulanceIcon, BellIcon, BellOffIcon, CallIcon, CheckCircleIcon, LocationIcon, PersonIcon, WarningIcon } from '../ui/icons';
 import { WaitPill } from '../ui/WaitPill';
+import { Select } from '../ui/Select';
+import { SlidingThumb } from '../ui/SlidingThumb';
 import styles from './CallList.module.css';
 
 interface CallListProps {
@@ -155,7 +157,8 @@ export default function CallList({
   return (
     <div ref={containerRef} className={styles.container}>
       <div className={styles.toolbar}>
-        <div className={styles.filters} role="group" aria-label="Filtrar chamados">
+        <div className={`${styles.filters} slide-group`} role="group" aria-label="Filtrar chamados">
+          <SlidingThumb variant="ink" watch={filter} />
           {filters.map((f, index) => (
             <button
               key={f.key}
@@ -200,6 +203,7 @@ export default function CallList({
               const queue = queueOf(call);
               const waited = now - Date.parse(waitingSince(call));
               const assignedAmbulance = isActive ? ambulances.find(a => a.id === call.ambulance_id) : undefined;
+              const gpsStale = assignedAmbulance ? staleLocationText(assignedAmbulance, now) : null;
               const gender = formatGender(call.patientInfo.gender);
               const isConfirming = confirmingFinishId === call.id;
               const stage = isActive ? callStage(call) : null;
@@ -227,12 +231,10 @@ export default function CallList({
                     </span>
                     {stage && stageMeta ? (
                       // Em atendimento: etapa marcada pelo GPS da viatura e há quanto tempo
-                      <span className={styles.stage}>
+                      <span className={`${styles.stage} ${gpsStale ? styles.stageTall : ''}`}>
                         {stageMeta.label}{stage.stage === 'TRANSPORTANDO' && hospital ? ` → ${hospital.shortName}` : ''} · {elapsedLabel(stage.since, now)}
-                        {/* A etapa vem do GPS: parado, ela pode estar velha */}
-                        {assignedAmbulance && staleLocationText(assignedAmbulance, now) && (
-                          <em className={styles.gpsStale}> · {staleLocationText(assignedAmbulance, now)}</em>
-                        )}
+                        {/* A etapa vem do GPS: parado, ela pode estar velha (numa linha própria, para caber no cartão) */}
+                        {gpsStale && <em className={styles.gpsStale}><span className={styles.srOnly}> · </span>{gpsStale}</em>}
                       </span>
                     ) : (
                       // Na fila: há quanto tempo espera a regulação (desde a abertura) ou a viatura (desde a regulação)
@@ -376,26 +378,28 @@ function HospitalPick({ call, hospitals, onSave }: {
 
   return (
     <>
-      <label className={styles.hospitalPick}>
-        <span>Hospital de destino</span>
-        <select
-          value={draft}
-          disabled={!onSave || hospitals.length === 0 || saving}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => {
-            // Esc desfaz a troca ainda não salva (sem fechar o resto da tela)
-            if (e.key === 'Escape' && changed) {
-              e.stopPropagation();
-              setDraft(saved);
-            }
-          }}
-        >
-          <option value="">{hospitals.length === 0 ? 'Carregando…' : 'Sem escolha (a equipe decide)'}</option>
-          {hospitalsByDistance(hospitals, call.location).map(({ hospital: option, meters }) => (
-            <option key={option.id} value={option.id}>{option.shortName} · {formatKm(meters)}</option>
-          ))}
-        </select>
-      </label>
+      <Select
+        className={styles.hospitalPick}
+        label="Hospital de destino"
+        size="compact"
+        value={draft}
+        disabled={!onSave || hospitals.length === 0 || saving}
+        onChange={setDraft}
+        onKeyDown={(e) => {
+          // Esc desfaz a troca ainda não salva (sem fechar o resto da tela)
+          if (e.key === 'Escape' && changed) {
+            e.stopPropagation();
+            setDraft(saved);
+          }
+        }}
+        options={[
+          { value: '', label: hospitals.length === 0 ? 'Carregando…' : 'Sem escolha (a equipe decide)' },
+          ...hospitalsByDistance(hospitals, call.location).map(({ hospital: option, meters }) => ({
+            value: option.id,
+            label: `${option.shortName} · ${formatKm(meters)}`
+          }))
+        ]}
+      />
       {changed && (
         <div className={styles.hospitalSave}>
           <button type="button" className={styles.primary} disabled={saving} onClick={save}>

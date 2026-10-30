@@ -40,6 +40,7 @@ import {
 import { AddIcon, AmbulanceIcon, BackIcon, CallIcon, ManagementIcon, WarningIcon } from './ui/icons';
 import { AccountMenu } from './components/AccountMenu';
 import { Spinner } from './ui/Spinner';
+import { SlidingThumb } from './ui/SlidingThumb';
 
 // O mapa (MapLibre) é o maior pacote do app: carrega à parte, sem atrasar a primeira tela
 const Map = lazy(() => import('./components/Map'));
@@ -451,7 +452,8 @@ function App() {
         {/* Sidebar */}
         <div className="sidebar">
           {/* Abas: regulação e análise de despacho são passos de um chamado, sem aba própria */}
-          <div className="tabs" role="tablist" aria-label="Painéis da central">
+          <div className="tabs slide-group" role="tablist" aria-label="Painéis da central">
+            <SlidingThumb variant="line" watch={['regulation', 'analysis'].includes(activeTab) ? 'calls' : activeTab} />
             {([
               ['calls', <CallIcon />, 'Chamados', 'C'],
               ['new-call', <AddIcon />, 'Novo', 'N'],

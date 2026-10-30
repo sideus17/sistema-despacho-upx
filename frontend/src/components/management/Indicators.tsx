@@ -1,7 +1,7 @@
 import { Ambulance, AttendanceStage, CallOutcome, CallPriority, Hospital, Indicators as IndicatorData, ManagementScope } from '../../types';
 import { getIndicators } from '../../services/api';
 import { OUTCOME_LABEL, PRIORITIES_BY_SEVERITY, PRIORITY_META } from '../../utils/calls';
-import { BarItem, BarList, ChartCard, Column, ColumnChart, RangeList, StatTile } from './charts';
+import { BarItem, BarList, BulletList, ChartCard, Column, ColumnChart, RangeList, RunChart, StatTile } from './charts';
 import {
   PRIORITY_CHART_COLOR,
   STAGE_LABEL,
@@ -210,6 +210,38 @@ function IndicatorView({ data, ambulances, hospitals }: { data: IndicatorData; a
         </ChartCard>
 
         <ChartCard
+          title="Na meta, por cor"
+          subtitle="Chegadas dentro da meta da própria cor; a marca é a referência de 9 em cada 10"
+          table={{
+            head: ['Cor', 'Na meta', 'Chegadas na meta', 'Chegadas'],
+            rows: responseItems.map(({ priority, stats }) => [
+              PRIORITY_META[priority].name,
+              formatPercent(stats.withinTarget),
+              stats.withinTarget === null ? '—' : formatCount(Math.round(stats.withinTarget * stats.n)),
+              formatCount(stats.n)
+            ])
+          }}
+        >
+          <BulletList
+            label="Chegadas dentro da meta, por cor"
+            items={responseItems.map(({ priority, stats }) => ({
+              key: priority,
+              label: <PriorityKey priority={priority} />,
+              value: stats.n > 0 ? stats.withinTarget : null,
+              color: PRIORITY_CHART_COLOR[priority],
+              summary: stats.n > 0 && stats.withinTarget !== null ? (
+                <>
+                  <strong>{formatPercent(stats.withinTarget)}</strong>
+                  <small className={styles.muted}>{formatCount(Math.round(stats.withinTarget * stats.n))} de {formatCount(stats.n)}</small>
+                </>
+              ) : (
+                <small className={styles.muted}>Sem chegadas</small>
+              )
+            }))}
+          />
+        </ChartCard>
+
+        <ChartCard
           title="Tempo de cada etapa"
           subtitle={`Total, da abertura ao fim: ${formatMinutes(stages.total.median)} (mediana)`}
           table={{
@@ -290,11 +322,13 @@ function IndicatorView({ data, ambulances, hospitals }: { data: IndicatorData; a
           <ChartCard
             wide
             title="Chamados por dia"
+            subtitle="Gráfico de corrida: a linha tracejada é a mediana do período"
             table={{ head: ['Dia', 'Chamados'], rows: dayColumns.map(column => [column.labelText, formatCount(column.value)]) }}
           >
-            <ColumnChart
-              columns={dayColumns}
+            <RunChart
+              points={dayColumns}
               label="Chamados por dia"
+              unit="/dia"
               tickLabel={index => (index % dayStep === 0 ? formatDay(data.byDay[index].date) : null)}
             />
           </ChartCard>

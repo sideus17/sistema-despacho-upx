@@ -61,9 +61,31 @@
   height: 16px;
 }
 
+.share {
+  transform-origin: left;
+  animation: chartShareGrow 400ms var(--ease-out) both;
+}
+
 .share span {
   flex-basis: 0;
   min-width: 2px;
+  transition: flex-grow 250ms var(--ease-out);
+}
+
+@keyframes chartShareGrow {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .share {
+    animation: none;
+  }
+
+  .share span {
+    transition: none;
+  }
 }
 
 .share span:first-child {

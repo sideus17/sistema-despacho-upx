@@ -9,7 +9,7 @@
   --color-danger-text: #991b1b; /* só texto e ícone de erro, nunca fundo */
   --color-text: #1f2937;
   --color-text-soft: #374151;
-  --color-text-muted: #6b7280;
+  --color-text-muted: #5f6672;
   --color-border: #e5e7eb;
   --color-border-strong: #d1d5db;
   --color-surface: #ffffff;
@@ -71,7 +71,7 @@
   --color-danger-text: #fca5a5;
   --color-text: #e5e7eb;
   --color-text-soft: #d1d5db;
-  --color-text-muted: #9ca3af;
+  --color-text-muted: #aab1bc;
   --color-border: #374151;
   --color-border-strong: #4b5563;
   --color-surface: #1f2937;
@@ -161,6 +161,25 @@ body {
 :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
   outline: 2px solid var(--color-focus);
   outline-offset: 2px;
+}
+
+/* Toque (celular e tablet): alvo mínimo de 44 px em qualquer controle; no mouse o visual fica como está */
+@media (pointer: coarse) {
+  button,
+  select,
+  [role='button'],
+  [role='tab'] {
+    min-height: 44px !important;
+  }
+
+  button[aria-label] {
+    min-width: 44px !important;
+  }
+}
+
+/* Aperto: todo botão escurece um pouco enquanto é pressionado (cada tela pode ter o seu) */
+:where(button, [role='button'], [role='tab']):not(:disabled):active {
+  filter: brightness(0.9);
 }
 
 /* Ícones SVG (unplugin-icons) alinhados ao texto */
@@ -405,14 +424,56 @@ body {
 .tab.active {
   color: var(--color-primary-text);
   font-weight: var(--weight-bold);
-  border-bottom-color: var(--color-primary);
   background-color: var(--color-surface);
+}
+
+/* Indicador que desliza até a opção escolhida (abas, filtros, períodos, tema): o mesmo movimento na
+   plataforma toda. O grupo leva .slide-group e um <SlidingThumb />; o escolhido perde o fundo próprio */
+.slide-group {
+  position: relative;
+}
+
+.slide-group > :not(.slide-thumb) {
+  position: relative;
+  z-index: 1;
+}
+
+.slide-thumb {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 0;
+  pointer-events: none;
+  transition: transform 250ms var(--ease-out), width 250ms var(--ease-out), height 250ms var(--ease-out);
+}
+
+.slide-thumb-raised {
+  border-radius: 999px;
+  background: var(--color-surface);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.slide-thumb-ink {
+  border-radius: 999px;
+  background: var(--color-primary);
+}
+
+.slide-thumb-line {
+  background: var(--color-primary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slide-thumb {
+    transition: none;
+  }
 }
 
 /* Tab Content */
 .tab-content {
   flex: 1;
   overflow-y: auto;
+  /* O foco do teclado não para embaixo da barra fixa do Novo chamado */
+  scroll-padding-bottom: 96px;
   background-color: var(--color-surface-muted);
 }
 
@@ -469,6 +530,13 @@ body {
   height: 28px;
   color: inherit;
   font-size: 18px;
+}
+
+/* Zoom do MapLibre: o anel de foco da plataforma (o do MapLibre some no tema) */
+.maplibregl-ctrl button:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+  box-shadow: none;
 }
 
 /* Zoom e créditos do MapLibre (ele só tem versão clara) */

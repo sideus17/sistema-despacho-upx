@@ -144,7 +144,11 @@
 
 .column {
   fill: var(--chart-accent);
-  transition: opacity var(--dur-fast) var(--ease-out);
+  transform-box: fill-box;
+  transform-origin: bottom;
+  animation: chartGrowY 400ms var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 40ms);
+  transition: opacity var(--dur-fast) var(--ease-out), d 250ms var(--ease-out);
 }
 
 .hit {
@@ -215,10 +219,44 @@
   min-width: 2px;
   border-radius: 0 4px 4px 0;
   background: var(--chart-accent);
+  transform-origin: left;
+  animation: chartGrowX 400ms var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 40ms);
+  transition: width 250ms var(--ease-out);
+}
+
+/* Referência (ex.: mediana da equipe): traço tracejado em todas as linhas */
+.barReference {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  border-left: 2px dashed var(--color-text);
+  transform: translateX(-1px);
+  transition: left 250ms var(--ease-out);
+}
+
+.referenceNote {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.referenceKey {
+  height: 12px;
+  border-left: 2px dashed var(--color-text);
 }
 
 .barMuted {
   background: var(--color-border-strong);
+}
+
+/* Passou do fim da escala: a ponta fica aberta (tracejada) */
+.barClipped {
+  border-radius: 0;
+  mask-image: linear-gradient(to right, #000 calc(100% - 10px), transparent calc(100% - 10px), transparent calc(100% - 7px), #000 calc(100% - 7px), #000 calc(100% - 4px), transparent calc(100% - 4px));
 }
 
 .barValue {
@@ -322,6 +360,10 @@
   min-width: 2px;
   border-radius: 0 4px 4px 0;
   background: currentColor;
+  transform-origin: left;
+  animation: chartGrowX 400ms var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 40ms);
+  transition: width 250ms var(--ease-out);
 }
 
 .rangeWhisker {
@@ -330,6 +372,9 @@
   height: 2px;
   background: currentColor;
   opacity: 0.55;
+  animation: chartFade 300ms var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 40ms + 250ms);
+  transition: left 250ms var(--ease-out), width 250ms var(--ease-out);
 }
 
 .rangeDot {
@@ -341,6 +386,9 @@
   background: currentColor;
   box-shadow: 0 0 0 2px var(--color-surface);
   transform: translateX(-50%);
+  animation: chartFade 300ms var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 40ms + 300ms);
+  transition: left 250ms var(--ease-out);
 }
 
 .rangeTarget {
@@ -415,5 +463,134 @@
 
   .barRow {
     grid-template-columns: minmax(90px, 40%) 1fr auto;
+  }
+}
+
+/* Gráfico de bala: faixas cinza ao fundo, barra fina na cor e a referência em tinta */
+.bulletTrack {
+  position: relative;
+  height: 24px;
+}
+
+.bulletBand {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  background: var(--color-surface-hover);
+}
+
+.bulletBand:nth-child(2) {
+  background: var(--color-border);
+}
+
+.bulletBand:nth-child(3) {
+  background: var(--color-border-strong);
+  opacity: 0.6;
+}
+
+.bulletBar {
+  position: absolute;
+  top: 8px;
+  left: 0;
+  height: 8px;
+  min-width: 2px;
+  border-radius: 0 3px 3px 0;
+  background: currentColor;
+  transform-origin: left;
+  animation: chartGrowX 400ms var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 40ms);
+  transition: width 250ms var(--ease-out);
+}
+
+/* Gráfico de corrida: série em linha, mediana tracejada e as sequências fora do acaso em tinta */
+.medianLine {
+  stroke: var(--color-text-muted);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 4;
+}
+
+.medianLabel {
+  fill: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.runLine {
+  fill: none;
+  stroke: var(--chart-accent);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-dasharray: 1;
+  animation: chartDraw 600ms var(--ease-out) both;
+}
+
+.runDot {
+  fill: var(--color-surface);
+  stroke: var(--chart-accent);
+  stroke-width: 2;
+  animation: chartFade 300ms var(--ease-out) both;
+  animation-delay: 300ms;
+  transition: r var(--dur-fast) var(--ease-out);
+}
+
+.runDotShift {
+  fill: var(--color-text);
+  stroke: var(--color-text);
+}
+
+.runNote {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.runNoteDot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-text);
+}
+
+@keyframes chartGrowX {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes chartGrowY {
+  from {
+    transform: scaleY(0);
+  }
+}
+
+@keyframes chartFade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes chartDraw {
+  from {
+    stroke-dashoffset: 1;
+  }
+}
+
+/* Sem movimento: os gráficos aparecem prontos e trocam de valor na hora */
+@media (prefers-reduced-motion: reduce) {
+  .column,
+  .bar,
+  .barReference,
+  .rangeBar,
+  .rangeWhisker,
+  .rangeDot,
+  .bulletBar,
+  .runLine,
+  .runDot {
+    animation: none;
+    transition: none;
   }
 }

@@ -45,6 +45,7 @@ import { wazeUrl } from './navigation/mapsLink';
 import { callDestination, crewPhase } from './destination';
 import HospitalSheet from './HospitalSheet';
 import { Spinner } from '../ui/Spinner';
+import { SlidingThumb } from '../ui/SlidingThumb';
 import styles from './CrewApp.module.css';
 
 // Os mapas (MapLibre) são baixados à parte: a navegação só quando começa
@@ -434,7 +435,8 @@ export default function CrewApp() {
           <h1>Iniciar turno</h1>
           <p className={styles.muted}>Escolha a viatura do seu plantão. A central passa a ver seu nome nela, e ela passa a usar a localização deste celular.</p>
 
-          <div className={styles.typeFilters} role="tablist" aria-label="Tipo de viatura">
+          <div className={`${styles.typeFilters} slide-group`} role="tablist" aria-label="Tipo de viatura">
+            <SlidingThumb variant="ink" watch={typeFilter} />
             {TYPE_FILTERS.map(filter => (
               <button
                 key={filter.value}

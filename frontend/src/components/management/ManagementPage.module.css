@@ -72,9 +72,8 @@
 }
 
 .segmented button[aria-checked='true'] {
-  background: var(--color-surface);
   color: var(--color-text);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  transition: color var(--dur-base) var(--ease-out);
 }
 
 .toggle {
@@ -113,6 +112,25 @@
   font-size: 18px;
 }
 
+.refresh:active {
+  transform: scale(0.94);
+}
+
+.refreshIcon {
+  display: inline-flex;
+}
+
+/* Gira enquanto carrega; a volta em curso termina antes de parar */
+.spinning {
+  animation: refreshSpin 0.9s linear infinite;
+}
+
+@keyframes refreshSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 @media (hover: hover) {
   .segmented button:hover,
   .refresh:hover {
@@ -149,12 +167,16 @@
   cursor: pointer;
 }
 
+.tabs button:focus-visible {
+  /* A linha de abas rola de lado e cortaria o anel por fora */
+  outline-offset: -2px;
+}
+
 .tabs button .icon {
   font-size: 20px;
 }
 
 .tabs button[aria-selected='true'] {
-  border-bottom-color: var(--color-primary);
   color: var(--color-primary-text);
   font-weight: var(--weight-bold);
 }
