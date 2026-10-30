@@ -26,6 +26,7 @@ import { formatPhone } from '../utils/documents';
 import { staleLocationText } from '../utils/ambulances';
 import { AmbulanceIcon, BellIcon, BellOffIcon, CallIcon, CheckCircleIcon, LocationIcon, PersonIcon, WarningIcon } from '../ui/icons';
 import { WaitPill } from '../ui/WaitPill';
+import { Select } from '../ui/Select';
 import styles from './CallList.module.css';
 
 interface CallListProps {
@@ -375,26 +376,28 @@ function HospitalPick({ call, hospitals, onSave }: {
 
   return (
     <>
-      <label className={styles.hospitalPick}>
-        <span>Hospital de destino</span>
-        <select
-          value={draft}
-          disabled={!onSave || hospitals.length === 0 || saving}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => {
-            // Esc desfaz a troca ainda não salva (sem fechar o resto da tela)
-            if (e.key === 'Escape' && changed) {
-              e.stopPropagation();
-              setDraft(saved);
-            }
-          }}
-        >
-          <option value="">{hospitals.length === 0 ? 'Carregando…' : 'Sem escolha (a equipe decide)'}</option>
-          {hospitalsByDistance(hospitals, call.location).map(({ hospital: option, meters }) => (
-            <option key={option.id} value={option.id}>{option.shortName} · {formatKm(meters)}</option>
-          ))}
-        </select>
-      </label>
+      <Select
+        className={styles.hospitalPick}
+        label="Hospital de destino"
+        size="compact"
+        value={draft}
+        disabled={!onSave || hospitals.length === 0 || saving}
+        onChange={setDraft}
+        onKeyDown={(e) => {
+          // Esc desfaz a troca ainda não salva (sem fechar o resto da tela)
+          if (e.key === 'Escape' && changed) {
+            e.stopPropagation();
+            setDraft(saved);
+          }
+        }}
+        options={[
+          { value: '', label: hospitals.length === 0 ? 'Carregando…' : 'Sem escolha (a equipe decide)' },
+          ...hospitalsByDistance(hospitals, call.location).map(({ hospital: option, meters }) => ({
+            value: option.id,
+            label: `${option.shortName} · ${formatKm(meters)}`
+          }))
+        ]}
+      />
       {changed && (
         <div className={styles.hospitalSave}>
           <button type="button" className={styles.primary} disabled={saving} onClick={save}>

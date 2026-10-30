@@ -5,6 +5,8 @@ import { Ambulance, CallEventAction, CallPriority, CallStatus, Hospital, UserRol
 import { getCallEvents, getHistory } from '../../services/api';
 import { historyCall } from '../../test/management';
 import History from './History';
+import { pickOption } from '../../test/pickOption';
+import { CALL_STATUS_LABEL } from '../../utils/calls';
 
 vi.mock('../../services/api', async importOriginal => ({
   ...(await importOriginal<typeof import('../../services/api')>()),
@@ -51,7 +53,7 @@ describe('histórico', () => {
     expect(await screen.findByText('26–50 de 60 chamados')).toBeInTheDocument();
     expect(getHistory).toHaveBeenLastCalledWith(SCOPE, {}, 2, expect.any(AbortSignal));
 
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Cor' }), CallPriority.EMERGENCIA);
+    await pickOption(user, /Cor$/, 'Vermelho · Emergência');
     expect(await screen.findByText('1–25 de 60 chamados')).toBeInTheDocument();
     expect(getHistory).toHaveBeenLastCalledWith(SCOPE, { priority: CallPriority.EMERGENCIA }, 1, expect.any(AbortSignal));
   });
@@ -61,7 +63,7 @@ describe('histórico', () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     renderHistory();
     await screen.findByText('1–25 de 60 chamados');
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Status' }), CallStatus.CANCELADO);
+    await pickOption(user, /Status$/, CALL_STATUS_LABEL[CallStatus.CANCELADO]);
     await user.type(screen.getByRole('searchbox', { name: 'Buscar no histórico' }), 'hortencia');
     const calls = vi.mocked(getHistory).mock.calls.length;
     await act(async () => {
@@ -118,7 +120,8 @@ describe('histórico', () => {
     vi.mocked(getHistory).mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 25 });
     const user = userEvent.setup();
     renderHistory();
-    await user.selectOptions(await screen.findByRole('combobox', { name: 'Viatura' }), 'amb-3');
+    await screen.findByRole('button', { name: /Viatura$/ });
+    await pickOption(user, /Viatura$/, 'USB-02');
     expect(await screen.findByText('Nenhum chamado com esses filtros.')).toBeInTheDocument();
   });
 });

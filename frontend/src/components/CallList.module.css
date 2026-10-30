@@ -399,18 +399,6 @@
   margin-top: 6px;
 }
 
-.hospitalPick select {
-  min-height: 36px;
-  padding: 0 8px;
-  border: 1px solid var(--color-border-strong);
-  border-radius: 8px;
-  background: var(--color-surface);
-  color: var(--color-text);
-  font: inherit;
-  font-size: 14px;
-  font-weight: 500;
-}
-
 /* Filas em "Todos": regulação, despacho e em atendimento */
 .section + .section {
   margin-top: 20px;

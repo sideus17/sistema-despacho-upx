@@ -5,6 +5,7 @@ import { regulateCall } from '../services/api';
 import { CallPriority, CallStatus, CloseReason, EmergencyCall, Hospital, RegulationDecision } from '../types';
 import { renderWithAuth } from '../test/renderWithAuth';
 import RegulationPanel from './RegulationPanel';
+import { pickOption } from '../test/pickOption';
 
 vi.mock('../services/api', async importOriginal => ({
   ...(await importOriginal<typeof import('../services/api')>()),
@@ -76,7 +77,7 @@ describe('regulação do chamado', () => {
     const user = userEvent.setup();
     const { onDone } = renderPanel();
     await user.click(color('Vermelho'));
-    await user.selectOptions(screen.getByRole('combobox', { name: /Hospital de destino/ }), 'hosp-perto');
+    await pickOption(user, /Hospital de destino/, /^Perto/);
     await user.click(screen.getByRole('button', { name: 'Seguir para o despacho' }));
 
     expect(regulateCall).toHaveBeenCalledWith('call-1', {

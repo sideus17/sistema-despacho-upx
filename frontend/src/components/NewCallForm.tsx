@@ -5,6 +5,7 @@ import { CALL_STATUS_LABEL, PRIORITY_META } from '../utils/calls';
 import { formatPhone, isValidPhone, onlyDigits } from '../utils/documents';
 import { suggestPriority } from '../utils/triage';
 import { LocationIcon, WarningIcon } from '../ui/icons';
+import { Select } from '../ui/Select';
 import AddressSearch, { PlaceValue, SearchAction } from './AddressSearch';
 import RiskClassification from './RiskClassification';
 import { useToast } from './Toast';
@@ -330,15 +331,18 @@ export default function NewCallForm({
             />
           </div>
 
-          <div>
-            <label className={styles.label} htmlFor="call-gender">Sexo</label>
-            <select id="call-gender" value={gender} onChange={(e) => setGender(e.target.value)} className={styles.input}>
-              <option value="">Não informado</option>
-              <option value="M">Masculino</option>
-              <option value="F">Feminino</option>
-              <option value="OUTRO">Outro</option>
-            </select>
-          </div>
+          <Select
+            label="Sexo"
+            labelClassName={styles.label}
+            value={gender}
+            onChange={setGender}
+            options={[
+              { value: '', label: 'Não informado' },
+              { value: 'M', label: 'Masculino' },
+              { value: 'F', label: 'Feminino' },
+              { value: 'OUTRO', label: 'Outro' }
+            ]}
+          />
         </div>
 
         <RiskClassification

@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { Ambulance, CallOutcome, CallPriority, CallStatus, EmergencyCall, Hospital } from '../types';
 import CallList from './CallList';
+import { optionTexts, pickOption } from '../test/pickOption';
 
 const active = (overrides: Partial<EmergencyCall> = {}): EmergencyCall => ({
   id: 'call-1',
@@ -147,13 +148,12 @@ describe('atendimento na central', () => {
         onHospitalChange={onHospitalChange}
       />
     );
-    const select = screen.getByRole('combobox', { name: 'Hospital de destino' });
-    expect([...select.querySelectorAll('option')].map(option => option.textContent)).toEqual([
+    expect(await optionTexts(user, /Hospital de destino/)).toEqual([
       'Sem escolha (a equipe decide)', 'Perto · 1,1 km', 'Longe · 11,1 km'
     ]);
-    // Andar pelas opções (como com as setas) não salva nem avisa a equipe
-    await user.selectOptions(select, 'hosp-longe');
-    await user.selectOptions(select, 'hosp-perto');
+    // Escolher na lista não salva nem avisa a equipe
+    await pickOption(user, /Hospital de destino/, 'Longe · 11,1 km');
+    await pickOption(user, /Hospital de destino/, 'Perto · 1,1 km');
     expect(onHospitalChange).not.toHaveBeenCalled();
 
     await user.click(screen.getByRole('button', { name: 'Salvar destino' }));
@@ -176,15 +176,15 @@ describe('atendimento na central', () => {
         onHospitalChange={onHospitalChange}
       />
     );
-    const select = screen.getByRole('combobox', { name: 'Hospital de destino' });
-    await user.selectOptions(select, 'hosp-perto');
+    const trigger = () => screen.getByRole('button', { name: /Hospital de destino/ });
+    await pickOption(user, /Hospital de destino/, 'Perto · 1,1 km');
     await user.click(screen.getByRole('button', { name: 'Desfazer' }));
-    expect(select).toHaveValue('');
+    expect(trigger()).toHaveTextContent('Sem escolha (a equipe decide)');
 
-    await user.selectOptions(select, 'hosp-longe');
-    select.focus();
+    await pickOption(user, /Hospital de destino/, 'Longe · 11,1 km');
+    trigger().focus();
     await user.keyboard('{Escape}');
-    expect(select).toHaveValue('');
+    expect(trigger()).toHaveTextContent('Sem escolha (a equipe decide)');
     expect(screen.queryByRole('button', { name: 'Salvar destino' })).not.toBeInTheDocument();
     expect(onHospitalChange).not.toHaveBeenCalled();
   });
@@ -214,7 +214,7 @@ describe('atendimento na central', () => {
         hospitals={HOSPITALS}
       />
     );
-    expect(screen.queryByRole('combobox', { name: 'Hospital de destino' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Hospital de destino/ })).not.toBeInTheDocument();
     expect(screen.getByText(/chegou às/)).toHaveTextContent('Hospital: Perto');
   });
 });
