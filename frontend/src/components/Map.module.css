@@ -41,6 +41,56 @@
   overflow-y: auto;
 }
 
+/* Liga e desliga os ícones das ocorrências; fica à vista com a legenda fechada */
+.iconsSwitch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-height: 36px;
+  padding: 0 10px 0 14px;
+  border: none;
+  border-top: 1px solid var(--color-border);
+  background: none;
+  color: var(--color-text-soft);
+  font-size: 13px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.switchTrack {
+  position: relative;
+  flex-shrink: 0;
+  width: 30px;
+  height: 18px;
+  border: 1.5px solid var(--color-text-muted);
+  border-radius: 999px;
+  transition: background-color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+}
+
+.switchTrack span {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--color-text-muted);
+  transition: transform var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
+}
+
+.iconsSwitch[aria-checked='true'] .switchTrack {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+}
+
+.iconsSwitch[aria-checked='true'] .switchTrack span {
+  background: var(--color-on-primary);
+  transform: translateX(12px);
+}
+
 .legendToggle {
   display: flex;
   align-items: center;
