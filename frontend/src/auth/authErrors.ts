@@ -4,6 +4,11 @@ export function authErrorMessage(error: { message?: string; status?: number } | 
   if (text.includes('invalid login credentials')) return 'E-mail ou senha incorretos.';
   if (text.includes('email not confirmed')) return 'Confirme o e-mail antes de entrar.';
   if (text.includes('already registered') || text.includes('already exists')) return 'Já existe uma conta com este e-mail.';
+  if (text.includes('expired') || text.includes('otp_expired') || text.includes('invalid or has expired')) {
+    return 'O link venceu. Peça outro em "Esqueci a senha".';
+  }
+  if (text.includes('same password') || text.includes('different from the old')) return 'A senha nova precisa ser diferente da atual.';
+  if (text.includes('weak') || text.includes('password should')) return 'Senha fraca. Use pelo menos 8 caracteres, misturando letras e números.';
   if (error?.status === 429 || text.includes('rate limit') || text.includes('too many')) {
     return 'Muitas tentativas seguidas. Espere um pouco e tente de novo.';
   }

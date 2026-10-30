@@ -1,4 +1,4 @@
-import { createVerifierClient, supabase } from '../config/supabase';
+import { supabase } from '../config/supabase';
 import { Router, Request, Response } from 'express';
 import { analyzeDispatch, assertAwaitingDispatch } from '../services/dispatchService';
 import { calculateRoute, speedLimitsAlong } from '../services/routingService';
@@ -177,32 +177,6 @@ router.patch('/me', async (req: Request, res: Response) => {
 
   invalidateProfile(req.user!.id);
   res.json({ success: true, data: toMe(data, req.user!.email), timestamp: new Date().toISOString() });
-});
-
-// Troca de senha: confere a atual numa sessão à parte (a do aparelho continua valendo)
-router.post('/me/password', async (req: Request, res: Response) => {
-  const { currentPassword, newPassword } = req.body ?? {};
-  if (typeof currentPassword !== 'string' || !currentPassword) return fail(res, 400, 'Informe a senha atual.');
-  if (typeof newPassword !== 'string' || newPassword.length < 8) {
-    return fail(res, 400, 'A nova senha precisa ter pelo menos 8 caracteres.');
-  }
-  if (newPassword === currentPassword) return fail(res, 400, 'A nova senha precisa ser diferente da atual.');
-  if (!req.user!.email) return fail(res, 400, 'Conta sem e-mail: não dá para conferir a senha.');
-
-  const verifier = createVerifierClient();
-  const { error: signInError } = await verifier.auth.signInWithPassword({ email: req.user!.email, password: currentPassword });
-  if (signInError) {
-    const wrong = signInError.message.toLowerCase().includes('invalid');
-    return fail(res, wrong ? 400 : 503, wrong ? 'Senha atual incorreta.' : 'Não foi possível conferir a senha agora. Tente de novo.');
-  }
-  await verifier.auth.signOut({ scope: 'local' });
-
-  const { error } = await supabase.auth.admin.updateUserById(req.user!.id, { password: newPassword });
-  if (error) {
-    console.error('Password update error:', error);
-    return fail(res, 400, 'Não foi possível trocar a senha. Tente uma senha diferente.');
-  }
-  res.json({ success: true, data: null, timestamp: new Date().toISOString() });
 });
 
 // ============================================

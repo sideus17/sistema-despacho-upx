@@ -3,8 +3,9 @@ import { supabase } from '../lib/supabase';
 import { AuthLayout } from './AuthUI';
 import styles from './auth.module.css';
 import { authErrorMessage } from './authErrors';
+import { PasswordInput } from './PasswordInput';
 
-export default function LoginScreen({ onSignup }: { onSignup: () => void }) {
+export default function LoginScreen({ onSignup, onForgot }: { onSignup: () => void; onForgot: (email: string) => void }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -32,14 +33,11 @@ export default function LoginScreen({ onSignup }: { onSignup: () => void }) {
         </label>
         <label className={styles.field}>
           <span>Senha</span>
-          <input
-            type="password"
-            autoComplete="current-password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
+          <PasswordInput autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
         </label>
+        <button type="button" className={`${styles.link} ${styles.forgot}`} onClick={() => onForgot(email.trim())}>
+          Esqueci a senha
+        </button>
 
         {error && <p className={styles.error} role="alert">{error}</p>}
 

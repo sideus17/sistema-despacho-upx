@@ -1,6 +1,9 @@
 import { FormEvent, ReactNode, useEffect, useRef, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
-import { changePassword, getErrorMessage, getMe, ProfilePatch } from '../services/api';
+import { getErrorMessage, getMe, ProfilePatch } from '../services/api';
+import { supabase } from '../lib/supabase';
+import { authErrorMessage } from '../auth/authErrors';
+import { PasswordInput } from '../auth/PasswordInput';
 import { AvatarColor, AvatarIcon, Me, ProfileField, UserRole } from '../types';
 import { Avatar, AVATAR_COLORS, AVATAR_ICONS, colorFromSeed } from '../ui/Avatar';
 import { CheckIcon, CloseIcon } from '../ui/icons';
@@ -72,8 +75,10 @@ function Field({ label, error, hint, children }: { label: string; error?: string
   );
 }
 
+// Troca de senha sem a antiga: o código do app autenticador confirma que é a pessoa (e não alguém com o
+// computador aberto)
 function PasswordForm({ onDone }: { onDone: () => void }) {
-  const [current, setCurrent] = useState('');
+  const [code, setCode] = useState('');
   const [next, setNext] = useState('');
   const [confirm, setConfirm] = useState('');
   const [saving, setSaving] = useState(false);
@@ -84,10 +89,23 @@ function PasswordForm({ onDone }: { onDone: () => void }) {
     event.preventDefault();
     if (next.length < 8) return setError('A nova senha precisa ter pelo menos 8 caracteres.');
     if (next !== confirm) return setError('As senhas novas não conferem.');
+    if (!/^\d{6}$/.test(code)) return setError('Digite os 6 números do app autenticador.');
     setSaving(true);
     setError(null);
     try {
-      await changePassword(current, next);
+      const { data: factors, error: factorsError } = await supabase.auth.mfa.listFactors();
+      const factor = factors?.totp.find(item => item.status === 'verified');
+      if (factorsError || !factor) throw factorsError ?? new Error('Sem app autenticador cadastrado.');
+      const { error: verifyError } = await supabase.auth.mfa.challengeAndVerify({ factorId: factor.id, code });
+      if (verifyError) {
+        setError('Código incorreto. Confira o app autenticador.');
+        return;
+      }
+      const { error: updateError } = await supabase.auth.updateUser({ password: next });
+      if (updateError) {
+        setError(authErrorMessage(updateError, 'Não foi possível trocar a senha.'));
+        return;
+      }
       toast('Senha alterada.', 'success');
       onDone();
     } catch (err) {
@@ -99,14 +117,24 @@ function PasswordForm({ onDone }: { onDone: () => void }) {
 
   return (
     <form className={styles.passwordForm} onSubmit={submit}>
-      <Field label="Senha atual">
-        <input type="password" autoComplete="current-password" required value={current} onChange={e => setCurrent(e.target.value)} />
-      </Field>
       <Field label="Nova senha (mínimo 8 caracteres)">
-        <input type="password" autoComplete="new-password" required value={next} onChange={e => setNext(e.target.value)} />
+        <PasswordInput autoComplete="new-password" required autoFocus value={next} onChange={e => setNext(e.target.value)} />
       </Field>
       <Field label="Confirme a nova senha">
-        <input type="password" autoComplete="new-password" required value={confirm} onChange={e => setConfirm(e.target.value)} />
+        <PasswordInput autoComplete="new-password" required value={confirm} onChange={e => setConfirm(e.target.value)} />
+      </Field>
+      <Field label="Código do app autenticador" hint="Os 6 números que aparecem agora no app (Google Authenticator, Authy…).">
+        <input
+          type="text"
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          pattern="[0-9]*"
+          maxLength={6}
+          placeholder="000000"
+          required
+          value={code}
+          onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+        />
       </Field>
       {error && <p className={styles.error} role="alert">{error}</p>}
       <div className={styles.inlineActions}>

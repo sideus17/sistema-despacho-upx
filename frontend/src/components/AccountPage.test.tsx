@@ -1,15 +1,27 @@
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { changePassword, getMe } from '../services/api';
+import { getMe } from '../services/api';
+import { supabase } from '../lib/supabase';
 import { Me, UserRole } from '../types';
 import { OPERATOR, renderWithAuth } from '../test/renderWithAuth';
 import { AccountPage } from './AccountPage';
 
 vi.mock('../services/api', async importOriginal => ({
   ...(await importOriginal<typeof import('../services/api')>()),
-  getMe: vi.fn(),
-  changePassword: vi.fn()
+  getMe: vi.fn()
+}));
+
+vi.mock('../lib/supabase', () => ({
+  supabase: {
+    auth: {
+      mfa: {
+        listFactors: vi.fn(async () => ({ data: { totp: [{ id: 'fator-1', status: 'verified' }] }, error: null })),
+        challengeAndVerify: vi.fn(async () => ({ data: {}, error: null }))
+      },
+      updateUser: vi.fn(async () => ({ data: {}, error: null }))
+    }
+  }
 }));
 
 const DRIVER: Me = {
@@ -29,7 +41,8 @@ async function openPage(profile: Me = OPERATOR) {
 
 beforeEach(() => {
   vi.mocked(getMe).mockReset();
-  vi.mocked(changePassword).mockReset();
+  vi.mocked(supabase.auth.updateUser).mockClear();
+  vi.mocked(supabase.auth.mfa.challengeAndVerify).mockClear();
 });
 
 describe('Minha conta', () => {
@@ -86,20 +99,34 @@ describe('Minha conta', () => {
     expect(screen.queryByText(/CNH/)).not.toBeInTheDocument();
   });
 
-  it('troca de senha confere a confirmação antes de enviar', async () => {
+  it('troca de senha sem a antiga: confere a confirmação e pede o código do autenticador', async () => {
     const { user } = await openPage();
     await user.click(screen.getByRole('button', { name: 'Alterar senha' }));
-    await user.type(screen.getByLabelText('Senha atual'), 'senha-antiga');
-    await user.type(screen.getByLabelText('Nova senha (mínimo 8 caracteres)'), 'senha-nova-1');
-    await user.type(screen.getByLabelText('Confirme a nova senha'), 'senha-nova-2');
+    expect(screen.queryByLabelText('Senha atual')).not.toBeInTheDocument();
+    await user.type(screen.getByLabelText('Nova senha (mínimo 8 caracteres)', { selector: 'input' }), 'senha-nova-1');
+    await user.type(screen.getByLabelText('Confirme a nova senha', { selector: 'input' }), 'senha-nova-2');
+    await user.type(screen.getByLabelText(/Código do app autenticador/), '123456');
     await user.click(screen.getByRole('button', { name: 'Salvar nova senha' }));
     expect(screen.getByText('As senhas novas não conferem.')).toBeInTheDocument();
-    expect(changePassword).not.toHaveBeenCalled();
+    expect(supabase.auth.updateUser).not.toHaveBeenCalled();
 
-    await user.clear(screen.getByLabelText('Confirme a nova senha'));
-    await user.type(screen.getByLabelText('Confirme a nova senha'), 'senha-nova-1');
+    await user.clear(screen.getByLabelText('Confirme a nova senha', { selector: 'input' }));
+    await user.type(screen.getByLabelText('Confirme a nova senha', { selector: 'input' }), 'senha-nova-1');
     await user.click(screen.getByRole('button', { name: 'Salvar nova senha' }));
-    expect(changePassword).toHaveBeenCalledWith('senha-antiga', 'senha-nova-1');
+    expect(supabase.auth.mfa.challengeAndVerify).toHaveBeenCalledWith({ factorId: 'fator-1', code: '123456' });
+    expect(supabase.auth.updateUser).toHaveBeenCalledWith({ password: 'senha-nova-1' });
+  });
+
+  it('código errado não troca a senha', async () => {
+    vi.mocked(supabase.auth.mfa.challengeAndVerify).mockResolvedValueOnce({ data: null, error: { message: 'Invalid TOTP code' } } as never);
+    const { user } = await openPage();
+    await user.click(screen.getByRole('button', { name: 'Alterar senha' }));
+    await user.type(screen.getByLabelText('Nova senha (mínimo 8 caracteres)', { selector: 'input' }), 'senha-nova-1');
+    await user.type(screen.getByLabelText('Confirme a nova senha', { selector: 'input' }), 'senha-nova-1');
+    await user.type(screen.getByLabelText(/Código do app autenticador/), '000000');
+    await user.click(screen.getByRole('button', { name: 'Salvar nova senha' }));
+    expect(await screen.findByText('Código incorreto. Confira o app autenticador.')).toBeInTheDocument();
+    expect(supabase.auth.updateUser).not.toHaveBeenCalled();
   });
 
   it('Esc fecha a página', async () => {
