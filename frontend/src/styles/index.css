@@ -459,6 +459,8 @@ body {
 }
 
 .slide-thumb-line {
+  /* Por cima das abas: o fundo da aba ativa cobriria a linha (ela não recebe clique) */
+  z-index: 2;
   background: var(--color-primary);
 }
 
