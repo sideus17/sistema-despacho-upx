@@ -92,11 +92,30 @@
   line-height: 1.45;
 }
 
+/* Ações no pé da tela, na zona do polegar */
+.actions {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 20px calc(env(safe-area-inset-bottom) + 20px);
+}
+
+/* Só confirmar, sem abrir a navegação: secundário (contorno de dia, só texto à noite) */
+.ackOnly {
+  min-height: 52px;
+  border: 1px solid var(--color-secondary-border);
+  border-radius: 14px;
+  background: transparent;
+  color: var(--color-secondary-text);
+  font-size: 17px;
+  font-weight: var(--weight-bold);
+  cursor: pointer;
+}
+
 /* O botão de ação da equipe: tinta de dia, grafite com contorno à noite */
 .ack {
-  flex-shrink: 0;
   min-height: 72px;
-  margin: 0 20px calc(env(safe-area-inset-bottom) + 20px);
   border: 2px solid var(--color-action-border);
   border-radius: 14px;
   background: var(--color-action);

@@ -243,9 +243,11 @@ export default function CrewApp() {
 
   // Despacho que ninguém da equipe confirmou ainda: alarme em tela cheia (também depois de recarregar)
   const needsAck = !!activeCall && !activeCall.times?.crewSeen && ackedCallId !== activeCall.id;
-  const handleAck = () => {
+  const handleAck = (navigate = false) => {
     if (!activeCall) return;
     setAckedCallId(activeCall.id);
+    // "Ciente e navegar": o alarme já sai direto para a navegação, com a rota da prévia
+    if (navigate) setNavigating(true);
     markCallSeen(activeCall.id)
       .then(() => loadData())
       .catch(() => toast('Sem conexão: a central ainda não sabe que você viu o despacho.', 'error'));
@@ -747,7 +749,15 @@ export default function CrewApp() {
         {mapView}
         {reportSheet}
         {hospitalSheet}
-        {needsAck && activeCall && <DispatchAlert call={activeCall} onAck={handleAck} route={chosenRoute} from={ambulance.location} />}
+        {needsAck && activeCall && (
+          <DispatchAlert
+            call={activeCall}
+            onAck={() => handleAck()}
+            onAckAndNavigate={needsRoute && chosenRoute ? () => handleAck(true) : undefined}
+            route={chosenRoute}
+            from={ambulance.location}
+          />
+        )}
       </div>
     );
   }
@@ -766,7 +776,15 @@ export default function CrewApp() {
         {details}
       </main>
       {actionBar}
-      {needsAck && activeCall && <DispatchAlert call={activeCall} onAck={handleAck} route={chosenRoute} from={ambulance.location} />}
+      {needsAck && activeCall && (
+        <DispatchAlert
+          call={activeCall}
+          onAck={() => handleAck()}
+          onAckAndNavigate={needsRoute && chosenRoute ? () => handleAck(true) : undefined}
+          route={chosenRoute}
+          from={ambulance.location}
+        />
+      )}
     </div>
   );
 }

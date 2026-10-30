@@ -13,6 +13,8 @@ interface RiskClassificationProps {
   suggested: CallPriority | null;
   legend?: string;
   footnote?: ReactNode;
+  // As teclas 1 a 4 escolhem a cor (quem trata as teclas é a tela; aqui ficam o aviso e o aria-keyshortcuts)
+  numberKeys?: boolean;
 }
 
 // Sinais agrupados pela cor que sugerem (o azul não tem sinal: é escolha de quem classifica)
@@ -28,7 +30,8 @@ export default function RiskClassification({
   onChange,
   suggested,
   legend = 'Classificação de risco',
-  footnote
+  footnote,
+  numberKeys = false
 }: RiskClassificationProps) {
   const editable = !!onToggleSignal;
   // Grupo de rádio: só a cor escolhida (ou a primeira) entra no Tab; as setas trocam a escolha
@@ -104,6 +107,7 @@ export default function RiskClassification({
               role="radio"
               aria-checked={value === option}
               tabIndex={index === tabbable ? 0 : -1}
+              aria-keyshortcuts={numberKeys ? String(index + 1) : undefined}
               onKeyDown={event => moveColor(event, index)}
               className={styles.color}
               style={riskVars(option)}
@@ -116,6 +120,7 @@ export default function RiskClassification({
         })}
       </div>
 
+      {numberKeys && <small className={styles.hint}>Teclas 1 a 4 escolhem a cor.</small>}
       {milder && <p className={styles.warning}>A cor escolhida é menos grave que a sugerida pelos sinais.</p>}
       {footnote && <small className={styles.hint}>{footnote}</small>}
     </fieldset>

@@ -45,6 +45,23 @@ describe('alarme do despacho no app da equipe', () => {
     expect(screen.getByText(/em linha reta$/)).toHaveTextContent('~1,1 km em linha reta');
   });
 
+  it('com a rota pronta, o principal é "Ciente e navegar", com o foco; "Só ciente" só confirma', () => {
+    const route = { distance: 2300, duration: 360, geometry: [] } as unknown as RouteInfo;
+    const onAck = vi.fn();
+    const onAckAndNavigate = vi.fn();
+    const { rerender } = render(<DispatchAlert call={call} onAck={onAck} onAckAndNavigate={onAckAndNavigate} />);
+    // Sem rota ainda: só "Ciente"
+    expect(screen.getByRole('button', { name: 'Ciente' })).toHaveFocus();
+    expect(screen.queryByRole('button', { name: 'Só ciente' })).not.toBeInTheDocument();
+
+    rerender(<DispatchAlert call={call} onAck={onAck} onAckAndNavigate={onAckAndNavigate} route={route} />);
+    expect(screen.getByRole('button', { name: 'Ciente e navegar' })).toHaveFocus();
+    fireEvent.click(screen.getByRole('button', { name: 'Só ciente' }));
+    expect(onAck).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Ciente e navegar' }));
+    expect(onAckAndNavigate).toHaveBeenCalledTimes(1);
+  });
+
   it('toca na hora e repete até o "Ciente"; depois para', () => {
     const onAck = vi.fn();
     const { unmount } = render(<DispatchAlert call={call} onAck={onAck} />);

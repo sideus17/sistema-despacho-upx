@@ -142,11 +142,56 @@ describe('regulação do chamado', () => {
     expect(cancel).toBeDisabled();
     await user.click(screen.getByRole('radio', { name: 'Trote' }));
     await user.click(cancel);
+    // Amarelo: pede confirmação, com o foco na saída que não cancela
+    expect(regulateCall).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent('Amarelo · Urgência: cancelar o chamado?');
+    expect(screen.getByRole('button', { name: 'Não cancelar' })).toHaveFocus();
+    await user.click(screen.getByRole('button', { name: 'Sim, cancelar' }));
     expect(regulateCall).toHaveBeenCalledWith('call-1', {
       decision: RegulationDecision.CANCELAR,
       priority: CallPriority.URGENTE,
       reason: CloseReason.TROTE
     });
+  });
+
+  it('cancelar um Azul vai direto, sem confirmação', async () => {
+    const user = userEvent.setup();
+    renderPanel({ ...CALL, priority: CallPriority.NAO_URGENTE, initialPriority: CallPriority.NAO_URGENTE });
+    await user.click(screen.getByRole('button', { name: 'Cancelar chamado' }));
+    await user.click(screen.getByRole('radio', { name: 'Trote' }));
+    await user.click(screen.getByRole('button', { name: 'Cancelar chamado' }));
+    expect(regulateCall).toHaveBeenCalledWith('call-1', expect.objectContaining({ decision: RegulationDecision.CANCELAR }));
+  });
+
+  it('"Não cancelar" volta ao passo principal sem cancelar', async () => {
+    const user = userEvent.setup();
+    renderPanel();
+    await user.click(screen.getByRole('button', { name: 'Cancelar chamado' }));
+    await user.click(screen.getByRole('radio', { name: 'Trote' }));
+    await user.click(screen.getByRole('button', { name: 'Cancelar chamado' }));
+    await user.click(screen.getByRole('button', { name: 'Não cancelar' }));
+    expect(screen.getByRole('button', { name: 'Seguir para o despacho' })).toHaveFocus();
+    expect(regulateCall).not.toHaveBeenCalled();
+  });
+
+  it('teclas 1 a 4 escolhem a cor', async () => {
+    const user = userEvent.setup();
+    renderPanel();
+    await user.keyboard('1');
+    expect(color('Vermelho')).toHaveAttribute('aria-checked', 'true');
+    await user.keyboard('4');
+    expect(color('Azul')).toHaveAttribute('aria-checked', 'true');
+    expect(color('Azul')).toHaveAttribute('aria-keyshortcuts', '4');
+  });
+
+  it('Esc num motivo do cancelamento volta ao passo principal', async () => {
+    const user = userEvent.setup();
+    renderPanel();
+    await user.click(screen.getByRole('button', { name: 'Cancelar chamado' }));
+    expect(screen.getByRole('radio', { name: 'Trote' })).toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('radio', { name: 'Trote' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Seguir para o despacho' })).toHaveFocus();
   });
 
   it('chamado que já espera viatura: o botão salva a reclassificação', () => {
