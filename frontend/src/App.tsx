@@ -64,6 +64,7 @@ function App() {
   const hospitalsLoaded = useRef(false);
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [focusIncident, setFocusIncident] = useState<{ id: string; at: number } | null>(null);
+  const [focusAmbulance, setFocusAmbulance] = useState<{ id: string; at: number } | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
   const [selectedRouteIndex, setSelectedRouteIndex] = useState<number>(0);
   const [selectedCall, setSelectedCall] = useState<EmergencyCall | null>(null);
@@ -440,6 +441,7 @@ function App() {
               routeGeometry={recommendation?.recommendations[selectedRouteIndex]?.route?.geometry}
               onCallSelect={handleOpenCall}
               focusIncident={focusIncident}
+              focusAmbulance={focusAmbulance}
               callPick={callPick}
               callDraft={callDraft}
             />
@@ -545,7 +547,7 @@ function App() {
             )}
 
             {activeTab === 'fleet' && (
-              <Fleet ambulances={ambulances} />
+              <Fleet ambulances={ambulances} onFocus={ambulance => setFocusAmbulance({ id: ambulance.id, at: Date.now() })} />
             )}
 
             {activeTab === 'incidents' && (

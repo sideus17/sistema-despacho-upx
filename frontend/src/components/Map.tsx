@@ -53,8 +53,9 @@ interface MapProps {
   selectedCall?: EmergencyCall | null;
   routeGeometry?: Coordinates[] | null;
   onCallSelect?: (call: EmergencyCall) => void;
-  // Pedido para mostrar uma ocorrência (a cada pedido muda o `at`)
+  // Pedido para mostrar uma ocorrência ou uma viatura (a cada pedido muda o `at`)
   focusIncident?: { id: string; at: number } | null;
+  focusAmbulance?: { id: string; at: number } | null;
   // "Escolher no mapa" do formulário de chamado: o próximo clique vira o local
   callPick?: { onPick: (location: Coordinates) => void; onCancel: () => void } | null;
   // Local do chamado sendo aberto (pino de prévia)
@@ -71,6 +72,7 @@ export default function Map({
   routeGeometry,
   onCallSelect,
   focusIncident,
+  focusAmbulance,
   callPick,
   callDraft
 }: MapProps) {
@@ -133,6 +135,15 @@ export default function Map({
     map.flyTo({ center: toLngLat(incident.location), zoom: Math.max(map.getZoom(), 15), duration: 600 });
     setPopup({ kind: 'incident', id: incident.id });
   }, [loaded, focusIncident]);
+
+  // Viatura pedida pela Frota: centraliza e abre o popup
+  useEffect(() => {
+    const map = mapRef.current;
+    const ambulance = ambulances.find(a => a.id === focusAmbulance?.id);
+    if (!loaded || !map || !ambulance) return;
+    map.flyTo({ center: toLngLat(ambulance.location), zoom: Math.max(map.getZoom(), 15), duration: 600 });
+    setPopup({ kind: 'ambulance', id: ambulance.id });
+  }, [loaded, focusAmbulance]);
 
   const open = (kind: NonNullable<Selection>['kind'], id: string) => (event: { originalEvent: MouseEvent }) => {
     // Sem isso o clique chega ao mapa e fecha o popup na hora
