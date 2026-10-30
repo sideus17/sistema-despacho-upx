@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { KeyboardEvent, useEffect, useRef, useState } from 'react';
 import { CallPriority, CallStatus, CloseReason, EmergencyCall, Hospital, RegulationDecision, RegulationRequest } from '../types';
 import { getErrorMessage, regulateCall } from '../services/api';
-import { CALL_STATUS_LABEL, CLOSE_REASON_LABEL, PRIORITY_META, formatGender, queueOf, riskVars, waitingSince } from '../utils/calls';
+import { CALL_STATUS_LABEL, CLOSE_REASON_LABEL, PRIORITIES_BY_SEVERITY, PRIORITY_META, formatGender, queueOf, riskVars, waitingSince } from '../utils/calls';
 import { formatKm, hospitalsByDistance } from '../utils/hospitals';
 import { formatPhone } from '../utils/documents';
 import { useNow } from '../hooks/useNow';
@@ -56,7 +56,7 @@ function RegulationForm({ call, hospitals, onDone, onBack }: RegulationPanelProp
   useEffect(() => {
     if (mode === 'cancelar') reasonsRef.current?.querySelector('input')?.focus();
   }, [mode]);
-  // Vermelho ou Amarelo encerrado sem viatura pede um passo a mais (vale a cor final, a escolhida agora)
+  // Vermelho ou Amarelo encerrado sem viatura ou cancelado pede um passo a mais (vale a cor final, a escolhida agora)
   const [confirmingClose, setConfirmingClose] = useState(false);
   const severe = priority === CallPriority.EMERGENCIA || priority === CallPriority.URGENTE;
   useEffect(() => setConfirmingClose(false), [priority, mode]);
@@ -111,8 +111,34 @@ function RegulationForm({ call, hospitals, onDone, onBack }: RegulationPanelProp
 
   const cancelReady = !!reason && (reason !== CloseReason.OUTRO || !!note.trim());
 
+  // Volta ao passo principal com o foco no botão de seguir (saída segura das confirmações)
+  const backToMain = () => {
+    focusMainAction.current = true;
+    setMode('main');
+  };
+
+  // Teclado do painel: 1 a 4 escolhem a cor; fora do passo principal, o Esc fecha a confirmação ou volta a ele
+  // (no passo principal, o Esc é da central e volta à lista). Nos campos de texto, as teclas são do campo
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    pressCtrlEnterAction(event);
+    if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
+    const target = event.target as HTMLElement;
+    if (target.closest('textarea, select, input:not([type="radio"])')) return;
+    if (event.key === 'Escape' && mode !== 'main') {
+      event.preventDefault();
+      if (confirmingClose) setConfirmingClose(false);
+      else backToMain();
+      return;
+    }
+    const index = Number(event.key) - 1;
+    if (mode !== 'cancelar' && index >= 0 && index < PRIORITIES_BY_SEVERITY.length) {
+      event.preventDefault();
+      setPriority(PRIORITIES_BY_SEVERITY[index]);
+    }
+  };
+
   return (
-    <div className={styles.container} onKeyDown={pressCtrlEnterAction}>
+    <div className={styles.container} onKeyDown={handleKeyDown}>
       <button className={styles.back} onClick={onBack}><BackIcon /> Voltar aos chamados</button>
       <h2 ref={titleRef} tabIndex={-1} className={styles.title}>{regulated ? 'Reclassificar chamado' : 'Regulação'}</h2>
 
@@ -148,6 +174,7 @@ function RegulationForm({ call, hospitals, onDone, onBack }: RegulationPanelProp
           value={priority}
           onChange={setPriority}
           suggested={call.triage?.suggested ?? null}
+          numberKeys
         />
       )}
 
@@ -201,15 +228,7 @@ function RegulationForm({ call, hospitals, onDone, onBack }: RegulationPanelProp
                 <strong>{PRIORITY_META[priority].name} · {PRIORITY_META[priority].label} sem viatura.</strong> Encerrar mesmo assim?
               </p>
               <div className={styles.secondaryRow}>
-                <button
-                  ref={safeChoiceRef}
-                  className={styles.primary}
-                  disabled={busy}
-                  onClick={() => {
-                    focusMainAction.current = true;
-                    setMode('main');
-                  }}
-                >
+                <button ref={safeChoiceRef} className={styles.primary} disabled={busy} onClick={backToMain}>
                   Enviar viatura
                 </button>
                 <button className={styles.danger} disabled={busy} onClick={() => submit(RegulationDecision.ORIENTACAO)}>
@@ -251,12 +270,34 @@ function RegulationForm({ call, hospitals, onDone, onBack }: RegulationPanelProp
             <span>Observação {reason === CloseReason.OUTRO ? '' : <em>(opcional)</em>}</span>
             <textarea rows={2} maxLength={MAX_NOTE} value={note} onChange={(e) => setNote(e.target.value)} />
           </label>
-          <div className={styles.secondaryRow}>
-            <button className={styles.danger} disabled={busy || !cancelReady} data-ctrl-enter onClick={() => submit(RegulationDecision.CANCELAR)}>
-              {busy ? 'Cancelando…' : 'Cancelar chamado'}
-            </button>
-            <button className={styles.ghost} disabled={busy} onClick={() => setMode('main')}>Voltar</button>
-          </div>
+          {confirmingClose ? (
+            // Caso grave: cancelar pede confirmação; a saída segura não cancela (um repetido não pede viatura)
+            <div className={styles.confirmSevere} role="alert">
+              <p>
+                <strong>{PRIORITY_META[priority].name} · {PRIORITY_META[priority].label}:</strong> cancelar o chamado?
+              </p>
+              <div className={styles.secondaryRow}>
+                <button ref={safeChoiceRef} className={styles.primary} disabled={busy} onClick={backToMain}>
+                  Não cancelar
+                </button>
+                <button className={styles.danger} disabled={busy} onClick={() => submit(RegulationDecision.CANCELAR)}>
+                  {busy ? 'Cancelando…' : 'Sim, cancelar'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className={styles.secondaryRow}>
+              <button
+                className={styles.danger}
+                disabled={busy || !cancelReady}
+                data-ctrl-enter
+                onClick={() => (severe ? setConfirmingClose(true) : submit(RegulationDecision.CANCELAR))}
+              >
+                {busy ? 'Cancelando…' : 'Cancelar chamado'}
+              </button>
+              <button className={styles.ghost} disabled={busy} onClick={() => setMode('main')}>Voltar</button>
+            </div>
+          )}
         </div>
       )}
     </div>
