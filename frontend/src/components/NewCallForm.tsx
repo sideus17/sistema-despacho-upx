@@ -354,9 +354,11 @@ export default function NewCallForm({
         />
         {errors.priority && !priority && <p className={styles.fieldError} role="alert">Escolha a cor da classificação de risco.</p>}
 
-        <button type="submit" disabled={loading} className={styles.submit}>
-          {loading ? 'Criando chamado…' : 'Abrir chamado'}
-        </button>
+        <div className={styles.submitBar}>
+          <button type="submit" disabled={loading} className={styles.submit}>
+            {loading ? 'Criando chamado…' : 'Abrir chamado'}
+          </button>
+        </div>
       </form>
     </div>
   );
