@@ -52,13 +52,28 @@
 }
 
 .segmented {
+  position: relative;
   display: inline-flex;
   padding: 3px;
   border-radius: 999px;
   background: var(--color-surface-hover);
 }
 
+/* Fundo do item marcado: desliza de um período ao outro */
+.thumb {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 3px;
+  border-radius: 999px;
+  background: var(--color-surface);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  transition: transform 250ms var(--ease-out), width 250ms var(--ease-out);
+}
+
 .segmented button {
+  position: relative;
+  z-index: 1;
   min-height: 34px;
   padding: 0 12px;
   border: none;
@@ -72,8 +87,13 @@
 }
 
 .segmented button[aria-checked='true'] {
-  background: var(--color-surface);
   color: var(--color-text);
+  transition: color var(--dur-base) var(--ease-out);
+}
+
+/* Sem o fundo deslizante (antes da medida): o marcado tem fundo próprio */
+.segmented:not(:has(.thumb)) button[aria-checked='true'] {
+  background: var(--color-surface);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
 }
 
@@ -111,6 +131,31 @@
 
 .refresh .icon {
   font-size: 18px;
+}
+
+.refresh:active {
+  transform: scale(0.94);
+}
+
+.refreshIcon {
+  display: inline-flex;
+}
+
+/* Gira enquanto carrega; a volta em curso termina antes de parar */
+.spinning {
+  animation: refreshSpin 0.9s linear infinite;
+}
+
+@keyframes refreshSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .thumb {
+    transition: none;
+  }
 }
 
 @media (hover: hover) {

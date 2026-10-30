@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Ambulance, Base, Hospital, ManagementScope } from '../../types';
 import { BarChartIcon, HeatMapIcon, HistoryIcon, PersonIcon, RefreshIcon } from '../../ui/icons';
 import HeatMap from './HeatMap';
@@ -6,6 +6,8 @@ import History from './History';
 import Indicators from './Indicators';
 import People from './People';
 import { PERIODS, PeriodKey, periodRange } from './format';
+import { useManagementBusy } from './useLoad';
+import { announce } from '../../ui/announce';
 import styles from './ManagementPage.module.css';
 
 // Gestão da central: indicadores, por pessoa, mapa de calor e histórico do período escolhido, em tela cheia
@@ -68,6 +70,40 @@ export default function ManagementPage({ ambulances, hospitals, bases }: {
     () => ({ ...periodRange(preferences.period, now), demo: preferences.demo }),
     [preferences.period, preferences.demo, now]
   );
+  // "Atualizar": o ícone gira enquanto algum dado da gestão carrega e termina a volta antes de parar;
+  // depois de um clique, o leitor de tela ouve a hora da atualização
+  const busy = useManagementBusy();
+  const busyRef = useRef(busy);
+  busyRef.current = busy;
+  const [spinning, setSpinning] = useState(false);
+  const clicked = useRef(false);
+  const reducedMotion = typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  useEffect(() => {
+    if (busy) setSpinning(true);
+    else if (clicked.current) {
+      clicked.current = false;
+      announce(`Atualizado às ${clock(new Date().toISOString())}`);
+    }
+    if (!busy && reducedMotion) setSpinning(false);
+  }, [busy]);
+
+  // Período: o fundo do item marcado desliza até o escolhido
+  const segmentedRef = useRef<HTMLDivElement>(null);
+  const [thumb, setThumb] = useState<{ left: number; width: number } | null>(null);
+  useLayoutEffect(() => {
+    const group = segmentedRef.current;
+    if (!group) return;
+    const measure = () => {
+      const checked = group.querySelector<HTMLElement>('[aria-checked="true"]');
+      if (checked) setThumb({ left: checked.offsetLeft, width: checked.offsetWidth });
+    };
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(group);
+    return () => observer.disconnect();
+  }, [preferences.period]);
+
   const rangeLabel = preferences.period === 'hoje'
     ? `Hoje, até ${clock(scope.to)}`
     : `${dayMonth(scope.from)} a ${dayMonth(scope.to)}, até ${clock(scope.to)}`;
@@ -82,7 +118,8 @@ export default function ManagementPage({ ambulances, hospitals, bases }: {
           </div>
 
           <div className={styles.filters}>
-            <div className={styles.segmented} role="radiogroup" aria-label="Período">
+            <div ref={segmentedRef} className={styles.segmented} role="radiogroup" aria-label="Período">
+              {thumb && <span className={styles.thumb} style={{ width: thumb.width, transform: `translateX(${thumb.left - 3}px)` }} aria-hidden="true" />}
               {PERIODS.map(period => (
                 <button
                   key={period.key}
@@ -102,8 +139,25 @@ export default function ManagementPage({ ambulances, hospitals, bases }: {
               <input type="checkbox" checked={preferences.demo} onChange={event => update({ demo: event.target.checked })} />
               Incluir demonstração
             </label>
-            <button type="button" className={styles.refresh} onClick={() => setNow(Date.now())}>
-              <RefreshIcon /> Atualizar
+            <button
+              type="button"
+              className={styles.refresh}
+              aria-busy={busy}
+              onClick={() => {
+                clicked.current = true;
+                setSpinning(true);
+                setNow(Date.now());
+              }}
+            >
+              <span
+                className={`${styles.refreshIcon} ${spinning && !reducedMotion ? styles.spinning : ''}`}
+                onAnimationIteration={() => {
+                  if (!busyRef.current) setSpinning(false);
+                }}
+              >
+                <RefreshIcon />
+              </span>
+              {busy && reducedMotion ? 'Atualizando…' : 'Atualizar'}
             </button>
           </div>
 
