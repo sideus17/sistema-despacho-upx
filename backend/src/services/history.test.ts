@@ -70,10 +70,13 @@ test('histórico: filtros validados e páginas', () => {
   assert.equal(query.page, 2);
   assert.equal(query.pageSize, 25);
   assert.equal(query.status, null);
+  assert.equal(query.oldestFirst, false);
+  assert.equal(parseHistoryQuery({ order: 'asc' }, NOW).oldestFirst, true);
 
   assert.throws(() => parseHistoryQuery({ priority: 'ROXO' }, NOW), status400);
   assert.throws(() => parseHistoryQuery({ outcome: 'FUGIU' }, NOW), status400);
   assert.throws(() => parseHistoryQuery({ ambulance: 'amb-1;drop' }, NOW), status400);
   assert.throws(() => parseHistoryQuery({ page: '0' }, NOW), status400);
   assert.throws(() => parseHistoryQuery({ pageSize: '101' }, NOW), status400);
+  assert.throws(() => parseHistoryQuery({ order: 'random' }, NOW), status400);
 });

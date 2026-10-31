@@ -28,6 +28,9 @@ export { default as HistoryIcon } from '~icons/material-symbols/history-rounded'
 export { default as RefreshIcon } from '~icons/material-symbols/refresh-rounded';
 export { default as ChevronLeftIcon } from '~icons/material-symbols/chevron-left-rounded';
 export { default as ChevronRightIcon } from '~icons/material-symbols/chevron-right-rounded';
+export { default as ArrowUpIcon } from '~icons/material-symbols/arrow-upward-rounded';
+export { default as ArrowDownIcon } from '~icons/material-symbols/arrow-downward-rounded';
+export { default as SortIcon } from '~icons/material-symbols/swap-vert-rounded';
 
 // Detalhes de chamados e rotas
 export { default as LocationIcon } from '~icons/material-symbols/location-on-rounded';

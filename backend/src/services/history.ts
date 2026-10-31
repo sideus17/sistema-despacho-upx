@@ -27,6 +27,7 @@ export interface HistoryQuery {
   outcome: CallOutcome | null;
   ambulanceId: string | null;
   hospitalId: string | null;
+  oldestFirst: boolean; // ?order=asc: dos mais antigos para os mais novos
   page: number;
   pageSize: number;
 }
@@ -123,6 +124,7 @@ export function parseHistoryQuery(query: Query, now = Date.now()): HistoryQuery 
     outcome: oneOf(query.outcome, Object.values(CallOutcome), 'Desfecho'),
     ambulanceId: identifier(query.ambulance, 'Viatura'),
     hospitalId: identifier(query.hospital, 'Hospital'),
+    oldestFirst: oneOf(query.order, ['asc', 'desc'], 'Critério de ordem') === 'asc',
     page: integer(query.page, 1, 1, 10_000, 'Página'),
     pageSize: integer(query.pageSize, DEFAULT_PAGE_SIZE, 1, MAX_PAGE_SIZE, 'Tamanho da página')
   };

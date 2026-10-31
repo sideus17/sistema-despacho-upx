@@ -1,4 +1,4 @@
-import { ManagementScope, PeopleIndicators } from '../../types';
+import { AttendantStats, DriverStats, DurationStats, ManagementScope, PeopleIndicators } from '../../types';
 import { getPeople } from '../../services/api';
 import { BarList, ChartCard, medianOf } from './charts';
 import { Failure } from './Indicators';
@@ -8,6 +8,7 @@ import { styles as indicatorStyles } from './Indicators.styles';
 import { styles as chartStyles } from './charts.styles';
 import { Spinner } from '../../ui/Spinner';
 import { styles } from './People.styles';
+import { SortHeader, SortValue, sortRows, useSort } from './sortTable';
 
 // Por pessoa: o que cada atendente registrou, regulou e despachou, e os atendimentos de cada motorista
 
@@ -114,7 +115,36 @@ function TimeRanking({ people, title, label }: { people: Array<{ id: string; nam
   );
 }
 
+// Colunas ordenáveis: o tempo vale a mediana; sem casos fica por último
+const time = (stats: DurationStats): SortValue => (stats.n > 0 ? stats.median : null);
+const ATTENDANT_COLUMNS = {
+  name: (person: AttendantStats) => person.name,
+  opened: (person: AttendantStats) => person.opened,
+  regulated: (person: AttendantStats) => person.regulated,
+  dispatched: (person: AttendantStats) => person.dispatched,
+  closedWithoutDispatch: (person: AttendantStats) => person.closedWithoutDispatch,
+  reclassified: (person: AttendantStats) => person.reclassified,
+  regulation: (person: AttendantStats) => time(person.regulation),
+  dispatch: (person: AttendantStats) => time(person.dispatch)
+};
+const DRIVER_COLUMNS = {
+  name: (person: DriverStats) => person.name,
+  attended: (person: DriverStats) => person.attended,
+  departure: (person: DriverStats) => time(person.departure),
+  arrival: (person: DriverStats) => time(person.arrival)
+};
+
 function PeopleView({ data }: { data: PeopleIndicators }) {
+  const [attendantSort, sortAttendants] = useSort<keyof typeof ATTENDANT_COLUMNS>();
+  const [driverSort, sortDrivers] = useSort<keyof typeof DRIVER_COLUMNS>();
+  const attendants = sortRows(data.attendants, attendantSort, (person, key) => ATTENDANT_COLUMNS[key](person));
+  const drivers = sortRows(data.drivers, driverSort, (person, key) => DRIVER_COLUMNS[key](person));
+  const attendantHeader = (key: keyof typeof ATTENDANT_COLUMNS, label: string, title?: string) => (
+    <SortHeader label={label} title={title} direction={attendantSort?.key === key ? attendantSort.direction : undefined} onSort={() => sortAttendants(key)} />
+  );
+  const driverHeader = (key: keyof typeof DRIVER_COLUMNS, label: string, title?: string) => (
+    <SortHeader label={label} title={title} direction={driverSort?.key === key ? driverSort.direction : undefined} onSort={() => sortDrivers(key)} />
+  );
   const limits = {
     regulation: slowLimit(data.attendants.map(person => person.regulation)),
     dispatch: slowLimit(data.attendants.map(person => person.dispatch)),
@@ -135,18 +165,18 @@ function PeopleView({ data }: { data: PeopleIndicators }) {
           <table className={`${chartStyles.table} ${styles.table}`}>
             <thead>
               <tr>
-                <th scope="col">Atendente</th>
-                <th scope="col">Registrou</th>
-                <th scope="col">Regulou</th>
-                <th scope="col">Despachou</th>
-                <th scope="col" title="Orientação por telefone ou cancelamento">Sem viatura</th>
-                <th scope="col" title="Regulados com a cor diferente da do registro">Mudou a cor</th>
-                <th scope="col" title="Da abertura à regulação">Regulação</th>
-                <th scope="col" title="Da regulação ao despacho">Espera pela viatura</th>
+                {attendantHeader('name', 'Atendente')}
+                {attendantHeader('opened', 'Registrou')}
+                {attendantHeader('regulated', 'Regulou')}
+                {attendantHeader('dispatched', 'Despachou')}
+                {attendantHeader('closedWithoutDispatch', 'Sem viatura', 'Orientação por telefone ou cancelamento')}
+                {attendantHeader('reclassified', 'Mudou a cor', 'Regulados com a cor diferente da do registro')}
+                {attendantHeader('regulation', 'Regulação', 'Da abertura à regulação')}
+                {attendantHeader('dispatch', 'Espera pela viatura', 'Da regulação ao despacho')}
               </tr>
             </thead>
             <tbody>
-              {data.attendants.map(person => (
+              {attendants.map(person => (
                 <tr key={person.id}>
                   <th scope="row"><Name name={person.name} demo={person.demo} /></th>
                   <td>{formatCount(person.opened)}</td>
@@ -178,14 +208,14 @@ function PeopleView({ data }: { data: PeopleIndicators }) {
               <table className={`${chartStyles.table} ${styles.table}`}>
                 <thead>
                   <tr>
-                    <th scope="col">Motorista</th>
-                    <th scope="col">Atendimentos</th>
-                    <th scope="col" title="Do despacho à saída da viatura">Saída</th>
-                    <th scope="col" title="Do despacho à chegada ao local">Chegada ao local</th>
+                    {driverHeader('name', 'Motorista')}
+                    {driverHeader('attended', 'Atendimentos')}
+                    {driverHeader('departure', 'Saída', 'Do despacho à saída da viatura')}
+                    {driverHeader('arrival', 'Chegada ao local', 'Do despacho à chegada ao local')}
                   </tr>
                 </thead>
                 <tbody>
-                  {data.drivers.map(person => (
+                  {drivers.map(person => (
                     <tr key={person.id}>
                       <th scope="row"><Name name={person.name} demo={person.demo} /></th>
                       <td>{formatCount(person.attended)}</td>

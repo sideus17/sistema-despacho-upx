@@ -9,6 +9,7 @@ import { CallDetail, callDurations, openedAt, resultLabel } from './CallDetail';
 import { PRIORITY_CHART_COLOR, formatCount, formatMinutes } from './format';
 import { useLoad } from './useLoad';
 import { styles } from './History.styles';
+import { SortHeader } from './sortTable';
 
 const PAGE_SIZE = 25;
 const SEARCH_DELAY_MS = 350;
@@ -17,8 +18,10 @@ const SEARCH_DELAY_MS = 350;
 export default function History({ scope, ambulances, hospitals }: { scope: ManagementScope; ambulances: Ambulance[]; hospitals: Hospital[] }) {
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState<HistoryFilters>({});
-  // A página vale para estes filtros e este período; mudou um deles, volta para a primeira
-  const filterKey = JSON.stringify([scope, filters]);
+  // Ordem pela abertura, no servidor (as páginas vêm de lá): o mais recente primeiro, ou o contrário
+  const [oldestFirst, setOldestFirst] = useState(false);
+  // A página vale para estes filtros, esta ordem e este período; mudou um deles, volta para a primeira
+  const filterKey = JSON.stringify([scope, filters, oldestFirst]);
   const [paging, setPaging] = useState({ key: filterKey, page: 1 });
   const page = paging.key === filterKey ? paging.page : 1;
   const setPage = (next: number) => setPaging({ key: filterKey, page: next });
@@ -34,7 +37,7 @@ export default function History({ scope, ambulances, hospitals }: { scope: Manag
   }, [search]);
 
   const { data, error, loading, retry } = useLoad(
-    signal => getHistory(scope, filters, page, signal),
+    signal => getHistory(scope, filters, page, oldestFirst, signal),
     JSON.stringify([filterKey, page])
   );
 
@@ -109,6 +112,17 @@ export default function History({ scope, ambulances, hospitals }: { scope: Manag
           onChange={value => setFilter('hospital', value)}
           options={[{ value: '', label: 'Todos os hospitais' }, ...hospitals.map(hospital => ({ value: hospital.id, label: hospital.shortName }))]}
         />
+        {compact && (
+          <Select
+            hideLabel
+            label="Ordem"
+            size="compact"
+            className={styles.filter}
+            value={oldestFirst ? 'asc' : 'desc'}
+            onChange={value => setOldestFirst(value === 'asc')}
+            options={[{ value: 'desc', label: 'Mais recentes' }, { value: 'asc', label: 'Mais antigos' }]}
+          />
+        )}
         {(active || search) && (
           <button
             type="button"
@@ -176,7 +190,7 @@ export default function History({ scope, ambulances, hospitals }: { scope: Manag
             <table className={styles.table}>
               <thead>
                 <tr>
-                  <th scope="col">Abertura</th>
+                  <SortHeader label="Abertura" direction={oldestFirst ? 'ascending' : 'descending'} onSort={() => setOldestFirst(value => !value)} />
                   <th scope="col">Cor</th>
                   <th scope="col">Endereço</th>
                   <th scope="col">Viatura</th>

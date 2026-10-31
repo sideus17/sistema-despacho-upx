@@ -69,7 +69,7 @@ export async function peopleNames(rows: PeopleRow[]): Promise<PeopleNames> {
   return names;
 }
 
-// Uma página do histórico, dos mais novos para os mais antigos, com o total que bate com os filtros
+// Uma página do histórico, dos mais novos para os mais antigos (ou o contrário), com o total que bate com os filtros
 export async function historyPage(query: HistoryQuery): Promise<{ rows: CallRow[]; total: number }> {
   const filtered = (columns: string, head = false) => {
     let request = supabase
@@ -88,8 +88,8 @@ export async function historyPage(query: HistoryQuery): Promise<{ rows: CallRow[
 
   const start = (query.page - 1) * query.pageSize;
   const { data, error, count } = await filtered('*')
-    .order('timestamp', { ascending: false })
-    .order('id', { ascending: false })
+    .order('timestamp', { ascending: query.oldestFirst })
+    .order('id', { ascending: query.oldestFirst })
     .range(start, start + query.pageSize - 1);
   if (!error) return { rows: (data ?? []) as unknown as CallRow[], total: count ?? 0 };
   // Página depois da última (o PostgREST responde 416): vazia, mas com o total

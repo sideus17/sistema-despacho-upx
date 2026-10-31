@@ -45,17 +45,32 @@ describe('histórico', () => {
     expect(screen.getByText('1–25 de 60 chamados')).toBeInTheDocument();
   });
 
+  it('ordem pela abertura: o cabeçalho inverte no servidor e volta para a página 1', async () => {
+    const user = userEvent.setup();
+    renderHistory();
+    await screen.findByText('1–25 de 60 chamados');
+    const header = screen.getByRole('columnheader', { name: /Abertura/ });
+    expect(header).toHaveAttribute('aria-sort', 'descending');
+    await user.click(screen.getByRole('button', { name: 'Próxima página' }));
+    await screen.findByText('26–50 de 60 chamados');
+
+    await user.click(within(header).getByRole('button', { name: /Abertura/ }));
+    expect(await screen.findByText('1–25 de 60 chamados')).toBeInTheDocument();
+    expect(getHistory).toHaveBeenLastCalledWith(SCOPE, {}, 1, true, expect.any(AbortSignal));
+    expect(header).toHaveAttribute('aria-sort', 'ascending');
+  });
+
   it('páginas: a próxima pede a página 2; filtro novo volta para a 1', async () => {
     const user = userEvent.setup();
     renderHistory();
     await screen.findByText('1–25 de 60 chamados');
     await user.click(screen.getByRole('button', { name: 'Próxima página' }));
     expect(await screen.findByText('26–50 de 60 chamados')).toBeInTheDocument();
-    expect(getHistory).toHaveBeenLastCalledWith(SCOPE, {}, 2, expect.any(AbortSignal));
+    expect(getHistory).toHaveBeenLastCalledWith(SCOPE, {}, 2, false, expect.any(AbortSignal));
 
     await pickOption(user, /Cor$/, 'Vermelho · Emergência');
     expect(await screen.findByText('1–25 de 60 chamados')).toBeInTheDocument();
-    expect(getHistory).toHaveBeenLastCalledWith(SCOPE, { priority: CallPriority.EMERGENCIA }, 1, expect.any(AbortSignal));
+    expect(getHistory).toHaveBeenLastCalledWith(SCOPE, { priority: CallPriority.EMERGENCIA }, 1, false, expect.any(AbortSignal));
   });
 
   it('a busca espera parar de digitar e vai junto com os filtros', async () => {
@@ -70,13 +85,13 @@ describe('histórico', () => {
       vi.advanceTimersByTime(400);
     });
     expect(vi.mocked(getHistory).mock.calls.length).toBe(calls + 1);
-    expect(getHistory).toHaveBeenLastCalledWith(SCOPE, { status: CallStatus.CANCELADO, q: 'hortencia' }, 1, expect.any(AbortSignal));
+    expect(getHistory).toHaveBeenLastCalledWith(SCOPE, { status: CallStatus.CANCELADO, q: 'hortencia' }, 1, false, expect.any(AbortSignal));
 
     await user.click(screen.getByRole('button', { name: 'Limpar filtros' }));
     await act(async () => {
       vi.advanceTimersByTime(400);
     });
-    expect(getHistory).toHaveBeenLastCalledWith(SCOPE, {}, 1, expect.any(AbortSignal));
+    expect(getHistory).toHaveBeenLastCalledWith(SCOPE, {}, 1, false, expect.any(AbortSignal));
   });
 
   it('detalhe do chamado com a linha do tempo; Esc fecha', async () => {
