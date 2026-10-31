@@ -298,8 +298,8 @@ export async function getIndicators(scope: ManagementScope, signal?: AbortSignal
   return response.data.data!;
 }
 
-export async function getHistory(scope: ManagementScope, filters: HistoryFilters, page: number, signal?: AbortSignal): Promise<HistoryPage> {
-  const params = { ...scopeParams(scope), ...filters, page };
+export async function getHistory(scope: ManagementScope, filters: HistoryFilters, page: number, oldestFirst: boolean, signal?: AbortSignal): Promise<HistoryPage> {
+  const params = { ...scopeParams(scope), ...filters, page, ...(oldestFirst && { order: 'asc' }) };
   const response = await api.get<ApiResponse<HistoryPage>>('/management/calls', { params, signal });
   return response.data.data!;
 }

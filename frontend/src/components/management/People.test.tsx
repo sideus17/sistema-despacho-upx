@@ -1,3 +1,4 @@
+import userEvent from '@testing-library/user-event';
 import { render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { getPeople } from '../../services/api';
@@ -45,6 +46,34 @@ describe('indicadores por pessoa', () => {
     ]);
     expect(within(bruno).getAllByRole('cell').slice(-2).map(cell => cell.textContent)).toEqual(['—', '—']);
     expect(getPeople).toHaveBeenCalledWith(SCOPE, expect.any(AbortSignal));
+  });
+
+  it('ordena pelo cabeçalho: menor primeiro, de novo inverte; sem casos sempre por último', async () => {
+    const user = userEvent.setup();
+    vi.mocked(getPeople).mockResolvedValue({
+      ...DATA,
+      attendants: [
+        ...DATA.attendants,
+        { ...DATA.attendants[0], id: 'u-4', name: 'Érica Lima', demo: false, regulation: stats(5, 60) }
+      ]
+    });
+    render(<People scope={SCOPE} />);
+    const card = await screen.findByRole('region', { name: 'Atendentes' });
+    const names = () => within(card).getAllByRole('row').slice(1).map(row => within(row).getByRole('rowheader').textContent);
+    const header = within(card).getByRole('columnheader', { name: /^Regulação/ });
+    expect(header).not.toHaveAttribute('aria-sort');
+
+    await user.click(within(header).getByRole('button'));
+    expect(header).toHaveAttribute('aria-sort', 'ascending');
+    expect(names()).toEqual(['Érica Lima', 'Ana RibeiroDemonstração', 'Bruno Souza']);
+
+    await user.click(within(header).getByRole('button'));
+    expect(header).toHaveAttribute('aria-sort', 'descending');
+    expect(names()).toEqual(['Ana RibeiroDemonstração', 'Érica Lima', 'Bruno Souza']);
+
+    // Nome em ordem alfabética do português (É junto do E)
+    await user.click(within(card).getByRole('button', { name: /^Atendente/ }));
+    expect(names()).toEqual(['Ana RibeiroDemonstração', 'Bruno Souza', 'Érica Lima']);
   });
 
   it('motoristas e o aviso dos chamados sem autor', async () => {
