@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useState, ReactNode } from 'react';
 import { CheckCircleIcon, CloseIcon, ErrorIcon, IconComponent, InfoIcon } from '../ui/icons';
-import styles from './Toast.module.css';
+import { styles } from './Toast.styles';
 
 type ToastType = 'success' | 'error' | 'info';
 
@@ -39,7 +39,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         {toasts.map(toast => (
           <div
             key={toast.id}
-            className={`${styles.toast} ${styles[toast.type]}`}
+            className={styles[toast.type]}
             role={toast.type === 'error' ? 'alert' : 'status'}
           >
             <ToastIcon type={toast.type} />

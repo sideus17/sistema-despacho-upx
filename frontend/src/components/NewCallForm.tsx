@@ -9,7 +9,7 @@ import { Select } from '../ui/Select';
 import AddressSearch, { PlaceValue, SearchAction } from './AddressSearch';
 import RiskClassification from './RiskClassification';
 import { useToast } from './Toast';
-import styles from './NewCallForm.module.css';
+import { styles } from './NewCallForm.styles';
 
 interface NewCallFormProps {
   onCallCreated: (call: EmergencyCall) => void;
@@ -251,7 +251,7 @@ export default function NewCallForm({
           {picking ? (
             <p className={styles.placeHint}>Clique no mapa para marcar o local do chamado.</p>
           ) : place?.approximate ? (
-            <p className={`${styles.placeHint} ${styles.placeApproximate}`}>
+            <p className={styles.placeApproximate}>
               <LocationIcon /> Ponto aproximado: achamos a rua, não o número. Confira o pino ou use “Escolher no mapa”.
             </p>
           ) : place ? (

@@ -3,7 +3,7 @@ import { GeolocateControl, useMap } from '@vis.gl/react-maplibre';
 import type { GeolocateControlInstance } from '@vis.gl/react-maplibre';
 import { useToast } from './Toast';
 import { AddIcon, MyLocationIcon, RemoveIcon } from '../ui/icons';
-import styles from './MapControls.module.css';
+import { styles } from './MapControls.styles';
 
 /**
  * Botões redondos no canto inferior direito, como no Waze: minha localização e zoom.

@@ -37,7 +37,7 @@ import { getTimeAgo, withAuthRequest } from '../services/api';
 import { ExpandLessIcon, ExpandMoreIcon, LocationIcon, PinDropIcon } from '../ui/icons';
 import { Avatar } from '../ui/Avatar';
 import { MapControls } from './MapControls';
-import styles from './Map.module.css';
+import { styles } from './Map.styles';
 
 // Sorocaba
 const INITIAL_VIEW = { longitude: -47.4526, latitude: -23.5015, zoom: 13 };
@@ -421,7 +421,7 @@ export default function Map({
       )}
 
       {callPick && (
-        <div className={`${styles.pickHint} ${styles.pickHintAction}`} role="status">
+        <div className={styles.pickHintAction} role="status">
           <PinDropIcon /> Clique no mapa para marcar o local do chamado
           <button type="button" onClick={callPick.onCancel}>Cancelar</button>
         </div>
@@ -447,13 +447,13 @@ export default function Map({
             <li><span className={styles.legendIcon}><AmbulanceMarker status={AmbulanceStatus.DISPONIVEL} hasDriver={false} /></span> Sem motorista</li>
             <li><span className={styles.legendIcon}><AmbulanceMarker status={AmbulanceStatus.DISPONIVEL} stale /></span> GPS sem atualizar</li>
             <li>
-              <span className={`${styles.legendIcon} ${styles.legendPin}`}><CallMarker priority={CallPriority.EMERGENCIA} /></span> Chamado
+              <span className={styles.legendPin}><CallMarker priority={CallPriority.EMERGENCIA} /></span> Chamado
               <span className={styles.legendRisk} aria-label="cores: vermelho, amarelo, verde e azul">
                 {PRIORITIES_BY_SEVERITY.map(priority => <i key={priority} style={{ background: PRIORITY_META[priority].color }} title={PRIORITY_META[priority].name} />)}
               </span>
             </li>
-            <li><span className={`${styles.legendIcon} ${styles.legendPin}`}><CallMarker priority={CallPriority.URGENTE} provisional /></span> Cor sugerida, falta regular</li>
-            <li><span className={`${styles.legendIcon} ${styles.legendPin}`}><CallMarker priority={CallPriority.URGENTE} pulsing /></span> Esperando a viatura (pulsa)</li>
+            <li><span className={styles.legendPin}><CallMarker priority={CallPriority.URGENTE} provisional /></span> Cor sugerida, falta regular</li>
+            <li><span className={styles.legendPin}><CallMarker priority={CallPriority.URGENTE} pulsing /></span> Esperando a viatura (pulsa)</li>
             <li><span className={styles.legendIcon}><BaseMarker /></span> Base</li>
             {hospitals.length > 0 && <li><span className={styles.legendIcon}><HospitalMarker /></span> Hospital</li>}
             <li><span className={styles.legendIcon}><IncidentMarker type={IncidentType.VIA_BLOQUEADA} effect={IncidentEffect.BLOQUEIO} /></span> Bloqueio (rota desvia)</li>

@@ -5,7 +5,7 @@ import { CallIcon, LocationIcon, LocationOffIcon } from '../ui/icons';
 import { Avatar } from '../ui/Avatar';
 import { formatPhone } from '../utils/documents';
 import { AMBULANCE_STATUS_LABEL, AMBULANCE_TYPE_LABEL, staleLocationText } from '../utils/ambulances';
-import styles from './Fleet.module.css';
+import { styles } from './Fleet.styles';
 
 // Em turno primeiro (disponíveis no topo); sem motorista por último
 function fleetOrder(a: Ambulance): number {
@@ -32,10 +32,10 @@ export default function Fleet({ ambulances, onFocus }: { ambulances: Ambulance[]
           const status = ambulance.driver ? ambulance.status : 'SEM_MOTORISTA';
           const stale = staleLocationText(ambulance, now);
           return (
-            <li key={ambulance.id} className={`${styles.item} ${!ambulance.driver ? styles.itemOff : ''}`}>
+            <li key={ambulance.id} className={ambulance.driver ? styles.item : styles.itemOff}>
               <div className={styles.header}>
                 <span className={styles.code}><AmbulanceTypeIcon type={ambulance.type} /> {ambulance.code} <small>{AMBULANCE_TYPE_LABEL[ambulance.type] ?? ambulance.type}</small></span>
-                <span className={`${styles.pill} ${styles[`pill_${status}`]}`}>
+                <span className={styles[`pill_${status}`]}>
                   {ambulance.driver ? AMBULANCE_STATUS_LABEL[ambulance.status] : 'Fora de serviço'}
                 </span>
               </div>
@@ -60,7 +60,7 @@ export default function Fleet({ ambulances, onFocus }: { ambulances: Ambulance[]
               )}
               {/* Sem motorista, o "Fora de serviço" do selo já diz tudo */}
               {ambulance.driver && (stale ? (
-                <p className={`${styles.meta} ${styles.metaStale}`}><LocationOffIcon /> {stale}</p>
+                <p className={styles.metaStale}><LocationOffIcon /> {stale}</p>
               ) : (
                 <p className={styles.meta}>
                   <LocationIcon /> {ambulance.locationUpdatedAt ? `posição atualizada ${getTimeAgo(ambulance.locationUpdatedAt)}` : 'posição da base (sem GPS ainda)'}

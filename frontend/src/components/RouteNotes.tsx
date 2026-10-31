@@ -2,7 +2,7 @@ import { IncidentEffect, RouteInfo } from '../types';
 import { EFFECT_META, incidentName } from '../map/incidents';
 import { formatDistance } from '../services/api';
 import { DetourIcon, InfoIcon, WarningIcon } from '../ui/icons';
-import styles from './RouteNotes.module.css';
+import { styles } from './RouteNotes.styles';
 
 // O que a rota fez com as ocorrências: desvios, o que ainda está no caminho e avisos do cálculo
 export default function RouteNotes({ route }: { route: RouteInfo }) {

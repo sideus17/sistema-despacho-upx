@@ -28,7 +28,7 @@ import { AmbulanceIcon, BellIcon, BellOffIcon, CallIcon, CheckCircleIcon, Locati
 import { WaitPill } from '../ui/WaitPill';
 import { Select } from '../ui/Select';
 import { SlidingThumb } from '../ui/SlidingThumb';
-import styles from './CallList.module.css';
+import { styles } from './CallList.styles';
 
 interface CallListProps {
   calls: EmergencyCall[];
@@ -166,7 +166,7 @@ export default function CallList({
               aria-pressed={filter === f.key}
               aria-keyshortcuts={String(index + 1)}
               title={`${f.label} (${index + 1})`}
-              className={`${styles.chip} ${filter === f.key ? styles.chipActive : ''}`}
+              className={styles.chip}
               onClick={() => setFilter(f.key)}
             >
               {f.label} <span className={styles.chipCount}>{f.count}</span>
@@ -175,7 +175,7 @@ export default function CallList({
         </div>
         <button
           type="button"
-          className={`${styles.alerts} ${alertsOn ? styles.alertsOn : ''}`}
+          className={styles.alerts}
           aria-pressed={alertsOn}
           onClick={() => setCallAlertsEnabled(!alertsOn)}
           title={alertsOn ? 'Som e notificação ligados para chamado novo, chamado regulado e espera longa' : 'Som e notificação desligados'}
@@ -216,11 +216,9 @@ export default function CallList({
                 <article
                   key={call.id}
                   data-call-id={call.id}
-                  className={[
-                    styles.card,
-                    selectedCallId === call.id ? styles.cardSelected : '',
-                    isFresh(call.id) ? styles.cardFresh : ''
-                  ].join(' ')}
+                  className={styles.card}
+                  data-selected={selectedCallId === call.id || undefined}
+                  data-fresh={isFresh(call.id) || undefined}
                   style={riskVars(call.priority)}
                   onClick={() => onFocus(call)}
                 >
@@ -231,7 +229,7 @@ export default function CallList({
                     </span>
                     {stage && stageMeta ? (
                       // Em atendimento: etapa marcada pelo GPS da viatura e há quanto tempo
-                      <span className={`${styles.stage} ${gpsStale ? styles.stageTall : ''}`}>
+                      <span className={styles.stage} data-tall={gpsStale ? true : undefined}>
                         {stageMeta.label}{stage.stage === 'TRANSPORTANDO' && hospital ? ` → ${hospital.shortName}` : ''} · {elapsedLabel(stage.since, now)}
                         {/* A etapa vem do GPS: parado, ela pode estar velha (numa linha própria, para caber no cartão) */}
                         {gpsStale && <em className={styles.gpsStale}><span className={styles.srOnly}> · </span>{gpsStale}</em>}
@@ -257,7 +255,7 @@ export default function CallList({
                     </button>
                   </p>
                   {ack && (
-                    <p className={`${styles.crewAck} ${!ack.seen && ack.late ? styles.crewAckLate : ''}`}>
+                    <p className={styles.crewAck} data-late={(!ack.seen && ack.late) || undefined}>
                       {ack.seen
                         ? `Equipe ciente às ${formatClock(ack.at)}`
                         : ack.late
@@ -311,7 +309,7 @@ export default function CallList({
 
                     {isActive && (
                       <>
-                        <span className={`${styles.ambulanceBadge} ${assignedAmbulance && staleLocationText(assignedAmbulance, now) ? styles.ambulanceBadgeStale : ''}`}><AmbulanceIcon /> {assignedAmbulance?.code ?? 'Viatura'} em atendimento</span>
+                        <span className={styles.ambulanceBadge} data-stale={gpsStale ? true : undefined}><AmbulanceIcon /> {assignedAmbulance?.code ?? 'Viatura'} em atendimento</span>
                         {isConfirming && needsOutcome(call) ? (
                           <OutcomeChoice
                             busy={finishingId === call.id}
