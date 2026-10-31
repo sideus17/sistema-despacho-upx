@@ -404,6 +404,26 @@
   from { background-color: var(--tint-neutral-bg-strong); }
 }
 
+@keyframes chart-share-grow {
+  from { transform: scaleX(0); }
+}
+
+@keyframes chart-grow-x {
+  from { transform: scaleX(0); }
+}
+
+@keyframes chart-grow-y {
+  from { transform: scaleY(0); }
+}
+
+@keyframes chart-fade {
+  from { opacity: 0; }
+}
+
+@keyframes chart-draw {
+  from { stroke-dashoffset: 1; }
+}
+
 @keyframes marker-pulse {
   from { opacity: 0.55; transform: scale(0.4); }
   to { opacity: 0; transform: scale(1.8); }

@@ -4,10 +4,10 @@ import { BarList, ChartCard, medianOf } from './charts';
 import { Failure } from './Indicators';
 import { formatCount, formatMinutes, plural } from './format';
 import { useLoad } from './useLoad';
-import indicatorStyles from './Indicators.module.css';
-import chartStyles from './charts.module.css';
+import { styles as indicatorStyles } from './Indicators.styles';
+import { styles as chartStyles } from './charts.styles';
 import { Spinner } from '../../ui/Spinner';
-import styles from './People.module.css';
+import { styles } from './People.styles';
 
 // Por pessoa: o que cada atendente registrou, regulou e despachou, e os atendimentos de cada motorista
 
@@ -20,7 +20,7 @@ export default function People({ scope }: { scope: ManagementScope }) {
 
   const empty = data.attendants.length === 0 && data.drivers.length === 0;
   return (
-    <div className={`${indicatorStyles.indicators} ${loading ? indicatorStyles.refreshing : ''}`} aria-busy={loading}>
+    <div className={indicatorStyles.indicators} aria-busy={loading}>
       {error && <Failure message={error} onRetry={retry} />}
       {(data.unattributed > 0 || data.truncated) && (
         <div className={indicatorStyles.notice} role="note">

@@ -14,7 +14,7 @@ import { useTheme } from '../../theme/theme';
 import { PRIORITIES_BY_SEVERITY, PRIORITY_META } from '../../utils/calls';
 import { PRIORITY_CHART_COLOR, formatCount, plural } from './format';
 import { useLoad } from './useLoad';
-import styles from './HeatMap.module.css';
+import { styles } from './HeatMap.styles';
 
 // Sorocaba
 const INITIAL_VIEW = { longitude: -47.4526, latitude: -23.4815, zoom: 11.5 };
@@ -82,7 +82,7 @@ export default function HeatMap({ scope, hospitals, bases }: { scope: Management
         <div className="map-loading" />
       )}
 
-      <section className={`${styles.panel} ${loading ? styles.refreshing : ''}`} aria-label="Mapa de calor" aria-busy={loading}>
+      <section className={styles.panel} aria-label="Mapa de calor" aria-busy={loading}>
         <strong className={styles.count}>{data ? `${plural(shown, 'chamado', 'chamados')} no mapa` : 'Carregando…'}</strong>
         <div className={styles.filters} role="group" aria-label="Cores no mapa">
           {PRIORITIES_BY_SEVERITY.map(priority => (
