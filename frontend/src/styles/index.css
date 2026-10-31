@@ -424,6 +424,19 @@
   from { stroke-dashoffset: 1; }
 }
 
+@keyframes sheet-in {
+  from { opacity: 0; transform: translateY(16px); }
+}
+
+@keyframes band-in {
+  from { opacity: 0; }
+}
+
+@keyframes still-there-countdown {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}
+
 @keyframes marker-pulse {
   from { opacity: 0.55; transform: scale(0.4); }
   to { opacity: 0; transform: scale(1.8); }

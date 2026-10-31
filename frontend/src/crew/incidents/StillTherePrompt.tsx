@@ -3,7 +3,7 @@ import { Incident, IncidentType } from '../../types';
 import { sourceLabel } from '../../map/incidents';
 import { IncidentIcon } from '../../ui/IncidentIcon';
 import { CheckIcon, CloseIcon } from '../../ui/icons';
-import styles from './StillTherePrompt.module.css';
+import { styles } from './StillTherePrompt.styles';
 
 export const PROMPT_TIMEOUT_MS = 10000;
 

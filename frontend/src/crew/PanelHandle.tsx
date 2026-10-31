@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import styles from './PanelHandle.module.css';
+import { styles } from './PanelHandle.styles';
 
 const KEY = 'samu:painel-recolhido';
 // Arraste mínimo (px) para contar como "descer" ou "subir" o painel, e não como toque

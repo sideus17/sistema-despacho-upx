@@ -45,7 +45,7 @@ import ReportSheet from '../incidents/ReportSheet';
 import StillTherePrompt from '../incidents/StillTherePrompt';
 import { useIncidentAlerts } from '../incidents/useIncidentAlerts';
 import { formatNavDistance as formatAlertDistance } from './instructions';
-import styles from './NavigationView.module.css';
+import { styles } from './NavigationView.styles';
 
 const REROUTE_INTERVAL_MS = 15000;
 // Bloqueio novo à frente: recalcula logo (o intervalo só evita repetir enquanto a rota nova chega)
@@ -443,7 +443,7 @@ export default function NavigationView({
 
       {/* Instrução e, logo abaixo, avisos (empilhados: a instrução pode ter duas linhas) */}
       <div className={styles.top}>
-        <header className={`${styles.banner} ${rerouting ? styles.bannerWarning : ''}`} aria-live="polite">
+        <header className={styles.banner} data-warning={rerouting || undefined} aria-live="polite">
           {rerouting ? (
             <p className={styles.bannerText}>Recalculando rota…</p>
           ) : arrived ? (
@@ -462,7 +462,7 @@ export default function NavigationView({
           ) : null}
         </header>
 
-        {destinationNotice && <p className={`${styles.notice} ${styles.noticeStrong}`} role="status">{destinationNotice}</p>}
+        {destinationNotice && <p className={styles.noticeStrong} role="status">{destinationNotice}</p>}
 
         {!simulate && real.error ? (
           <p className={styles.notice}>{real.error}</p>
@@ -504,7 +504,8 @@ export default function NavigationView({
           )}
           {speedKmh !== null && (
             <span
-              className={`${styles.speedometer} ${overLimit(speedKmh, speedLimit) ? styles.speeding : ''}`}
+              className={styles.speedometer}
+              data-speeding={overLimit(speedKmh, speedLimit) || undefined}
               role="img"
               aria-label={`Velocidade: ${speedKmh} km/h`}
             >
@@ -528,7 +529,7 @@ export default function NavigationView({
         <button className={styles.recenter} onClick={recenter}><MyLocationIcon /> Recentralizar</button>
       )}
 
-      <footer ref={panelRef} className={`${styles.panel} ${collapsed ? styles.collapsed : ''}`}>
+      <footer ref={panelRef} className={styles.panel} data-nav-collapsed={collapsed || undefined}>
         {!arrived && <PanelHandle collapsed={collapsed} onChange={setPanelCollapsed} label="painel da navegação" />}
         {/* Para onde vai: o motorista confere o endereço e a referência na chegada, sem sair da navegação */}
         <p className={styles.destination} style={riskVars(priority)}>

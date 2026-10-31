@@ -4,7 +4,7 @@ import { getErrorMessage, setCallHospital } from '../services/api';
 import { useToast } from '../components/Toast';
 import { HOSPITAL_KIND_LABEL, formatKm, hospitalsByDistance } from '../utils/hospitals';
 import { useFocusTrap, useRestoreFocus } from '../ui/useFocusTrap';
-import styles from './HospitalSheet.module.css';
+import { styles } from './HospitalSheet.styles';
 
 interface HospitalSheetProps {
   callId: string;
@@ -54,7 +54,7 @@ export default function HospitalSheet({ callId, hospitals, current, from, onClos
           {hospitalsByDistance(hospitals, from).map(({ hospital, meters }) => (
             <li key={hospital.id}>
               <button
-                className={`${styles.option} ${hospital.id === current ? styles.current : ''}`}
+                className={styles.option}
                 aria-pressed={hospital.id === current}
                 disabled={!!saving}
                 onClick={() => choose(hospital)}

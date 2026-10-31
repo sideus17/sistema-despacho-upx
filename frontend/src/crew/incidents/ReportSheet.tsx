@@ -6,7 +6,7 @@ import { incidentTypeLabel } from '../../map/incidents';
 import { IncidentIcon } from '../../ui/IncidentIcon';
 import { ReportOutcome, submitReport } from './reportQueue';
 import { useFocusTrap, useRestoreFocus } from '../../ui/useFocusTrap';
-import styles from './ReportSheet.module.css';
+import { styles } from './ReportSheet.styles';
 
 // Como no Waze: o que bloqueia ou atrasa primeiro, depois o que só pede atenção
 const REPORT_TYPES = [
