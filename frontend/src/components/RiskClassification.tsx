@@ -2,7 +2,7 @@ import { KeyboardEvent, ReactNode, useRef } from 'react';
 import { CallPriority } from '../types';
 import { PRIORITIES_BY_SEVERITY, PRIORITY_META, riskVars } from '../utils/calls';
 import { TRIAGE_SIGNALS } from '../utils/triage';
-import styles from './RiskClassification.module.css';
+import { styles } from './RiskClassification.styles';
 
 interface RiskClassificationProps {
   signals: string[];
@@ -83,7 +83,7 @@ export default function RiskClassification({
                   {signal.label}
                 </button>
               ) : (
-                <span key={signal.code} className={`${styles.chip} ${styles.chipMarked}`}>{signal.label}</span>
+                <span key={signal.code} className={styles.chipMarked}>{signal.label}</span>
               )
             )}
           </div>

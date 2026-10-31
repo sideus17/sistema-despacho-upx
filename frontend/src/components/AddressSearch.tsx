@@ -3,7 +3,7 @@ import { Coordinates, FillSuggestion } from '../types';
 import { searchPlaces } from '../services/api';
 import { normalizeText } from '../utils/routes';
 import { CloseIcon, LocationIcon, PinDropIcon } from '../ui/icons';
-import styles from './AddressSearch.module.css';
+import { styles } from './AddressSearch.styles';
 
 export type PlaceKind = 'endereco' | 'mapa';
 
@@ -216,7 +216,7 @@ export default function AddressSearch({
                 id={option.id}
                 role="option"
                 aria-selected={index === active}
-                className={`${styles.option} ${index === active ? styles.active : ''}`}
+                className={styles.option}
                 // Sem isso o campo perde o foco (e fecha a lista) antes do clique valer
                 onMouseDown={event => event.preventDefault()}
                 onClick={() => choose(option)}

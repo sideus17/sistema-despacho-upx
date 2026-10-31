@@ -3,7 +3,7 @@ import { PRIORITY_META } from '../utils/calls';
 import { AmbulanceMarkerIcon, HospitalIcon, LocationOffIcon } from '../ui/icons';
 import { IncidentIcon } from '../ui/IncidentIcon';
 import { effectVars } from './incidents';
-import styles from './Markers.module.css';
+import { styles } from './Markers.styles';
 
 // Viatura pela forma, não pela cor (a cor forte fica para a classificação dos chamados): livre com
 // contorno, em atendimento preenchida, indisponível tracejada e sem motorista apagada
@@ -17,7 +17,7 @@ const AMBULANCE_CLASS: Record<AmbulanceStatus, string> = {
 export function AmbulanceMarker({ status, hasDriver = true, stale = false }: { status: AmbulanceStatus; hasDriver?: boolean; stale?: boolean }) {
   const shape = hasDriver ? AMBULANCE_CLASS[status] ?? styles.ambulanceOff : styles.ambulanceOff;
   return (
-    <div className={`${styles.ambulance} ${shape}`}>
+    <div className={shape}>
       <AmbulanceMarkerIcon />
       {stale && <span className={styles.staleBadge}><LocationOffIcon /></span>}
     </div>
@@ -38,7 +38,7 @@ export function CallMarker({ priority, selected = false, pulsing = false, provis
   // O ícone da cor no pino: quem não distingue as cores ainda diferencia os chamados
   const Icon = meta.icon;
   return (
-    <div className={`${styles.call} ${selected ? styles.callSelected : ''}`}>
+    <div className={selected ? styles.callSelected : styles.call}>
       {pulsing && <span className={styles.pulse} style={{ background: meta.color }} />}
       <svg className={styles.callPin} viewBox="0 0 36 46" aria-hidden="true">
         <path
@@ -66,7 +66,7 @@ export function BaseMarker() {
 // Hospital: "H" no quadrado, como a placa (a base usa o prédio com a cruz)
 export function HospitalMarker({ kind }: { kind?: Hospital['kind'] }) {
   return (
-    <div className={`${styles.hospital} ${kind === 'PRONTO_SOCORRO' ? styles.hospitalSmall : ''}`} aria-hidden="true">
+    <div className={kind === 'PRONTO_SOCORRO' ? styles.hospitalSmall : styles.hospital} aria-hidden="true">
       H
     </div>
   );
@@ -75,7 +75,7 @@ export function HospitalMarker({ kind }: { kind?: Hospital['kind'] }) {
 export function IncidentMarker({ type, effect }: { type: IncidentType; effect: IncidentEffect }) {
   return (
     <div
-      className={`${styles.incident} ${effect === IncidentEffect.BLOQUEIO ? styles.incidentBlock : ''}`}
+      className={effect === IncidentEffect.BLOQUEIO ? styles.incidentBlock : styles.incident}
       style={effectVars(effect)}
     >
       <IncidentIcon type={type} />

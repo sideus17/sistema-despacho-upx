@@ -13,7 +13,7 @@ import { BackIcon, DistanceIcon, LocationIcon, StarIcon, TimerIcon } from '../ui
 import { Avatar } from '../ui/Avatar';
 import { Spinner } from '../ui/Spinner';
 import { pressCtrlEnterAction } from '../ui/ctrlEnter';
-import styles from './DispatchAnalysis.module.css';
+import { styles } from './DispatchAnalysis.styles';
 
 interface DispatchAnalysisProps {
   call: EmergencyCall | null;
@@ -135,11 +135,9 @@ export default function DispatchAnalysis({
               return (
                 <article
                   key={rec.ambulanceId}
-                  className={[
-                    styles.option,
-                    isBest ? styles.optionBest : '',
-                    isSelected ? styles.optionSelected : ''
-                  ].join(' ')}
+                  className={styles.option}
+                  data-best={isBest || undefined}
+                  data-selected={isSelected || undefined}
                   onClick={() => onSelectRoute(index)}
                 >
                   {isBest && <span className={styles.bestBadge}><StarIcon /> Recomendada</span>}

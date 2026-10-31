@@ -273,245 +273,6 @@
   }
 }
 
-/* App Layout */
-.app {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  height: 100dvh;
-  overflow: hidden;
-}
-
-/* Header: barra fina com o nome e a conta */
-.header {
-  flex-shrink: 0;
-  background: var(--color-header);
-  color: white;
-  padding: 0 8px 0 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  z-index: 100;
-}
-
-.header-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-  height: 56px;
-}
-
-.header-brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 18px;
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-.header-logo {
-  width: 32px;
-  height: 32px;
-  flex-shrink: 0;
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
-}
-
-/* Botão Gestão ↔ Operação e a conta */
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  min-width: 0;
-}
-
-.header-view {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 40px;
-  padding: 0 14px;
-  border: 1px solid rgba(255, 255, 255, 0.45);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.12);
-  color: white;
-  font-size: 14px;
-  font-weight: 700;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.header-view .icon {
-  font-size: 20px;
-}
-
-.header-view:focus-visible {
-  outline: 2px solid white;
-  outline-offset: 2px;
-}
-
-@media (hover: hover) {
-  .header-view:hover {
-    background: rgba(255, 255, 255, 0.24);
-  }
-}
-
-/* Chamados esperando despacho enquanto a central está na gestão */
-.header-view-badge {
-  display: inline-grid;
-  min-width: 20px;
-  height: 20px;
-  place-items: center;
-  padding: 0 6px;
-  border-radius: 999px;
-  background: white;
-  color: #111827;
-  font-size: 12px;
-  font-weight: var(--weight-bold);
-}
-
-.header-view-short {
-  display: none;
-}
-
-@media (max-width: 380px) {
-  .header-brand-name {
-    display: none;
-  }
-}
-
-@media (max-width: 480px) {
-  .header-view-long {
-    display: none;
-  }
-
-  .header-view-short {
-    display: inline;
-  }
-}
-
-/* Connection banner */
-.connection-banner {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 8px 12px;
-  padding: 8px 16px;
-  font-size: 13px;
-  font-weight: 600;
-  text-align: center;
-}
-
-.connection-banner.connecting {
-  background-color: var(--tint-neutral-bg-strong);
-  color: var(--tint-neutral-text);
-}
-
-.connection-banner.error {
-  background-color: var(--tint-error-bg-strong);
-  color: var(--tint-error-text);
-}
-
-.connection-banner button {
-  min-height: 32px;
-  padding: 0 12px;
-  border: 1px solid currentColor;
-  border-radius: 6px;
-  background: var(--color-surface);
-  color: inherit;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-/* Main Content */
-.main-content {
-  display: flex;
-  flex: 1;
-  overflow: hidden;
-}
-
-/* Na gestão a operação continua montada (mapa, formulário e alertas), só escondida */
-.main-content[hidden] {
-  display: none;
-}
-
-/* Map Container */
-.map-container {
-  flex: 1;
-  position: relative;
-  background-color: var(--color-map-loading);
-}
-
-/* Sidebar */
-.sidebar {
-  width: 400px;
-  background-color: var(--color-surface);
-  display: flex;
-  flex-direction: column;
-  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
-  z-index: 10;
-}
-
-/* Tabs */
-.tabs {
-  display: flex;
-  border-bottom: 1px solid var(--color-border);
-  background-color: var(--color-surface-muted);
-}
-
-.tab {
-  position: relative;
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  padding: 8px 4px;
-  background: none;
-  border: none;
-  border-bottom: 3px solid transparent;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--color-text-muted);
-  transition: color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
-}
-
-.tab:focus-visible {
-  outline-offset: -2px;
-}
-
-/* Chamado em preenchimento no "Novo" enquanto o atendente está em outra aba */
-.tab-dot {
-  position: absolute;
-  top: 6px;
-  right: calc(50% - 18px);
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--color-text);
-}
-
-.tab .icon {
-  font-size: 20px;
-  vertical-align: 0;
-}
-
-@media (hover: hover) {
-  .tab:hover {
-    background-color: var(--color-surface-hover);
-    color: var(--color-text);
-  }
-}
-
-.tab.active {
-  color: var(--color-primary-text);
-  font-weight: var(--weight-bold);
-  background-color: var(--color-surface);
-}
-
 /* Indicador que desliza até a opção escolhida (abas, filtros, períodos, tema): o mesmo movimento na
    plataforma toda. O grupo leva .slide-group e um <SlidingThumb />; o escolhido perde o fundo próprio */
 .slide-group {
@@ -553,32 +314,6 @@
   .slide-thumb {
     transition: none;
   }
-}
-
-/* Tab Content */
-.tab-content {
-  flex: 1;
-  overflow-y: auto;
-  /* O foco do teclado não para embaixo da barra fixa do Novo chamado */
-  scroll-padding-bottom: 96px;
-  background-color: var(--color-surface-muted);
-}
-
-.tab-content::-webkit-scrollbar {
-  width: 8px;
-}
-
-.tab-content::-webkit-scrollbar-track {
-  background: var(--color-surface-muted);
-}
-
-.tab-content::-webkit-scrollbar-thumb {
-  background: var(--color-border-strong);
-  border-radius: 4px;
-}
-
-.tab-content::-webkit-scrollbar-thumb:hover {
-  background: var(--color-text-muted);
 }
 
 /* Popups do MapLibre (prefixo .maplibregl-map: o CSS do MapLibre carrega depois deste) */
@@ -655,33 +390,23 @@
   background: var(--color-map-loading);
 }
 
-/* Responsive Design */
-@media (max-width: 1024px) {
-  .sidebar {
-    width: 350px;
-  }
+/* Animações usadas por classes [animation:...] nos .styles.ts */
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-@media (max-width: 768px) {
-  .main-content {
-    flex-direction: column;
-  }
-
-  .sidebar {
-    width: 100%;
-    height: 50%;
-  }
-
-  .map-container {
-    height: 50%;
-  }
+@keyframes card-focus {
+  40% { transform: scale(1.012); box-shadow: 0 8px 18px rgba(0, 0, 0, 0.14); }
 }
 
-@media (max-width: 480px) {
-  .tab {
-    padding: 10px 8px;
-    font-size: 12px;
-  }
+@keyframes card-fresh {
+  from { background-color: var(--tint-neutral-bg-strong); }
+}
+
+@keyframes marker-pulse {
+  from { opacity: 0.55; transform: scale(0.4); }
+  to { opacity: 0; transform: scale(1.8); }
 }
 
 /* Loading State */

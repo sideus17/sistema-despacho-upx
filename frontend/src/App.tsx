@@ -41,6 +41,7 @@ import { AddIcon, AmbulanceIcon, BackIcon, CallIcon, ManagementIcon, WarningIcon
 import { AccountMenu } from './components/AccountMenu';
 import { Spinner } from './ui/Spinner';
 import { SlidingThumb } from './ui/SlidingThumb';
+import { styles } from './App.styles';
 
 // O mapa (MapLibre) é o maior pacote do app: carrega à parte, sem atrasar a primeira tela
 const Map = lazy(() => import('./components/Map'));
@@ -370,30 +371,30 @@ function App() {
   };
 
   return (
-    <div className="app">
+    <div className={styles.app}>
       {/* Header */}
-      <header className="header">
-        <div className="header-content">
-          <h1 className="header-brand">
-            <img src="/ambulance.svg" alt="" className="header-logo" /> <span className="header-brand-name">SAMU Despacho</span>
+      <header className={styles.header}>
+        <div className={styles.headerContent}>
+          <h1 className={styles.headerBrand}>
+            <img src="/ambulance.svg" alt="" className={styles.headerLogo} /> <span className={styles.headerBrandName}>SAMU Despacho</span>
           </h1>
-          <div className="header-actions">
+          <div className={styles.headerActions}>
             {view === 'operacao' ? (
-              <button type="button" className="header-view" onClick={() => setView('gestao')}>
+              <button type="button" className={styles.headerView} onClick={() => setView('gestao')}>
                 <ManagementIcon /> Gestão
               </button>
             ) : (
               <button
                 type="button"
-                className="header-view"
+                className={styles.headerView}
                 aria-label={waitingTotal ? `Voltar à operação (${waitingTotal} aguardando regulação ou despacho)` : 'Voltar à operação'}
                 onClick={() => setView('operacao')}
               >
-                <BackIcon /> <span className="header-view-long">Voltar à operação</span>
-                <span className="header-view-short">Operação</span>
+                <BackIcon /> <span className={styles.headerViewLong}>Voltar à operação</span>
+                <span className={styles.headerViewShort}>Operação</span>
                 {!!waitingTotal && (
                   <span
-                    className="header-view-badge"
+                    className={styles.headerViewBadge}
                     title={`${stats?.awaitingRegulation ?? 0} aguardando regulação · ${stats?.pendingCalls ?? 0} aguardando despacho`}
                   >
                     {waitingTotal}
@@ -407,7 +408,7 @@ function App() {
       </header>
 
       {connection !== 'online' && (
-        <div className={`connection-banner ${connection}`} role="status">
+        <div className={styles.connectionBanner} data-connection={connection} role="status">
           {connection === 'connecting' ? (
             <span>Conectando ao servidor… pode levar até 1 minuto.</span>
           ) : (
@@ -428,9 +429,9 @@ function App() {
       )}
 
       {/* Main Content */}
-      <div className="main-content" hidden={view === 'gestao'}>
+      <div className={styles.mainContent} hidden={view === 'gestao'}>
         {/* Map */}
-        <div className="map-container">
+        <div className={styles.mapContainer}>
           <Suspense fallback={<div className="map-loading" />}>
             <Map
               ambulances={ambulances}
@@ -450,9 +451,9 @@ function App() {
         </div>
 
         {/* Sidebar */}
-        <div className="sidebar">
+        <div className={styles.sidebar}>
           {/* Abas: regulação e análise de despacho são passos de um chamado, sem aba própria */}
-          <div className="tabs slide-group" role="tablist" aria-label="Painéis da central">
+          <div className={styles.tabs} role="tablist" aria-label="Painéis da central">
             <SlidingThumb variant="line" watch={['regulation', 'analysis'].includes(activeTab) ? 'calls' : activeTab} />
             {([
               ['calls', <CallIcon />, 'Chamados', 'C'],
@@ -472,11 +473,11 @@ function App() {
                   aria-controls="painel-central"
                   title={`${tab === 'new-call' ? 'Novo chamado' : label} (${shortcut})`}
                   aria-keyshortcuts={shortcut}
-                  className={`tab ${selected ? 'active' : ''}`}
+                  className={styles.tab}
                   onClick={() => setActiveTab(tab)}
                 >
                   {icon} {label}
-                  {tab === 'new-call' && draftDirty && !selected && <span className="tab-dot" title="Chamado em preenchimento" aria-label="(em preenchimento)" />}
+                  {tab === 'new-call' && draftDirty && !selected && <span className={styles.tabDot} title="Chamado em preenchimento" aria-label="(em preenchimento)" />}
                 </button>
               );
             })}
@@ -484,7 +485,7 @@ function App() {
 
           {/* Tab Content */}
           <div
-            className="tab-content"
+            className={styles.tabContent}
             id="painel-central"
             role="tabpanel"
             aria-labelledby={`aba-${['regulation', 'analysis'].includes(activeTab) ? 'calls' : activeTab}`}

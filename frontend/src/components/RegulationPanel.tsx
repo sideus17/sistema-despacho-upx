@@ -12,7 +12,7 @@ import { WaitPill } from '../ui/WaitPill';
 import { Select } from '../ui/Select';
 import RiskClassification from './RiskClassification';
 import { useToast } from './Toast';
-import styles from './RegulationPanel.module.css';
+import { styles } from './RegulationPanel.styles';
 
 interface RegulationPanelProps {
   // O chamado como está agora (a lista atualiza a cada 10 s); null: saiu das filas

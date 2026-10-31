@@ -4,7 +4,7 @@ import { getOfficialStatus, getTimeAgo } from '../services/api';
 import { EFFECT_META, effectVars, expiryLabel, incidentTypeLabel, sortIncidents, sourceLabel } from '../map/incidents';
 import { IncidentIcon } from '../ui/IncidentIcon';
 import { CheckCircleIcon, LocationIcon, OfficialAlertIcon } from '../ui/icons';
-import styles from './Incidents.module.css';
+import { styles } from './Incidents.styles';
 
 const formatRadius = (meters: number) => (meters >= 1000 ? `${meters / 1000} km` : `${meters} m`);
 const OFFICIAL_STATUS_INTERVAL = 60_000;
