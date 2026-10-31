@@ -6,7 +6,7 @@ export const styles = {
   empty: 'p-5 text-center text-[15px] text-text-muted',
   // Alerta oficial para a cidade toda
   official:
-    'flex gap-2.5 rounded-app border border-tint-neutral-border bg-tint-neutral px-3.5 py-3 text-[13px] leading-[1.45] text-tint-neutral-text [&>.icon]:text-[22px] [&_p]:mt-0.5',
+    'flex gap-2.5 rounded-app border border-tint-neutral-border bg-tint-neutral px-3.5 py-3 text-[13px] leading-[1.45] text-tint-neutral-text [&_p]:mt-0.5',
   // Só aparece dentro de .actions, que encolhe altura e fonte dos filhos
   secondary:
     'inline-flex min-h-[38px] flex-[1_1_auto] cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-border bg-surface px-3.5 py-0 text-[13px] font-bold text-text hover:bg-surface-muted',
@@ -16,7 +16,7 @@ export const styles = {
   item: 'rounded-app border border-border bg-surface px-3.5 py-3',
   itemHeader: 'flex items-center gap-2.5',
   itemIcon:
-    'grid size-9 shrink-0 place-items-center rounded-[50%] [border:2px_var(--effect-line)_var(--effect-edge)] bg-(color:--effect-bg) text-[20px] text-(color:--effect-fg) [&_.icon]:align-[0]',
+    'grid size-9 shrink-0 place-items-center rounded-[50%] [border:2px_var(--effect-line)_var(--effect-edge)] bg-(color:--effect-bg) text-[20px] text-(color:--effect-fg)',
   itemTitle:
     'min-w-0 flex-1 [&_h3]:text-[15px] [&_h3]:font-bold [&_p]:text-[12px] [&_p]:text-text-muted',
   effect:

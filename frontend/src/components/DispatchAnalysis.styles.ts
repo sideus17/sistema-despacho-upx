@@ -41,7 +41,7 @@ export const styles = {
   code: 'text-[16px] font-bold',
   meta: 'text-[12px] text-text-muted',
   typeIcon:
-    'grid size-10 shrink-0 place-items-center rounded-[10px] bg-tint-neutral text-[20px] text-primary-text [&_.icon]:align-[0]',
+    'grid size-10 shrink-0 place-items-center rounded-[10px] bg-tint-neutral text-[20px] text-primary-text',
   driver: 'mt-1 flex items-center gap-1.5 font-medium text-text',
   route:
     'mb-3 flex flex-wrap gap-x-3.5 gap-y-1.5 rounded-lg border border-tint-neutral-border bg-tint-neutral p-2.5 text-[13px] text-tint-neutral-text',
