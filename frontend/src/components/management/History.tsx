@@ -160,6 +160,11 @@ export default function History({ scope, ambulances, hospitals }: { scope: Manag
       )}
 
       <div className={`${styles.results} ${loading && data ? styles.refreshing : ''}`} aria-busy={loading}>
+        {!data && !error && (
+          <div className={styles.skeleton} role="status" aria-label="Carregando">
+            {Array.from({ length: 6 }, (_, index) => <div key={index} className={styles.skeletonRow} />)}
+          </div>
+        )}
         {data && data.items.length === 0 && !loading && (
           <p className={styles.empty}>{active || search ? 'Nenhum chamado com esses filtros.' : 'Nenhum chamado neste período.'}</p>
         )}

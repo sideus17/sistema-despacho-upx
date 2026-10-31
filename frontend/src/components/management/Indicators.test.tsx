@@ -70,11 +70,45 @@ describe('indicadores', () => {
     expect(within(table).getByRole('row', { name: /18h às 19h 11/ })).toBeInTheDocument();
   });
 
-  it('coluna com a dica ao focar pelo teclado; o maior valor fica escrito', async () => {
+  it('gráfico numa parada de Tab: as setas percorrem as colunas e o valor é lido; o maior fica escrito', async () => {
+    const user = userEvent.setup();
     render(<Indicators scope={SCOPE} ambulances={AMBULANCES} hospitals={HOSPITALS} />);
     const card = await screen.findByRole('region', { name: 'Chamados por hora do dia' });
     expect(within(card).getByRole('img', { name: 'Chamados por hora do dia' })).toHaveTextContent('11');
-    expect(within(card).getByLabelText('18h às 19h: 11 chamados')).toBeInTheDocument();
+    const chart = within(card).getByRole('group', { name: /Chamados por hora do dia\. Setas/ });
+    const live = chart.querySelector('[aria-live]')!;
+
+    chart.focus();
+    await user.keyboard('{End}');
+    expect(live).toHaveTextContent('23h às 0h: 3 chamados');
+    expect(chart.querySelector('line[class*="dasharray:3_3"]')).not.toBeNull(); // linha vertical no ponto
+    await user.keyboard('{ArrowLeft}{ArrowLeft}{ArrowLeft}{ArrowLeft}{ArrowLeft}');
+    expect(live).toHaveTextContent('18h às 19h: 11 chamados');
+    await user.keyboard('{Home}{ArrowLeft}');
+    expect(live).toHaveTextContent('0h às 1h: 3 chamados'); // para na ponta
+
+    await user.tab();
+    expect(live).toBeEmptyDOMElement();
+  });
+
+  it('minigráfico da tendência nos cartões com 2 dias ou mais; com 1 dia não há', async () => {
+    const { unmount } = render(<Indicators scope={SCOPE} ambulances={AMBULANCES} hospitals={HOSPITALS} />);
+    for (const name of ['Chamados', 'Tempo-resposta (mediana)', 'Dentro da meta', 'Espera na fila (mediana)']) {
+      expect((await screen.findByRole('group', { name })).querySelector('svg')).not.toBeNull();
+    }
+    unmount();
+
+    const base = indicators();
+    vi.mocked(getIndicators).mockResolvedValue(indicators({ byDay: base.byDay.slice(0, 1) }));
+    render(<Indicators scope={SCOPE} ambulances={AMBULANCES} hospitals={HOSPITALS} />);
+    expect((await screen.findByRole('group', { name: 'Chamados' })).querySelector('svg')).toBeNull();
+  });
+
+  it('primeira carga com o esqueleto da página', async () => {
+    render(<Indicators scope={SCOPE} ambulances={AMBULANCES} hospitals={HOSPITALS} />);
+    expect(screen.getByRole('status', { name: 'Carregando' })).toBeInTheDocument();
+    expect(await screen.findByRole('group', { name: 'Chamados' })).toBeInTheDocument();
+    expect(screen.queryByRole('status', { name: 'Carregando' })).not.toBeInTheDocument();
   });
 
   it('período sem chamados sugere incluir a demonstração', async () => {

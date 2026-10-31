@@ -1,4 +1,4 @@
-import { CSSProperties, ReactNode, RefObject, useLayoutEffect, useRef, useState } from 'react';
+import { CSSProperties, KeyboardEvent, PointerEvent, ReactNode, RefObject, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { formatCount, formatMinutes, niceMax } from './format';
 import { styles } from './charts.styles';
 
@@ -24,6 +24,53 @@ function useElementWidth<T extends HTMLElement>(fallback: number): [RefObject<T>
     return () => observer.disconnect();
   }, []);
   return [ref, width || fallback];
+}
+
+/**
+ * Ponto ativo de um gráfico de colunas ou de linha: o mouse e o dedo percorrem pela posição x (a faixa
+ * inteira é a área), o teclado anda com as setas numa parada de Tab só. No toque a dica fica depois de
+ * soltar e some no próximo toque fora do gráfico.
+ */
+function useChartCursor(container: RefObject<HTMLDivElement>, count: number, indexAt: (x: number) => number) {
+  const [active, setActive] = useState<number | null>(null);
+  const clamp = (index: number) => Math.min(count - 1, Math.max(0, index));
+
+  useEffect(() => {
+    if (active === null) return;
+    const away = (event: globalThis.PointerEvent) => {
+      if (!container.current?.contains(event.target as Node)) setActive(null);
+    };
+    document.addEventListener('pointerdown', away);
+    return () => document.removeEventListener('pointerdown', away);
+  }, [active, container]);
+
+  const pick = (event: PointerEvent<SVGSVGElement>) => {
+    if (count > 0) setActive(clamp(indexAt(event.clientX - event.currentTarget.getBoundingClientRect().left)));
+  };
+  const svgProps = {
+    onPointerMove: pick,
+    onPointerDown: pick,
+    onPointerLeave: (event: PointerEvent<SVGSVGElement>) => {
+      if (event.pointerType === 'mouse') setActive(null);
+    },
+    style: { touchAction: 'pan-y' }
+  };
+  const keyProps = {
+    tabIndex: 0,
+    onKeyDown: (event: KeyboardEvent) => {
+      const moves: Record<string, number> = { ArrowRight: (active ?? -1) + 1, ArrowLeft: (active ?? count) - 1, Home: 0, End: count - 1 };
+      if (!(event.key in moves) || count === 0) return;
+      event.preventDefault();
+      setActive(clamp(moves[event.key]));
+    },
+    onBlur: () => setActive(null)
+  };
+  return { active, svgProps, keyProps };
+}
+
+// Texto da dica também para o leitor de tela, enquanto percorre o gráfico
+function CursorAnnouncement({ point }: { point: Column | null }) {
+  return <span className="sr-only" aria-live="polite">{point ? `${point.labelText}: ${point.valueText}` : ''}</span>;
 }
 
 export interface TableData {
@@ -75,13 +122,41 @@ function TableView({ head, rows }: TableData) {
   );
 }
 
-export function StatTile({ label, value, detail }: { label: string; value: string; detail?: ReactNode }) {
+// Número em destaque; com `trend` (um valor por dia, nulo sem dado), a tendência do período numa linha
+// pequena ao lado do título. O número entra de novo, de leve, quando muda (troca de período)
+export function StatTile({ label, value, detail, trend }: { label: string; value: string; detail?: ReactNode; trend?: Array<number | null> }) {
   return (
     <div className={styles.tile} role="group" aria-label={label}>
-      <span className={styles.tileLabel} aria-hidden="true">{label}</span>
-      <strong className={styles.tileValue}>{value}</strong>
+      <span className={styles.tileTop}>
+        <span className={styles.tileLabel} aria-hidden="true">{label}</span>
+        {trend && <Sparkline values={trend} />}
+      </span>
+      <strong key={value} className={styles.tileValue}>{value}</strong>
       {detail && <span className={styles.tileDetail}>{detail}</span>}
     </div>
+  );
+}
+
+const SPARK = { width: 72, height: 24, pad: 2 };
+
+// Linha da tendência: escala do menor ao maior valor do período; dia sem dado interrompe a linha.
+// Com menos de 2 dias com dado não há tendência para mostrar
+export function Sparkline({ values }: { values: Array<number | null> }) {
+  const known = values.filter((value): value is number => value !== null);
+  if (known.length < 2) return null;
+  const min = Math.min(...known);
+  const span = Math.max(...known) - min;
+  const x = (index: number) => SPARK.pad + (index / Math.max(1, values.length - 1)) * (SPARK.width - SPARK.pad * 2);
+  const y = (value: number) => (span === 0 ? SPARK.height / 2 : SPARK.pad + (1 - (value - min) / span) * (SPARK.height - SPARK.pad * 2));
+  const path = values
+    .map((value, index) => (value === null ? '' : `${index === 0 || values[index - 1] === null ? 'M' : 'L'}${x(index)},${y(value)}`))
+    .join('');
+  const last = values.length - 1 - [...values].reverse().findIndex(value => value !== null);
+  return (
+    <svg className={styles.spark} width={SPARK.width} height={SPARK.height} aria-hidden="true">
+      <path d={path} />
+      <circle cx={x(last)} cy={y(values[last]!)} r={2.5} />
+    </svg>
   );
 }
 
@@ -112,7 +187,6 @@ export function ColumnChart({ columns, tickLabel, label, height = 180 }: {
   height?: number;
 }) {
   const [ref, width] = useElementWidth<HTMLDivElement>(600);
-  const [active, setActive] = useState<number | null>(null);
   const max = niceMax(Math.max(0, ...columns.map(column => column.value)));
   const plotWidth = Math.max(10, width - MARGIN.left - MARGIN.right);
   const plotHeight = height - MARGIN.top - MARGIN.bottom;
@@ -122,17 +196,19 @@ export function ColumnChart({ columns, tickLabel, label, height = 180 }: {
   const center = (index: number) => MARGIN.left + index * band + band / 2;
   const ticks = [0, max / 2, max].filter(Number.isInteger);
   const peak = columns.reduce((best, column, index) => (column.value > columns[best].value ? index : best), 0);
+  const { active, svgProps, keyProps } = useChartCursor(ref, columns.length, x => Math.floor((x - MARGIN.left) / band));
   const current = active === null ? null : columns[active];
 
   return (
-    <div ref={ref} className={styles.columns}>
-      <svg width={width} height={height} role="img" aria-label={label}>
+    <div ref={ref} className={styles.columns} role="group" aria-label={`${label}. Setas para percorrer`} {...keyProps}>
+      <svg width={width} height={height} role="img" aria-label={label} {...svgProps}>
         {ticks.map(tick => (
           <g key={tick}>
             <line className={styles.grid} x1={MARGIN.left} x2={width - MARGIN.right} y1={y(tick)} y2={y(tick)} />
             <text className={styles.axis} x={MARGIN.left - 6} y={y(tick)} dy="0.32em" textAnchor="end">{formatCount(tick)}</text>
           </g>
         ))}
+        {active !== null && <line className={styles.guide} x1={center(active)} x2={center(active)} y1={MARGIN.top} y2={MARGIN.top + plotHeight} />}
         {columns.map((column, index) => {
           const barHeight = (column.value / max) * plotHeight;
           const tick = tickLabel(index);
@@ -147,19 +223,6 @@ export function ColumnChart({ columns, tickLabel, label, height = 180 }: {
                 />
               )}
               {tick && <text className={styles.axis} x={center(index)} y={height - 6} textAnchor="middle">{tick}</text>}
-              <rect
-                className={styles.hit}
-                x={MARGIN.left + index * band}
-                y={MARGIN.top}
-                width={band}
-                height={plotHeight}
-                tabIndex={0}
-                aria-label={`${column.labelText}: ${column.valueText}`}
-                onPointerEnter={() => setActive(index)}
-                onPointerLeave={() => setActive(null)}
-                onFocus={() => setActive(index)}
-                onBlur={() => setActive(null)}
-              />
             </g>
           );
         })}
@@ -169,6 +232,7 @@ export function ColumnChart({ columns, tickLabel, label, height = 180 }: {
           </text>
         )}
       </svg>
+      <CursorAnnouncement point={current} />
       {current && active !== null && (
         <div
           className={styles.tooltip}
@@ -397,7 +461,6 @@ export function RunChart({ points, tickLabel, label, unit, height = 180 }: {
   height?: number;
 }) {
   const [ref, width] = useElementWidth<HTMLDivElement>(600);
-  const [active, setActive] = useState<number | null>(null);
   const values = points.map(point => point.value);
   const median = medianOf(values) ?? 0;
   const shifts = shiftPoints(values, median);
@@ -409,12 +472,13 @@ export function RunChart({ points, tickLabel, label, unit, height = 180 }: {
   const y = (value: number) => MARGIN.top + plotHeight - (value / max) * plotHeight;
   const ticks = [0, max / 2, max].filter(Number.isInteger);
   const line = points.map((point, index) => `${index === 0 ? 'M' : 'L'}${x(index)},${y(point.value)}`).join('');
+  const { active, svgProps, keyProps } = useChartCursor(ref, points.length, position => Math.floor((position - MARGIN.left) / band));
   const current = active === null ? null : points[active];
   const medianText = formatCount(Math.round(median * 10) / 10);
 
   return (
-    <div ref={ref} className={styles.columns}>
-      <svg width={width} height={height} role="img" aria-label={`${label}; mediana ${medianText}${unit}`}>
+    <div ref={ref} className={styles.columns} role="group" aria-label={`${label}. Setas para percorrer`} {...keyProps}>
+      <svg width={width} height={height} role="img" aria-label={`${label}; mediana ${medianText}${unit}`} {...svgProps}>
         {ticks.map(tick => (
           <g key={tick}>
             <line className={styles.grid} x1={MARGIN.left} x2={width - MARGIN.right} y1={y(tick)} y2={y(tick)} />
@@ -423,6 +487,7 @@ export function RunChart({ points, tickLabel, label, unit, height = 180 }: {
         ))}
         <line className={styles.medianLine} x1={MARGIN.left} x2={width - MARGIN.right} y1={y(median)} y2={y(median)} />
         <text className={styles.medianLabel} x={width - MARGIN.right} y={y(median) - 5} textAnchor="end">mediana {medianText}{unit}</text>
+        {active !== null && <line className={styles.guide} x1={x(active)} x2={x(active)} y1={MARGIN.top} y2={MARGIN.top + plotHeight} />}
         {points.length > 1 && <path className={styles.runLine} d={line} pathLength={1} />}
         {points.map((point, index) => (
           <g key={point.key}>
@@ -434,22 +499,10 @@ export function RunChart({ points, tickLabel, label, unit, height = 180 }: {
               r={active === index ? 5 : 3.5}
             />
             {tickLabel(index) && <text className={styles.axis} x={x(index)} y={height - 6} textAnchor="middle">{tickLabel(index)}</text>}
-            <rect
-              className={styles.hit}
-              x={MARGIN.left + index * band}
-              y={MARGIN.top}
-              width={band}
-              height={plotHeight}
-              tabIndex={0}
-              aria-label={`${point.labelText}: ${point.valueText}`}
-              onPointerEnter={() => setActive(index)}
-              onPointerLeave={() => setActive(null)}
-              onFocus={() => setActive(index)}
-              onBlur={() => setActive(null)}
-            />
           </g>
         ))}
       </svg>
+      <CursorAnnouncement point={current} />
       {current && active !== null && (
         <div
           className={styles.tooltip}

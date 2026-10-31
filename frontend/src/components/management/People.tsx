@@ -1,12 +1,11 @@
 import { AttendantStats, DriverStats, DurationStats, ManagementScope, PeopleIndicators } from '../../types';
 import { getPeople } from '../../services/api';
 import { BarList, ChartCard, medianOf } from './charts';
-import { Failure } from './Indicators';
+import { Failure, Skeleton } from './Indicators';
 import { formatCount, formatMinutes, plural } from './format';
 import { useLoad } from './useLoad';
 import { styles as indicatorStyles } from './Indicators.styles';
 import { styles as chartStyles } from './charts.styles';
-import { Spinner } from '../../ui/Spinner';
 import { styles } from './People.styles';
 import { SortHeader, SortValue, sortRows, useSort } from './sortTable';
 
@@ -16,7 +15,7 @@ export default function People({ scope }: { scope: ManagementScope }) {
   const { data, error, loading, retry } = useLoad(signal => getPeople(scope, signal), JSON.stringify(scope));
 
   if (!data) {
-    return error ? <Failure message={error} onRetry={retry} /> : <div className="loading"><Spinner size={40} /></div>;
+    return error ? <Failure message={error} onRetry={retry} /> : <Skeleton blocks={2} wide />;
   }
 
   const empty = data.attendants.length === 0 && data.drivers.length === 0;

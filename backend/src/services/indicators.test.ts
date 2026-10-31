@@ -129,10 +129,11 @@ test('por hora e por dia (todos os dias do período, com zero)', () => {
   assert.equal(result.byHour.length, 24);
   assert.equal(result.byHour[23], 1);
   assert.equal(result.byHour[10], 5);
+  // Por dia também as medianas e a fração na meta (minigráficos); dia sem caso fica nulo
   assert.deepEqual(result.byDay, [
-    { date: '2026-10-14', count: 1 },
-    { date: '2026-10-15', count: 5 },
-    { date: '2026-10-16', count: 0 }
+    { date: '2026-10-14', count: 1, responseMedian: 480, withinTarget: 1, queueMedian: 60 },
+    { date: '2026-10-15', count: 5, responseMedian: 750, withinTarget: 0.5, queueMedian: 160 },
+    { date: '2026-10-16', count: 0, responseMedian: null, withinTarget: null, queueMedian: null }
   ]);
 });
 

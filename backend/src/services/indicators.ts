@@ -74,7 +74,8 @@ export interface Indicators {
   byHospital: Array<{ hospitalId: string; count: number; transportMedian: number | null }>;
   byAmbulance: Array<{ ambulanceId: string; count: number; responseMedian: number | null }>;
   byHour: number[]; // 0 a 23
-  byDay: Array<{ date: string; count: number }>; // todos os dias do período, com zero
+  // Todos os dias do período, com zero; as medianas e a fração na meta do dia ficam nulas sem casos (minigráficos)
+  byDay: Array<{ date: string; count: number; responseMedian: number | null; withinTarget: number | null; queueMedian: number | null }>;
   quality: {
     finished: number;
     missingOnScene: number; // finalizados sem a chegada ao local (GPS desligado ou chamado antigo)
@@ -143,7 +144,7 @@ export function computeIndicators(rows: IndicatorRow[], period: { from: string; 
   const byPriority = zeros(PRIORITIES);
   const byOutcome = zeros(OUTCOMES);
   const byHour = new Array<number>(24).fill(0);
-  const byDay = new Map(daysBetween(period.from, period.to).map(day => [day, 0]));
+  const byDay = new Map(daysBetween(period.from, period.to).map(day => [day, { count: 0, responses: [] as number[], within: 0, queues: [] as number[] }]));
   const hospitals = new Map<string, number[]>();
   const ambulances = new Map<string, { count: number; responses: number[] }>();
   const quality = { finished: 0, missingOnScene: 0, missingOutcome: 0 };
@@ -157,8 +158,8 @@ export function computeIndicators(rows: IndicatorRow[], period: { from: string; 
     if (byStatus[row.status] !== undefined) byStatus[row.status]++;
     if (byPriority[row.priority] !== undefined) byPriority[row.priority]++;
     byHour[hourOf(row.timestamp)]++;
-    const day = dayOf(row.timestamp);
-    if (byDay.has(day)) byDay.set(day, byDay.get(day)! + 1);
+    const day = byDay.get(dayOf(row.timestamp));
+    if (day) day.count++;
 
     const finished = row.status === CallStatus.FINALIZADO;
     const gpsOnlyAtArrival = !!row.en_route_at && row.en_route_at === row.on_scene_at;
@@ -166,7 +167,8 @@ export function computeIndicators(rows: IndicatorRow[], period: { from: string; 
 
     add('regulation', secondsBetween(row.timestamp, row.regulated_at));
     add('dispatchWait', secondsBetween(row.regulated_at, row.dispatched_at));
-    add('queue', secondsBetween(row.timestamp, row.dispatched_at));
+    const queue = secondsBetween(row.timestamp, row.dispatched_at);
+    add('queue', queue);
     if (!gpsOnlyAtArrival) {
       add('departure', secondsBetween(row.dispatched_at, row.en_route_at));
       add('travel', secondsBetween(row.en_route_at, row.on_scene_at));
@@ -180,8 +182,14 @@ export function computeIndicators(rows: IndicatorRow[], period: { from: string; 
 
     if (response !== null && responseByPriority[row.priority]) {
       responseByPriority[row.priority].push(response);
-      if (response <= RESPONSE_TARGETS[row.priority] * 60) within++;
+      const onTarget = response <= RESPONSE_TARGETS[row.priority] * 60;
+      if (onTarget) within++;
+      if (day) {
+        day.responses.push(response);
+        if (onTarget) day.within++;
+      }
     }
+    if (day && queue !== null) day.queues.push(queue);
 
     if (row.hospital_id && row.hospital_arrival_at) {
       // Chegada sem a saída do local registrada: conta o transporte, sem tempo
@@ -233,7 +241,13 @@ export function computeIndicators(rows: IndicatorRow[], period: { from: string; 
       .map(([ambulanceId, entry]) => ({ ambulanceId, count: entry.count, responseMedian: durationStats(entry.responses).median }))
       .sort((a, b) => b.count - a.count || a.ambulanceId.localeCompare(b.ambulanceId)),
     byHour,
-    byDay: [...byDay].map(([date, count]) => ({ date, count })),
+    byDay: [...byDay].map(([date, day]) => ({
+      date,
+      count: day.count,
+      responseMedian: durationStats(day.responses).median,
+      withinTarget: withinShare(day.responses, day.within),
+      queueMedian: durationStats(day.queues).median
+    })),
     quality
   };
 }
