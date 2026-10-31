@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useState, ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState, ReactNode } from 'react';
 import { CheckCircleIcon, CloseIcon, ErrorIcon, IconComponent, InfoIcon } from '../ui/icons';
 import { styles } from './Toast.styles';
 
@@ -16,6 +16,12 @@ let nextId = 0;
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
+  // Timers dos avisos que somem sozinhos: cancelados se o provedor sair da tela antes
+  const timers = useRef(new Set<number>());
+  useEffect(() => {
+    const pending = timers.current;
+    return () => pending.forEach(timer => window.clearTimeout(timer));
+  }, []);
 
   const dismiss = useCallback((id: number) => setToasts(current => current.filter(t => t.id !== id)), []);
 
@@ -29,7 +35,13 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       const kept = type === 'error' && errors.length >= 3 ? others.filter(t => t.id !== errors[0].id) : others;
       return [...kept, { id, type, message }];
     });
-    if (type !== 'error') window.setTimeout(() => dismiss(id), 4000);
+    if (type !== 'error') {
+      const timer = window.setTimeout(() => {
+        timers.current.delete(timer);
+        dismiss(id);
+      }, 4000);
+      timers.current.add(timer);
+    }
   }, [dismiss]);
 
   return (

@@ -30,6 +30,9 @@ export const styles = {
   results: '[transition:opacity_var(--dur-fast)_var(--ease-out)]',
   refreshing: 'opacity-55',
   empty: 'px-4 py-10 text-center text-text-muted',
+  // Esqueleto da primeira carga (pulsa; parado com "reduzir movimento")
+  skeleton: 'flex flex-col gap-2',
+  skeletonRow: 'h-14 animate-pulse rounded-[10px] border border-border bg-surface motion-reduce:animate-none',
 
   // Tabela (computador)
   tableWrap: 'overflow-x-auto rounded-[14px] border border-border bg-surface',

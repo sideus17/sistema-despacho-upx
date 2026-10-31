@@ -13,7 +13,6 @@ import {
   plural
 } from './format';
 import { useLoad } from './useLoad';
-import { Spinner } from '../../ui/Spinner';
 import { styles } from './Indicators.styles';
 
 // Etapas do atendimento em ordem (o tempo-resposta soma as da abertura à chegada e tem cartão próprio).
@@ -52,7 +51,7 @@ export default function Indicators({ scope, ambulances, hospitals }: {
   const { data, error, loading, retry } = useLoad(signal => getIndicators(scope, signal), JSON.stringify(scope));
 
   if (!data) {
-    return error ? <Failure message={error} onRetry={retry} /> : <div className="loading"><Spinner size={40} /></div>;
+    return error ? <Failure message={error} onRetry={retry} /> : <Skeleton tiles={4} blocks={2} />;
   }
 
   return (
@@ -73,6 +72,22 @@ export default function Indicators({ scope, ambulances, hospitals }: {
           <IndicatorView data={data} ambulances={ambulances} hospitals={hospitals} />
         </>
       )}
+    </div>
+  );
+}
+
+// Primeira carga: o desenho da página em cinza, onde os números vão aparecer (recarregar mantém os dados)
+export function Skeleton({ tiles = 0, blocks, wide = false }: { tiles?: number; blocks: number; wide?: boolean }) {
+  return (
+    <div className={styles.indicators} role="status" aria-label="Carregando">
+      {tiles > 0 && (
+        <div className={styles.tiles}>
+          {Array.from({ length: tiles }, (_, index) => <div key={index} className={styles.skeletonTile} />)}
+        </div>
+      )}
+      <div className={styles.grid}>
+        {Array.from({ length: blocks }, (_, index) => <div key={index} className={wide ? styles.skeletonWide : styles.skeletonBlock} />)}
+      </div>
     </div>
   );
 }
@@ -143,6 +158,7 @@ function IndicatorView({ data, ambulances, hospitals }: { data: IndicatorData; a
         <StatTile
           label="Chamados"
           value={formatCount(data.total)}
+          trend={data.byDay.map(day => day.count)}
           detail={[
             plural(finished, 'finalizado', 'finalizados'),
             ...(data.byStatus.ORIENTADO > 0 ? [plural(data.byStatus.ORIENTADO, 'orientado', 'orientados')] : []),
@@ -152,11 +168,13 @@ function IndicatorView({ data, ambulances, hospitals }: { data: IndicatorData; a
         <StatTile
           label="Tempo-resposta (mediana)"
           value={formatMinutes(stages.response.median)}
+          trend={data.byDay.map(day => day.responseMedian)}
           detail={stages.response.n > 0 ? `9 em cada 10 em até ${formatMinutes(stages.response.p90)}` : 'Sem chegadas registradas'}
         />
         <StatTile
           label="Dentro da meta"
           value={formatPercent(response.overall.withinTarget)}
+          trend={data.byDay.map(day => day.withinTarget)}
           // A meta de cada cor no detalhe: a média esconde o Vermelho, que é o que mais importa
           detail={
             PRIORITIES_BY_SEVERITY.filter(priority => response.byPriority[priority]?.n > 0)
@@ -167,6 +185,7 @@ function IndicatorView({ data, ambulances, hospitals }: { data: IndicatorData; a
         <StatTile
           label="Espera na fila (mediana)"
           value={formatMinutes(stages.queue.median)}
+          trend={data.byDay.map(day => day.queueMedian)}
           detail={stages.queue.n > 0 ? `9 em cada 10 em até ${formatMinutes(stages.queue.p90)}` : 'Sem despachos'}
         />
       </div>

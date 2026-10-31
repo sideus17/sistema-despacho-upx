@@ -26,8 +26,11 @@ export const styles = {
 
   // Número em destaque
   tile: 'flex min-w-0 flex-col gap-1 rounded-[14px] border border-border bg-surface px-4 py-3.5',
+  tileTop: 'flex items-start justify-between gap-2',
   tileLabel: 'text-[13px] font-[600] text-text-muted',
-  tileValue: 'text-[28px] leading-[1.15] font-[700]',
+  tileValue: 'text-[28px] leading-[1.15] font-[700] animate-pop-in motion-reduce:animate-none',
+  // Minigráfico da tendência: linha no acento e o último dia marcado
+  spark: 'shrink-0 overflow-visible [&_path]:[fill:none] [&_path]:[stroke:var(--chart-accent)] [&_path]:[stroke-width:1.5] [&_path]:[stroke-linecap:round] [&_path]:[stroke-linejoin:round] [&_circle]:[fill:var(--chart-accent)]',
   tileDetail: 'text-[12px] text-text-muted',
 
   // Colunas (SVG)
@@ -36,7 +39,8 @@ export const styles = {
   axis: `[fill:var(--color-text-muted)] text-[12px] ${numbers}`,
   peak: '[fill:var(--color-text)] text-[12px] font-[700]',
   column: `[fill:var(--chart-accent)] origin-bottom [transform-box:fill-box] [animation:chart-grow-y_400ms_var(--ease-out)_calc(var(--i,0)*40ms)_both] [transition:opacity_var(--dur-fast)_var(--ease-out),d_250ms_var(--ease-out)] ${still}`,
-  hit: '[fill:transparent] cursor-default [outline:none] focus-visible:[stroke:var(--color-primary)] focus-visible:[stroke-width:2]',
+  // Linha vertical no ponto ativo, atrás das colunas e da linha
+  guide: 'pointer-events-none [stroke:var(--color-text-muted)] [stroke-width:1] [stroke-dasharray:3_3]',
   tooltip:
     'pointer-events-none absolute z-2 flex flex-col gap-px rounded-lg bg-surface-inverse px-2.5 py-1.5 text-[12px] whitespace-nowrap text-white [box-shadow:0_4px_12px_rgba(0,0,0,0.2)] [transform:translate(-50%,-100%)] [&_span]:opacity-80 [&_strong]:text-[13px]',
 

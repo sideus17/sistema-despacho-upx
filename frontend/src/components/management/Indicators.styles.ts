@@ -2,6 +2,10 @@
 // mais apagado, sem piscar
 export const styles = {
   indicators: 'flex flex-col gap-4 [transition:opacity_var(--dur-fast)_var(--ease-out)] aria-busy:opacity-[0.55]',
+  // Esqueleto da primeira carga (pulsa; parado com "reduzir movimento")
+  skeletonTile: 'h-[104px] animate-pulse rounded-[14px] border border-border bg-surface motion-reduce:animate-none',
+  skeletonBlock: 'h-[280px] animate-pulse rounded-[14px] border border-border bg-surface motion-reduce:animate-none',
+  skeletonWide: 'col-span-full h-[280px] animate-pulse rounded-[14px] border border-border bg-surface motion-reduce:animate-none',
   tiles: 'grid grid-cols-[repeat(4,minmax(0,1fr))] gap-3 [@media(max-width:1100px)]:grid-cols-[repeat(2,minmax(0,1fr))] [@media(max-width:480px)]:gap-2',
   grid: 'grid grid-cols-[repeat(2,minmax(0,1fr))] gap-4 [@media(max-width:900px)]:grid-cols-[minmax(0,1fr)]',
   // o <small> sozinho cai para 10,8 px

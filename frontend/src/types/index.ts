@@ -391,7 +391,7 @@ export interface Indicators {
   byHospital: Array<{ hospitalId: string; count: number; transportMedian: number | null }>;
   byAmbulance: Array<{ ambulanceId: string; count: number; responseMedian: number | null }>;
   byHour: number[];
-  byDay: Array<{ date: string; count: number }>;
+  byDay: Array<{ date: string; count: number; responseMedian: number | null; withinTarget: number | null; queueMedian: number | null }>;
   quality: { finished: number; missingOnScene: number; missingOutcome: number };
 }
 

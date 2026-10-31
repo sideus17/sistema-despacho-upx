@@ -37,8 +37,8 @@ export function indicators(overrides: Partial<Indicators> = {}): Indicators {
     byAmbulance: [{ ambulanceId: 'amb-3', count: 45, responseMedian: 1122 }],
     byHour: Array.from({ length: 24 }, (_, hour) => (hour === 18 ? 11 : 3)),
     byDay: [
-      { date: '2026-10-15', count: 4 },
-      { date: '2026-10-16', count: 7 }
+      { date: '2026-10-15', count: 4, responseMedian: 1020, withinTarget: 0.75, queueMedian: 360 },
+      { date: '2026-10-16', count: 7, responseMedian: 1140, withinTarget: 0.8, queueMedian: 420 }
     ],
     quality: { finished: 137, missingOnScene: 8, missingOutcome: 1 },
     ...overrides
