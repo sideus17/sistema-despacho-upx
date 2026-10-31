@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import Icons from 'unplugin-icons/vite'
 import { minimal2023Preset } from '@vite-pwa/assets-generator/config'
@@ -10,6 +11,7 @@ const BRAND_RED = '#dc2626'
 export default defineConfig({
   plugins: [
     react(),
+    tailwindcss(),
     // Ícones (Material Symbols + Healthicons) viram componentes React no build: nada é baixado em execução
     Icons({ compiler: 'jsx', jsx: 'react', defaultClass: 'icon' }),
     VitePWA({
