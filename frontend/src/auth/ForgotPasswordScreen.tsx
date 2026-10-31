@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { AuthLayout } from './AuthUI';
-import styles from './auth.module.css';
+import { styles } from './authStyles';
 import { authErrorMessage } from './authErrors';
 
 // Marcador na volta do link do e-mail: o AuthGate sabe que é para criar uma senha nova

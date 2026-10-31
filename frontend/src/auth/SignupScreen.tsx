@@ -5,7 +5,7 @@ import { UserRole } from '../types';
 import { AmbulanceIcon, HeadsetIcon } from '../ui/icons';
 import { formatCpf, formatPhone, isValidCellphone, isValidCpf, onlyDigits } from '../utils/documents';
 import { AuthLayout } from './AuthUI';
-import styles from './auth.module.css';
+import { styles } from './authStyles';
 import { authErrorMessage } from './authErrors';
 import { PasswordInput } from './PasswordInput';
 
@@ -76,7 +76,7 @@ export default function SignupScreen({ onLogin }: { onLogin: () => void }) {
         <fieldset className={styles.roles}>
           <legend>Você é</legend>
           {ROLES.map(option => (
-            <label key={option.value} className={`${styles.roleCard} ${role === option.value ? styles.roleCardSelected : ''}`}>
+            <label key={option.value} className={styles.roleCard} data-selected={role === option.value || undefined}>
               <input
                 type="radio"
                 name="role"

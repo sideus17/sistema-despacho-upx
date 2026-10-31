@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../components/Toast';
 import { AuthLayout } from './AuthUI';
-import styles from './auth.module.css';
+import { styles } from './authStyles';
 import { authErrorMessage } from './authErrors';
 import { PasswordInput } from './PasswordInput';
 
