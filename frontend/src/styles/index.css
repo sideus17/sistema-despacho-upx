@@ -1,9 +1,9 @@
 /* Tailwind: as classes leem os tokens abaixo (que continuam a fonte, com o tema da noite por data-theme).
-   O CSS fora de camada (este arquivo e os .module.css) vence o Tailwind até cada tela ser migrada.
-   Sem o preflight (reset do Tailwind) por enquanto: ele muda altura de linha, fonte dos botões e bordas dos
-   campos em todas as telas; entra no fim da migração, quando os .module.css tiverem saído */
+   O preflight (reset do Tailwind) entra na camada base antes das regras deste arquivo, que acertam o que
+   ele mudaria no visual de antes */
 @layer theme, base, components, utilities;
 @import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/preflight.css' layer(base);
 @import 'tailwindcss/utilities.css' layer(utilities);
 
 /* night: estilo só da noite (data-theme='night' no <html>), além do que os tokens já trocam sozinhos */
@@ -205,6 +205,43 @@
     -moz-osx-font-smoothing: grayscale;
     background-color: var(--color-background);
     color: var(--color-text);
+  }
+
+  /* O que o preflight muda e o app não usa: altura de linha 1,5, imagens e SVG em bloco (os ícones ficam
+     no meio do texto) e espaçamento de letras herdado nos controles */
+  html,
+  :host {
+    line-height: normal;
+  }
+
+  img, svg, video, canvas, audio, iframe, embed, object {
+    display: revert-layer;
+    vertical-align: revert-layer;
+  }
+
+  img, video {
+    max-width: revert-layer;
+    height: revert-layer;
+  }
+
+  button, input, select, optgroup, textarea {
+    letter-spacing: revert-layer;
+  }
+
+  /* small, code e textarea como o navegador desenha (o preflight troca tamanho, fonte e redimensionamento) */
+  small {
+    font-size: revert-layer;
+  }
+
+  code, kbd, samp, pre {
+    font-family: revert-layer;
+    font-feature-settings: revert-layer;
+    font-variation-settings: revert-layer;
+    font-size: revert-layer;
+  }
+
+  textarea {
+    resize: revert-layer;
   }
 
   /* Botões e campos com a fonte do app (o navegador põe Arial neles) */
