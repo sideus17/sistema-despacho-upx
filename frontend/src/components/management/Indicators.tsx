@@ -14,7 +14,7 @@ import {
 } from './format';
 import { useLoad } from './useLoad';
 import { Spinner } from '../../ui/Spinner';
-import styles from './Indicators.module.css';
+import { styles } from './Indicators.styles';
 
 // Etapas do atendimento em ordem (o tempo-resposta soma as da abertura à chegada e tem cartão próprio).
 // Com chamados regulados no período, a fila aparece dividida em regulação e espera pela viatura.
@@ -56,7 +56,7 @@ export default function Indicators({ scope, ambulances, hospitals }: {
   }
 
   return (
-    <div className={`${styles.indicators} ${loading ? styles.refreshing : ''}`} aria-busy={loading}>
+    <div className={styles.indicators} aria-busy={loading}>
       {error && <Failure message={error} onRetry={retry} />}
       {data.total === 0 ? (
         <div className={styles.empty}>

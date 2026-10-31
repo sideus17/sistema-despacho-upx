@@ -8,7 +8,7 @@ import { ChevronLeftIcon, ChevronRightIcon, SearchIcon } from '../../ui/icons';
 import { CallDetail, callDurations, openedAt, resultLabel } from './CallDetail';
 import { PRIORITY_CHART_COLOR, formatCount, formatMinutes } from './format';
 import { useLoad } from './useLoad';
-import styles from './History.module.css';
+import { styles } from './History.styles';
 
 const PAGE_SIZE = 25;
 const SEARCH_DELAY_MS = 350;

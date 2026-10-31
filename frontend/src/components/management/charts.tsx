@@ -1,6 +1,6 @@
 import { CSSProperties, ReactNode, RefObject, useLayoutEffect, useRef, useState } from 'react';
 import { formatCount, formatMinutes, niceMax } from './format';
-import styles from './charts.module.css';
+import { styles } from './charts.styles';
 
 // Peças dos gráficos da gestão, em SVG e HTML próprios (sem biblioteca): cartão com a versão em
 // tabela, número em destaque, colunas com dica ao passar o mouse e barras horizontais.
@@ -211,7 +211,9 @@ export function BarList({ items, label, reference, max: fixedMax }: {
             <span className={styles.barTrack}>
               {item.value > 0 && (
                 <span
-                  className={`${styles.bar} ${item.muted ? styles.barMuted : ''} ${item.value > max ? styles.barClipped : ''}`}
+                  className={styles.bar}
+                  data-muted={item.muted || undefined}
+                  data-clipped={item.value > max || undefined}
                   style={{ width: `${Math.min(1, item.value / max) * 100}%` }}
                 />
               )}
@@ -425,7 +427,8 @@ export function RunChart({ points, tickLabel, label, unit, height = 180 }: {
         {points.map((point, index) => (
           <g key={point.key}>
             <circle
-              className={`${styles.runDot} ${shifts.has(index) ? styles.runDotShift : ''}`}
+              className={styles.runDot}
+              data-shift={shifts.has(index) || undefined}
               cx={x(index)}
               cy={y(point.value)}
               r={active === index ? 5 : 3.5}

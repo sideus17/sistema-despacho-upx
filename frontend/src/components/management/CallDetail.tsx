@@ -11,7 +11,7 @@ import { useFocusTrap } from '../../ui/useFocusTrap';
 import { CloseIcon } from '../../ui/icons';
 import { formatMinutes } from './format';
 import { useLoad } from './useLoad';
-import styles from './CallDetail.module.css';
+import { styles } from './CallDetail.styles';
 
 // "12/10, 10:43"
 export const openedAt = (iso: string) =>

@@ -9,7 +9,7 @@ import { PERIODS, PeriodKey, periodRange } from './format';
 import { useManagementBusy } from './useLoad';
 import { announce } from '../../ui/announce';
 import { SlidingThumb } from '../../ui/SlidingThumb';
-import styles from './ManagementPage.module.css';
+import { styles } from './ManagementPage.styles';
 
 // Gestão da central: indicadores, por pessoa, mapa de calor e histórico do período escolhido, em tela cheia
 // (a operação continua por trás)
@@ -108,7 +108,7 @@ export default function ManagementPage({ ambulances, hospitals, bases }: {
           </div>
 
           <div className={styles.filters}>
-            <div className={`${styles.segmented} slide-group`} role="radiogroup" aria-label="Período">
+            <div className={styles.segmented} role="radiogroup" aria-label="Período">
               <SlidingThumb variant="raised" watch={preferences.period} />
               {PERIODS.map(period => (
                 <button
@@ -151,7 +151,7 @@ export default function ManagementPage({ ambulances, hospitals, bases }: {
             </button>
           </div>
 
-          <div ref={tabsRef} className={`${styles.tabs} slide-group`} role="tablist" aria-label="Seções da gestão">
+          <div ref={tabsRef} className={styles.tabs} role="tablist" aria-label="Seções da gestão">
             <SlidingThumb variant="line" watch={preferences.tab} />
             {TABS.map(({ key, label, Icon }) => (
               <button
@@ -174,7 +174,7 @@ export default function ManagementPage({ ambulances, hospitals, bases }: {
         id="gestao-painel"
         role="tabpanel"
         aria-labelledby={`gestao-tab-${preferences.tab}`}
-        className={`${styles.content} ${preferences.tab === 'calor' ? styles.contentMap : ''}`}
+        className={preferences.tab === 'calor' ? styles.contentMap : styles.content}
       >
         {preferences.tab === 'calor' ? (
           <HeatMap scope={scope} hospitals={hospitals} bases={bases} />
