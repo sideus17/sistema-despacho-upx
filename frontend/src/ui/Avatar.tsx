@@ -1,7 +1,5 @@
-import { CSSProperties } from 'react';
 import { AvatarColor } from '../types';
 import { avatarUrl } from '../lib/supabase';
-import styles from './Avatar.module.css';
 
 // Cores escuras o bastante para as iniciais em branco (contraste ≥ 4,5:1)
 export const AVATAR_COLORS: Record<AvatarColor, string> = {
@@ -47,14 +45,18 @@ interface AvatarProps {
 
 export function Avatar({ name, seed, photo, color, size = 32, badge = false, className = '' }: AvatarProps) {
   const background = AVATAR_COLORS[color ?? colorFromSeed(seed)];
+  const badgeSize = Math.max(8, size * 0.26);
   return (
     <span
-      className={`${styles.avatar} ${className}`}
-      style={{ '--avatar-size': `${size}px`, background } as CSSProperties}
+      className={`relative inline-grid shrink-0 place-items-center rounded-full leading-none font-bold tracking-[0.02em] text-white select-none ${className}`}
+      style={{ width: size, height: size, fontSize: size * 0.42, background }}
       aria-hidden="true"
     >
-      {photo ? <img className={styles.photo} src={avatarUrl(photo)} alt="" loading="lazy" /> : initials(name)}
-      {badge && <span className={styles.badge} />}
+      {/* Foto recortada no círculo; a cor de fundo aparece enquanto ela carrega */}
+      {photo ? <img className="size-full rounded-full object-cover" src={avatarUrl(photo)} alt="" loading="lazy" /> : initials(name)}
+      {badge && (
+        <span className="absolute top-0 right-0 rounded-full border-2 border-white bg-text" style={{ width: badgeSize, height: badgeSize }} />
+      )}
     </span>
   );
 }

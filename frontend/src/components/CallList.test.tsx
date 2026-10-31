@@ -266,8 +266,8 @@ describe('filas da central', () => {
       opened('regulado', 30, { status: CallStatus.PENDENTE, times: { regulated: new Date(Date.now() - 60_000).toISOString() } })
     ]);
     // Regulação: 2 min já é atenção; despacho: 1 min desde a regulação (não os 30 desde a abertura)
-    expect(screen.getByLabelText(/^Aguardando regulação há 2 min( \d s)?$/)).toHaveClass(/wait_atencao/);
-    expect(screen.getByLabelText(/^Aguardando despacho há 1 min( \d s)?$/)).toHaveClass(/wait_normal/);
+    expect(screen.getByLabelText(/^Aguardando regulação há 2 min( \d s)?$/)).toHaveAttribute('data-level', 'atencao');
+    expect(screen.getByLabelText(/^Aguardando despacho há 1 min( \d s)?$/)).toHaveAttribute('data-level', 'normal');
   });
 
   it('filtro sem chamados avisa', async () => {

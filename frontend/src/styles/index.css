@@ -1,3 +1,85 @@
+/* Tailwind: as classes leem os tokens abaixo (que continuam a fonte, com o tema da noite por data-theme).
+   O CSS fora de camada (este arquivo e os .module.css) vence o Tailwind até cada tela ser migrada.
+   Sem o preflight (reset do Tailwind) por enquanto: ele muda altura de linha, fonte dos botões e bordas dos
+   campos em todas as telas; entra no fim da migração, quando os .module.css tiverem saído */
+@layer theme, base, components, utilities;
+@import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/utilities.css' layer(utilities);
+
+/* night: estilo só da noite (data-theme='night' no <html>), além do que os tokens já trocam sozinhos */
+@custom-variant night (&:where([data-theme='night'], [data-theme='night'] *));
+
+@theme inline {
+  /* Só as cores do sistema: nada de bg-blue-500 fora dos tokens */
+  --color-*: initial;
+  --color-primary: var(--color-primary);
+  --color-primary-hover: var(--color-primary-hover);
+  --color-on-primary: var(--color-on-primary);
+  --color-primary-text: var(--color-primary-text);
+  --color-danger-text: var(--color-danger-text);
+  --color-text: var(--color-text);
+  --color-text-soft: var(--color-text-soft);
+  --color-text-muted: var(--color-text-muted);
+  --color-border: var(--color-border);
+  --color-border-strong: var(--color-border-strong);
+  --color-surface: var(--color-surface);
+  --color-surface-muted: var(--color-surface-muted);
+  --color-surface-hover: var(--color-surface-hover);
+  --color-surface-inverse: var(--color-surface-inverse);
+  --color-background: var(--color-background);
+  --color-map-loading: var(--color-map-loading);
+  --color-header: var(--color-header);
+  --color-action: var(--color-action);
+  --color-on-action: var(--color-on-action);
+  --color-action-border: var(--color-action-border);
+  --color-secondary-border: var(--color-secondary-border);
+  --color-secondary-text: var(--color-secondary-text);
+  --color-focus: var(--color-focus);
+  --color-tint-neutral: var(--tint-neutral-bg);
+  --color-tint-neutral-strong: var(--tint-neutral-bg-strong);
+  --color-tint-neutral-border: var(--tint-neutral-border);
+  --color-tint-neutral-text: var(--tint-neutral-text);
+  --color-tint-error: var(--tint-error-bg);
+  --color-tint-error-strong: var(--tint-error-bg-strong);
+  --color-tint-error-border: var(--tint-error-border);
+  --color-tint-error-text: var(--tint-error-text);
+  --color-chart-accent: var(--chart-accent);
+  --color-chart-accent-soft: var(--chart-accent-soft);
+  --color-white: #ffffff;
+  --color-black: #000000;
+  --color-transparent: transparent;
+  --color-current: currentColor;
+
+  --radius-app: var(--radius);
+  --spacing-touch: var(--touch-target);
+  --spacing-pulseira: var(--pulseira-width);
+
+  --font-weight-*: initial;
+  --font-weight-regular: var(--weight-regular);
+  --font-weight-medium: var(--weight-medium);
+  --font-weight-bold: var(--weight-bold);
+  --font-weight-display: var(--weight-display);
+
+  --ease-out: var(--ease-out);
+
+  --animate-spinner: spin 0.9s linear infinite;
+  --animate-pop-in: pop-in var(--dur-fast) var(--ease-out);
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  /* Lista ou painel abrindo: um deslize curto de cima */
+  @keyframes pop-in {
+    from {
+      opacity: 0;
+      transform: translateY(-4px);
+    }
+  }
+}
+
 /* Design tokens
    Cor forte e preenchida só para as 4 cores da classificação de risco (--risk-*, que vêm de PRIORITY_META:
    ver theme/riskTokens.ts). O resto é tinta (grafite) e superfície: estado se mostra por texto, ícone, peso e forma. */
@@ -106,86 +188,89 @@
   --alarm-band-height: 0px;
 }
 
-/* Reset and Base Styles */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  background-color: var(--color-background);
-  color: var(--color-text);
-}
-
-/* Botões e campos com a fonte do app (o navegador põe Arial neles) */
-:where(button, input, select, textarea) {
-  font-family: inherit;
-}
-
-/* Dica dos campos no cinza da legenda (o cinza do navegador some no escuro) */
-::placeholder {
-  color: var(--color-text-muted);
-  opacity: 1;
-}
-
-/* Sem palavra sozinha na última linha (descrição, linha do tempo) */
-:where(p, li) {
-  text-wrap: pretty;
-}
-
-/* Toque, seleção e troca de estado com uma transição curta (cada tela pode refinar) */
-:where(button, a, select, input, textarea) {
-  transition:
-    background-color var(--dur-fast) var(--ease-out),
-    border-color var(--dur-fast) var(--ease-out),
-    box-shadow var(--dur-fast) var(--ease-out),
-    color var(--dur-fast) var(--ease-out);
-}
-
-/* "Reduzir movimento" do sistema: sem transições (as animações que são enfeite saem em cada tela) */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    transition-duration: 0.01ms !important;
-  }
-}
-
-/* Foco do teclado em qualquer controle: anel de 2 px (cada tela pode refinar, nunca tirar) */
-:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
-  outline: 2px solid var(--color-focus);
-  outline-offset: 2px;
-}
-
-/* Toque (celular e tablet): alvo mínimo de 44 px em qualquer controle; no mouse o visual fica como está */
-@media (pointer: coarse) {
-  button,
-  select,
-  [role='button'],
-  [role='tab'] {
-    min-height: 44px !important;
+/* Base: em camada, para as classes do Tailwind (utilities) vencerem o reset e os padrões */
+@layer base {
+  /* Reset and Base Styles */
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
   }
 
-  button[aria-label] {
-    min-width: 44px !important;
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+      'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+      sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background-color: var(--color-background);
+    color: var(--color-text);
   }
-}
 
-/* Aperto: todo botão escurece um pouco enquanto é pressionado (cada tela pode ter o seu) */
-:where(button, [role='button'], [role='tab']):not(:disabled):active {
-  filter: brightness(0.9);
-}
+  /* Botões e campos com a fonte do app (o navegador põe Arial neles) */
+  :where(button, input, select, textarea) {
+    font-family: inherit;
+  }
 
-/* Ícones SVG (unplugin-icons) alinhados ao texto */
-.icon {
-  flex-shrink: 0;
-  vertical-align: -0.2em;
+  /* Dica dos campos no cinza da legenda (o cinza do navegador some no escuro) */
+  ::placeholder {
+    color: var(--color-text-muted);
+    opacity: 1;
+  }
+
+  /* Sem palavra sozinha na última linha (descrição, linha do tempo) */
+  :where(p, li) {
+    text-wrap: pretty;
+  }
+
+  /* Toque, seleção e troca de estado com uma transição curta (cada tela pode refinar) */
+  :where(button, a, select, input, textarea) {
+    transition:
+      background-color var(--dur-fast) var(--ease-out),
+      border-color var(--dur-fast) var(--ease-out),
+      box-shadow var(--dur-fast) var(--ease-out),
+      color var(--dur-fast) var(--ease-out);
+  }
+
+  /* "Reduzir movimento" do sistema: sem transições (as animações que são enfeite saem em cada tela) */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  /* Foco do teclado em qualquer controle: anel de 2 px (cada tela pode refinar, nunca tirar) */
+  :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+
+  /* Toque (celular e tablet): alvo mínimo de 44 px em qualquer controle; no mouse o visual fica como está */
+  @media (pointer: coarse) {
+    button,
+    select,
+    [role='button'],
+    [role='tab'] {
+      min-height: 44px !important;
+    }
+
+    button[aria-label] {
+      min-width: 44px !important;
+    }
+  }
+
+  /* Aperto: todo botão escurece um pouco enquanto é pressionado (cada tela pode ter o seu) */
+  :where(button, [role='button'], [role='tab']):not(:disabled):active {
+    filter: brightness(0.9);
+  }
+
+  /* Ícones SVG (unplugin-icons) alinhados ao texto */
+  .icon {
+    flex-shrink: 0;
+    vertical-align: -0.2em;
+  }
 }
 
 /* App Layout */
