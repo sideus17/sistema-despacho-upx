@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import styles from './auth.module.css';
+import { styles } from './authStyles';
 
 export function AuthLayout({ title, subtitle, children }: { title?: string; subtitle?: string; children: ReactNode }) {
   return (

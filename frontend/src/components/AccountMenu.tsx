@@ -6,7 +6,7 @@ import { CloseIcon, EndShiftIcon, LogoutIcon, WarningIcon } from '../ui/icons';
 import { useFocusTrap } from '../ui/useFocusTrap';
 import { ThemePicker } from '../theme/ThemePicker';
 import { AccountPage, ROLE_LABEL } from './AccountPage';
-import styles from './AccountMenu.module.css';
+import { styles } from './AccountMenu.styles';
 
 interface AccountMenuProps {
   onSignOut: () => void | Promise<void>;
@@ -110,7 +110,7 @@ export function AccountMenu({ onSignOut, blockedReason, shift }: AccountMenuProp
           </div>
 
           {incomplete && (
-            <button className={`${styles.item} ${styles.itemAlert}`} onClick={openPage}>
+            <button className={styles.itemAlert} onClick={openPage}>
               <WarningIcon /> Complete seu cadastro
             </button>
           )}

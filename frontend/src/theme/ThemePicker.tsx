@@ -1,5 +1,5 @@
 import { setThemePreference, THEME_OPTIONS, useTheme } from './theme';
-import styles from './ThemePicker.module.css';
+import { styles } from './ThemePicker.styles';
 import { SlidingThumb } from '../ui/SlidingThumb';
 
 // Automático · Claro · Escuro, lado a lado

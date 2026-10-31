@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { AuthLayout } from './AuthUI';
-import styles from './auth.module.css';
+import { styles } from './authStyles';
 import { authErrorMessage } from './authErrors';
 import { PasswordInput } from './PasswordInput';
 
@@ -35,7 +35,7 @@ export default function LoginScreen({ onSignup, onForgot }: { onSignup: () => vo
           <span>Senha</span>
           <PasswordInput autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
         </label>
-        <button type="button" className={`${styles.link} ${styles.forgot}`} onClick={() => onForgot(email.trim())}>
+        <button type="button" className={styles.forgot} onClick={() => onForgot(email.trim())}>
           Esqueci a senha
         </button>
 

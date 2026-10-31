@@ -13,7 +13,7 @@ import { formatCpf, formatPhone, isValidCellphone, isValidCpf, maskCpf, onlyDigi
 import { useToast } from './Toast';
 import { Spinner } from '../ui/Spinner';
 import { squarePhoto } from '../utils/photo';
-import styles from './AccountPage.module.css';
+import { styles } from './AccountPage.styles';
 
 export const ROLE_LABEL: Record<UserRole, string> = {
   [UserRole.OPERADOR]: 'Atendente da central',
@@ -63,7 +63,7 @@ function buildPatch(form: Form, initial: Form): { patch: ProfilePatch; errors: E
 
 function Field({ label, error, hint, children }: { label: string; error?: string; hint?: string; children: ReactNode }) {
   return (
-    <label className={styles.field}>
+    <label className={styles.field} data-invalid={error ? true : undefined}>
       <span>{label}</span>
       {children}
       {error ? <small className={styles.fieldError}>{error}</small> : hint && <small className={styles.hint}>{hint}</small>}

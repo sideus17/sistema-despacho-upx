@@ -15,7 +15,7 @@ import { MfaEnroll, MfaVerify } from './Mfa';
 import ForgotPasswordScreen, { RECOVERY_PARAM } from './ForgotPasswordScreen';
 import ResetPasswordScreen from './ResetPasswordScreen';
 import { Spinner } from '../ui/Spinner';
-import styles from './auth.module.css';
+import { styles } from './authStyles';
 
 type Stage = 'loading' | 'login' | 'signup' | 'forgot' | 'mfa-enroll' | 'mfa-verify' | 'reset' | 'unavailable' | 'ready';
 
