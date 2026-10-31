@@ -46,7 +46,7 @@ import { callDestination, crewPhase } from './destination';
 import HospitalSheet from './HospitalSheet';
 import { Spinner } from '../ui/Spinner';
 import { SlidingThumb } from '../ui/SlidingThumb';
-import styles from './CrewApp.module.css';
+import { styles } from './CrewApp.styles';
 
 // Os mapas (MapLibre) são baixados à parte: a navegação só quando começa
 const NavigationView = lazy(() => import('./navigation/NavigationView'));
@@ -106,11 +106,11 @@ const SHIFT_GPS_ACCURACY = 100;
 
 // Selo de cada viatura na escolha do turno (o status interno "Indisponível" de quem está sem equipe confundia)
 function PickerPill({ entry }: { entry: PickerEntry }) {
-  if (entry.taken) return <span className={`${styles.pill} ${styles.pill_INDISPONIVEL}`}>Em turno · {entry.ambulance.driver?.name.split(' ')[0]}</span>;
+  if (entry.taken) return <span className={styles.pill_INDISPONIVEL}>Em turno · {entry.ambulance.driver?.name.split(' ')[0]}</span>;
   if (entry.ambulance.status === AmbulanceStatus.EM_ATENDIMENTO) {
-    return <span className={`${styles.pill} ${styles.pill_EM_ATENDIMENTO}`}>Atendimento em andamento</span>;
+    return <span className={styles.pill_EM_ATENDIMENTO}>Atendimento em andamento</span>;
   }
-  return <span className={`${styles.pill} ${styles.pill_DISPONIVEL}`}>Livre</span>;
+  return <span className={styles.pill_DISPONIVEL}>Livre</span>;
 }
 
 const TYPE_FILTERS: Array<{ value: AmbulanceType | 'ALL'; label: string }> = [
@@ -119,7 +119,7 @@ const TYPE_FILTERS: Array<{ value: AmbulanceType | 'ALL'; label: string }> = [
 ];
 
 function StatusPill({ status }: { status: AmbulanceStatus }) {
-  return <span className={`${styles.pill} ${styles[`pill_${status}`]}`}>{AMBULANCE_STATUS_LABEL[status] ?? status}</span>;
+  return <span className={styles[`pill_${status}`]}>{AMBULANCE_STATUS_LABEL[status] ?? status}</span>;
 }
 
 export default function CrewApp() {
@@ -442,7 +442,7 @@ export default function CrewApp() {
                 key={filter.value}
                 role="tab"
                 aria-selected={typeFilter === filter.value}
-                className={`${styles.typeChip} ${typeFilter === filter.value ? styles.typeChipActive : ''}`}
+                className={styles.typeChip}
                 onClick={() => setTypeFilter(filter.value)}
               >
                 {filter.label}
@@ -462,7 +462,7 @@ export default function CrewApp() {
               return (
                 <li key={a.id}>
                   <button
-                    className={`${styles.pickerItem} ${entry.taken ? styles.pickerItemTaken : ''}`}
+                    className={entry.taken ? styles.pickerItemTaken : styles.pickerItem}
                     disabled={busy || entry.taken}
                     onClick={() => handleStartShift(a)}
                   >
@@ -635,7 +635,7 @@ export default function CrewApp() {
                   key={index}
                   role="radio"
                   aria-checked={index === routeIndex}
-                  className={`${styles.routeChoice} ${index === routeIndex ? styles.routeChoiceSelected : ''}`}
+                  className={styles.routeChoice}
                   onClick={() => setRouteIndex(index)}
                 >
                   <strong>{formatDuration(option.duration)}</strong>
@@ -737,7 +737,7 @@ export default function CrewApp() {
 
   if (landscape) {
     return (
-      <div className={`${styles.shell} ${styles.shellLandscape}`}>
+      <div className={styles.shellLandscape} data-landscape>
         <div className={styles.sideColumn}>
           {header}
           {offlineBanner}

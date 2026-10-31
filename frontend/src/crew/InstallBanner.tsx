@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { CloseIcon } from '../ui/icons';
-import styles from './CrewApp.module.css';
+import { styles } from './CrewApp.styles';
 
 const DISMISS_KEY = 'samu:instalacao-dispensada';
 

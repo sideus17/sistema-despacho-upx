@@ -5,7 +5,7 @@ import { distance } from './navigation/geo';
 import { PRIORITY_META, riskVars } from '../utils/calls';
 import { signalsText } from '../utils/triage';
 import { playAlert } from '../utils/alertSound';
-import styles from './DispatchAlert.module.css';
+import { styles } from './DispatchAlert.styles';
 
 // Intervalo do toque: o alarme repete até a equipe tocar em "Ciente"
 export const ALARM_INTERVAL_MS = 2500;
